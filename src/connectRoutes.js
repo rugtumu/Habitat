@@ -123,8 +123,8 @@ function finish(res, status, provider) {
   const label = PROVIDER_LABELS[provider] || 'Account';
   const title = ok ? `${label} linked` : `Couldn't link ${label}`;
   const body = ok
-    ? 'You can close this window and go back to Haven.'
-    : 'Something went wrong. Close this window and try again from Haven.';
+    ? 'You can close this window and go back to Habitat.'
+    : 'Something went wrong. Close this window and try again from Habitat.';
 
   res.status(ok ? 200 : 400).type('html').send(`<!doctype html>
 <html><head><meta charset="utf-8"><title>${title}</title>
@@ -176,8 +176,8 @@ function confirmPage(res, provider, token, username) {
   button { font:inherit; padding:8px 20px; border-radius:8px; border:0; background:#5865f2; color:#fff; cursor:pointer; }
 </style></head>
 <body><div class="card"><h1>Link ${label}</h1>
-<p>Your ${label} account will be linked to the Haven account <b>${escapeHtml(username)}</b>.
-Only continue if that is you and you started this from Haven.</p>
+<p>Your ${label} account will be linked to the Habitat account <b>${escapeHtml(username)}</b>.
+Only continue if that is you and you started this from Habitat.</p>
 <form method="post" action="/connect/${provider}/go"><input type="hidden" name="token" value="${escapeHtml(token)}"><button type="submit">Continue</button></form>
 </div></body></html>`);
 }
@@ -257,7 +257,7 @@ function createConnectRoutes(getActivity) {
     if (!configured(req)) return res.status(503).send(`${PROVIDER_LABELS[provider]} integration not configured on this server`);
     const userId = connectUserId(req.query.token, provider);
     const username = userId ? linkUsername(userId) : '';
-    if (!username) return res.status(401).send('Link session expired. Close this tab and try again from Haven.');
+    if (!username) return res.status(401).send('Link session expired. Close this tab and try again from Habitat.');
     confirmPage(res, provider, String(req.query.token), username);
   };
   router.get('/steam', showConfirm('steam', (req) => req.activity.isSteamConfigured()));
@@ -265,10 +265,10 @@ function createConnectRoutes(getActivity) {
 
   router.post('/steam/go', express.urlencoded({ extended: false, limit: '4kb' }), (req, res) => {
     if (!req.activity.isSteamConfigured()) return res.status(503).send('Steam integration not configured on this server');
-    if (!fromThisSite(req)) return res.status(403).send('Open the link from Haven and press Continue.');
+    if (!fromThisSite(req)) return res.status(403).send('Open the link from Habitat and press Continue.');
     req.query.token = req.body && req.body.token;
     const userId = connectUserId(req.query.token, 'steam');
-    if (!userId) return res.status(401).send('Link session expired. Close this tab and try again from Haven.');
+    if (!userId) return res.status(401).send('Link session expired. Close this tab and try again from Habitat.');
 
     // The connect token rides along in return_to so the callback can re-verify
     // who started the flow. It is signed and short-lived, so a tampered or
@@ -374,10 +374,10 @@ function createConnectRoutes(getActivity) {
   // ══════════════════════════════════════════════════════
   router.post('/spotify/go', express.urlencoded({ extended: false, limit: '4kb' }), (req, res) => {
     if (!req.activity.isSpotifyConfigured()) return res.status(503).send('Spotify integration not configured on this server');
-    if (!fromThisSite(req)) return res.status(403).send('Open the link from Haven and press Continue.');
+    if (!fromThisSite(req)) return res.status(403).send('Open the link from Habitat and press Continue.');
     req.query.token = req.body && req.body.token;
     const userId = connectUserId(req.query.token, 'spotify');
-    if (!userId) return res.status(401).send('Link session expired. Close this tab and try again from Haven.');
+    if (!userId) return res.status(401).send('Link session expired. Close this tab and try again from Habitat.');
     const bind = require('crypto').randomBytes(32).toString('hex');
     const now = Date.now();
     for (const [k, v] of _spotifyBinds) if (now - v.at > 10 * 60 * 1000) _spotifyBinds.delete(k);

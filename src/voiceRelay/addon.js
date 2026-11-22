@@ -121,7 +121,7 @@ function install(onLine = () => {}) {
       fs.writeFileSync(path.join(ADDON_DIR, 'package.json'), JSON.stringify({
         name: 'haven-voice-relay',
         private: true,
-        description: 'The media engine for Haven\'s built-in voice relay. Installed from Large Server Setup.',
+        description: 'The media engine for Habitat\'s built-in voice relay. Installed from Large Server Setup.',
         dependencies: { mediasoup: MEDIASOUP_VERSION },
         // Newer npm asks for install scripts to be approved; mediasoup's
         // fetches its prebuilt media worker.

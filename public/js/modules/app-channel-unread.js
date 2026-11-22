@@ -492,8 +492,8 @@ _updateTabTitle() {
   // apart at a glance (issue #5284).
   const serverName = (this.serverSettings && this.serverSettings.server_name) || '';
   const base = serverName && serverName.toLowerCase() !== 'haven'
-    ? `Haven: ${serverName}`
-    : 'Haven';
+    ? `Habitat: ${serverName}`
+    : 'Habitat';
   document.title = total > 0 ? `(${total}) ${base}` : base;
 },
 

@@ -439,7 +439,7 @@ class VoiceManager {
         this._connectivityWarned = true;
         this.onConnectivityWarning(live.length
           ? `None of this server's configured STUN servers are responding (${dead.join(', ')}). ` +
-            'Haven is using its built-in servers for now so calls keep working, but an admin ' +
+            'Habitat is using its built-in servers for now so calls keep working, but an admin ' +
             'should fix or clear that setting in Settings, Voice & Connectivity.'
           : `None of this server's configured STUN servers are responding (${dead.join(', ')}). ` +
             'Calls will only work on your local network until an admin fixes them in ' +

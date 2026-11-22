@@ -159,7 +159,7 @@ function createThemeFileMiddleware(directory) {
       const metadata = parseThemeMetadata(content);
       if (!metadata.compatible) {
         return res.status(409).type('text/plain')
-          .send('Theme API version is incompatible with this Haven server.');
+          .send('Theme API version is incompatible with this Habitat server.');
       }
       res.setHeader('Cache-Control', 'no-cache');
       return res.type('text/css').send(content);

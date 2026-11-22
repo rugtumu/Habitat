@@ -167,6 +167,28 @@ async function createI18n({ storedLocale, languages = ['en-US'], defaultLocale =
   };
 }
 
+test('loaded text says Habitat, but links, identifiers and the Haven Desktop app keep their name', async () => {
+  // The locale files keep "Haven" so upstream merges stay clean. A link or
+  // header name that got renamed would stop working, and "Haven Desktop" is
+  // a separate app people have to find under that name.
+  const env = await createI18n({
+    storedLocale: 'en',
+    fetchOverride: url => String(url).startsWith('/locales/') ? jsonResponse({
+      welcome: { title: 'Welcome to Haven', own: "Haven's own layout. Haven." },
+      link: 'See https://github.com/ancsemi/Haven/blob/main/GUIDE.md',
+      header: 'Sign payloads via X-Haven-Signature',
+      desktop: 'Restart Haven Desktop to update',
+      mobile: 'the Amni-Haven Android app'
+    }) : undefined
+  });
+  assert.equal(env.i18n.t('welcome.title'), 'Welcome to Habitat');
+  assert.equal(env.i18n.t('welcome.own'), "Habitat's own layout. Habitat.");
+  assert.equal(env.i18n.t('link'), 'See https://github.com/ancsemi/Haven/blob/main/GUIDE.md');
+  assert.equal(env.i18n.t('header'), 'Sign payloads via X-Haven-Signature');
+  assert.equal(env.i18n.t('desktop'), 'Restart Haven Desktop to update');
+  assert.equal(env.i18n.t('mobile'), 'the Amni-Haven Android app');
+});
+
 test('automatic language follows the first supported browser language without freezing it', async () => {
   const env = await createI18n({ languages: ['xx-ZZ', 'pt-BR'] });
   assert.equal(env.i18n.locale, 'pt');

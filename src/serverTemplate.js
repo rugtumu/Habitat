@@ -288,7 +288,7 @@ async function exportTemplate(db, opts = {}) {
   }
   const template = {
     format: FORMAT, version: VERSION, exportedAt: new Date().toISOString(), havenVersion,
-    meta: { name: fit(meta.name || settings.server_name || 'Haven server', 60), description: fit(meta.description, 500), author: fit(meta.author, 60) },
+    meta: { name: fit(meta.name || settings.server_name || 'Habitat server', 60), description: fit(meta.description, 500), author: fit(meta.author, 60) },
     server, roles, channels, roleChannelAccess, roleMenus, webhooks, posts: postList, automodDomains, emojis, stickers, assets,
   };
   return { template, warnings };
@@ -308,10 +308,10 @@ function checker() {
 }
 function validateTemplate(input) {
   const c = checker(), warnings = [];
-  if (!isObj(input)) return { errors: ['This is not a Haven server template'] };
-  if (input.format !== FORMAT) return { errors: ['This is not a Haven server template'] };
+  if (!isObj(input)) return { errors: ['This is not a Habitat server template'] };
+  if (input.format !== FORMAT) return { errors: ['This is not a Habitat server template'] };
   if (!Number.isInteger(input.version) || input.version < 1) return { errors: ['The template has no valid version'] };
-  if (input.version > VERSION) return { errors: [`This template was made by a newer Haven (template version ${input.version}); update Haven to import it`] };
+  if (input.version > VERSION) return { errors: [`This template was made by a newer Habitat (template version ${input.version}); update Habitat to import it`] };
   const assets = {};
   let total = 0;
   const rawAssets = isObj(input.assets) ? input.assets : (input.assets === undefined ? {} : (c.fail('assets', 'expected an object'), {}));
@@ -512,7 +512,7 @@ async function applyTemplate(db, tpl, opts = {}) {
       if (current && sha256(current) === a.sha256) themes.add(name);
       else if (current) warn(`Theme ${name} is already installed with different contents; it was left as it is`), themes.add(name);
       else if (installThemes && dest) files.push({ dest, buf: a.buf, name }), themes.add(name);
-      else warn(`Theme ${name} is not installed on this server, so it was not made the default. Copy it into Haven's themes folder, or import with tools/template.js --install-themes`);
+      else warn(`Theme ${name} is not installed on this server, so it was not made the default. Copy it into Habitat's themes folder, or import with tools/template.js --install-themes`);
     } else if (!(await media.head(rel))) files.push({ rel, buf: a.buf, name: file });
   }
   const url = (name) => (name && urls[name] ? urls[name].url : null);

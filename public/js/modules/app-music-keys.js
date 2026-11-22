@@ -133,7 +133,7 @@ _syncMusicMediaSession(state) {
       session.metadata = new MediaMetadata({
         title: this._musicTitle || t('voice.music'),
         artist: this._musicRequestorName || '',
-        album: 'Haven',
+        album: 'Habitat',
       });
     }
     session.playbackState = state.playing ? 'playing' : 'paused';

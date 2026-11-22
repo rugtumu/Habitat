@@ -33,11 +33,11 @@ function inspectCertChain(pem, now = Date.now()) {
 }
 function certAdvice(status, certPath) {
   const full = path.join(path.dirname(certPath || ''), 'fullchain.pem');
-  const hint = certPath && path.basename(certPath) !== 'fullchain.pem' && fs.existsSync(full) ? ` Set SSL_CERT_PATH=${full} and restart Haven.` : ' Set SSL_CERT_PATH to the full chain file (fullchain.pem from Let\'s Encrypt/certbot) and restart Haven.';
+  const hint = certPath && path.basename(certPath) !== 'fullchain.pem' && fs.existsSync(full) ? ` Set SSL_CERT_PATH=${full} and restart Habitat.` : ' Set SSL_CERT_PATH to the full chain file (fullchain.pem from Let\'s Encrypt/certbot) and restart Habitat.';
   return {
     missing_chain: `The certificate in ${certPath} has no intermediate certificates, so the chain is incomplete. Browsers may still open the page, but apps, push notifications and other servers reject it.${hint}`,
     untrusted: `The certificate chain in ${certPath} does not lead to a certificate authority this system trusts, or its certificates are out of order (leaf first, then intermediates).${hint}`,
-    expired: `The certificate in ${certPath} expired on ${status.validTo}. Renew it (certbot renew) and restart Haven.`,
+    expired: `The certificate in ${certPath} expired on ${status.validTo}. Renew it (certbot renew) and restart Habitat.`,
     unreadable: `No certificate was found in ${certPath}. It should hold PEM text starting with -----BEGIN CERTIFICATE-----.`,
   }[status.issue] || null;
 }

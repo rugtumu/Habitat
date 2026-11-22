@@ -73,7 +73,7 @@ function validateReleaseManifest(value) {
       typeof e.requires?.haven === 'string' &&
         e.requires.haven.length <= 128 &&
         semver.validRange(e.requires.haven),
-      'Invalid Haven compatibility range.',
+      'Invalid Habitat compatibility range.',
     );
     assertValid(
       typeof e.asset === 'string' &&

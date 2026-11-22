@@ -55,7 +55,7 @@ _setupVideos(containerEl) {
       try {
         if (!isNaN(video.duration) && video.duration > 0) {
           navigator.mediaSession.metadata = navigator.mediaSession.metadata
-            || new MediaMetadata({ title: 'Haven Video' });
+            || new MediaMetadata({ title: 'Habitat Video' });
           navigator.mediaSession.setPositionState({
             duration: video.duration,
             position: Math.min(video.currentTime, video.duration),
@@ -67,7 +67,7 @@ _setupVideos(containerEl) {
     video.addEventListener('enterpictureinpicture', () => {
       try {
         navigator.mediaSession.playbackState = 'playing';
-        navigator.mediaSession.metadata = new MediaMetadata({ title: 'Haven Video' });
+        navigator.mediaSession.metadata = new MediaMetadata({ title: 'Habitat Video' });
         navigator.mediaSession.setActionHandler('seekto', (d) => {
           if (d.seekTime !== undefined) { video.currentTime = d.seekTime; updatePos(); }
         });

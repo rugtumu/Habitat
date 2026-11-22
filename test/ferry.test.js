@@ -298,8 +298,8 @@ test('webhook usernames are repaired rather than rejected by Discord', () => {
   // Newlines would break out of the JSON field's intent; length is capped at 80.
   assert.doesNotMatch(sanitizeWebhookUsername('two\nlines'), /\n/);
   assert.equal(sanitizeWebhookUsername('x'.repeat(200)).length, 80);
-  assert.equal(sanitizeWebhookUsername(''), 'Haven user');
-  assert.equal(sanitizeWebhookUsername(null), 'Haven user');
+  assert.equal(sanitizeWebhookUsername(''), 'Habitat user');
+  assert.equal(sanitizeWebhookUsername(null), 'Habitat user');
 });
 
 test('inbound Discord messages flatten text, attachments and stickers', () => {
@@ -435,7 +435,7 @@ test('a Discord post name is 1 to 100 characters and never empty', () => {
   assert.equal(forumThreadName('  Hello   world ', 'body'), 'Hello world');
   // An untitled topic is named after its first line.
   assert.equal(forumThreadName('', 'first line\nsecond line'), 'first line');
-  assert.equal(forumThreadName(null, '   '), 'Haven topic');
+  assert.equal(forumThreadName(null, '   '), 'Habitat topic');
   const long = forumThreadName('x'.repeat(300), '');
   assert.equal(long.length, 100);
 });

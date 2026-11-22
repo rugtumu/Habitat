@@ -48,7 +48,7 @@ function extractFullBackup(zipPath, stagedDb, stagedUploads, onProgress) {
           let manifest;
           try { manifest = JSON.parse((await readEntryBuffer(zipfile, manifestEntry)).toString('utf8')); }
           catch { throw bad('Invalid backup: corrupt manifest.json'); }
-          if (manifest.app !== 'haven') throw bad('Not a Haven backup file');
+          if (manifest.app !== 'haven') throw bad('Not a Habitat backup file');
           // A backup made with Messages ticked carries the whole database and
           // can be restored whether or not Uploaded files was ticked too: the
           // database is swapped in, and the uploads folder is only replaced

@@ -191,7 +191,7 @@ test('a Discord forum and a Haven forum carry posts and replies both ways', asyn
   await t.test('a forum only pairs with a forum', async () => {
     let err = next(A, 'error-msg');
     A.emit('ferry:create-link', { channelCode: chat.code, guildId: GUILD_ID, discordChannelId: FORUM_ID, direction: 'both' });
-    assert.match(await err || '', /Haven forum/);
+    assert.match(await err || '', /Habitat forum/);
     err = next(A, 'error-msg');
     A.emit('ferry:create-link', { channelCode: forum.code, guildId: GUILD_ID, discordChannelId: TEXT_ID, direction: 'both' });
     assert.match(await err || '', /Discord forum/);
@@ -600,7 +600,7 @@ test('a Discord forum and a Haven forum carry posts and replies both ways', asyn
     const private_ = await uploadFile(member.token, 'private.bin', 1000, 'dm');
     assert.ok(mine && theirs && private_, 'the uploads were made');
     const OWNERLESS = '1790000000003-dddd4444.png';   // on disk with no owner on record
-    const OWN_NOTICE = /^Only your own uploads go to Discord, so 1 file stayed in Haven$/;
+    const OWN_NOTICE = /^Only your own uploads go to Discord, so 1 file stayed in Habitat$/;
     const sent = (before, fn) => until(() => discord.executions.slice(before).find(fn));
 
     let before = discord.executions.length;

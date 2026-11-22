@@ -459,7 +459,7 @@ _setupMobileBridge() {
         // In-app push notification received while app is open
         if (data.notification) {
           const n = data.notification;
-          const title = n.title || 'Haven';
+          const title = n.title || 'Habitat';
           const body = n.body || '';
           this._showToast(`${title}: ${body}`, 'info');
         }

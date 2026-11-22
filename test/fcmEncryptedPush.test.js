@@ -65,7 +65,7 @@ test('a device with a key gets a sealed push and nothing readable reaches the re
   assert.equal(keyless.sealed, undefined);
   const sealedCall = calls.find(x => x.sealed);
   assert.deepEqual(sealedCall.tokens, ['phone-a', 'phone-c']);
-  assert.equal(sealedCall.title, 'Haven');
+  assert.equal(sealedCall.title, 'Habitat');
   assert.equal(sealedCall.body, 'New message');
   assert.deepEqual(sealedCall.data, {});
   for (const needle of ['launch', 'secret-room', 'JOINCODE', 'sam']) assert.ok(!JSON.stringify({ ...sealedCall, tokens: [], sealed: {} }).includes(needle), needle);
@@ -88,7 +88,7 @@ test('the hide setting strips the text and channel from keyless devices', async 
   fcm.setFcmHideContent(true);
   const { calls } = await relayCalls(() => fcm.sendFcm(['old-phone'], 'sam in #room', 'private', { channelCode: 'JOIN', tag: 'haven-JOIN' }));
   fcm.setFcmHideContent(false);
-  assert.deepEqual(calls[0], { tokens: ['old-phone'], title: 'Haven', body: 'New message', data: {} });
+  assert.deepEqual(calls[0], { tokens: ['old-phone'], title: 'Habitat', body: 'New message', data: {} });
 });
 test('messages long enough to matter still fit in a push', () => {
   const key = device('x');

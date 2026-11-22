@@ -160,8 +160,8 @@ test('imports are checked strictly', async () => {
   const once = (await exported()).template;
   const base = () => JSON.parse(JSON.stringify(once));
   const bad = (mutate, pattern) => { const t = base(); mutate(t); const r = tpl.validateTemplate(t); assert.ok(r.errors, 'rejected'); assert.ok(r.errors.some((e) => pattern.test(e)), r.errors.join('\n')); };
-  assert.deepEqual(tpl.validateTemplate({ format: 'something-else' }).errors, ['This is not a Haven server template']);
-  bad((t) => { t.version = 99; }, /newer Haven/);
+  assert.deepEqual(tpl.validateTemplate({ format: 'something-else' }).errors, ['This is not a Habitat server template']);
+  bad((t) => { t.version = 99; }, /newer Habitat/);
   bad((t) => { t.channels[0].name = '<img src=x onerror=alert(1)>'; }, /channels\[0\]\.name/);
   bad((t) => { t.channels[1].parent = '../../etc'; }, /parent/);
   bad((t) => { t.channels[1].ref = t.channels[0].ref; }, /used twice/);

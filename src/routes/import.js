@@ -530,7 +530,7 @@ module.exports = function registerImport(deps) {
     if (!user || !verifyAdminFromDb(user)) return res.status(403).json({ error: 'Admin only' });
     const job = executeJobs.get(String(req.params.jobId));
     if (!job || job.userId !== user.id) {
-      return res.status(404).json({ error: 'That import is no longer running. Check the imported channels, and run the import again if messages are missing; messages already in Haven are skipped.' });
+      return res.status(404).json({ error: 'That import is no longer running. Check the imported channels, and run the import again if messages are missing; messages already in Habitat are skipped.' });
     }
     if (job.state === 'running') {
       return res.json({ state: 'running', channelsDone: job.channelsDone, channelsTotal: job.channelsTotal, messagesDone: job.messagesDone, messagesTotal: job.messagesTotal, filesCopied: job.filesCopied });

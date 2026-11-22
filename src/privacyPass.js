@@ -63,8 +63,8 @@ const TMP_MARK = '.privacy-tmp';
 const MAX_RETRIES = 3;
 
 const MESSAGES = {
-  PRIVACY_GPS_REMAINS: 'Your file contains GPS data that Haven failed to remove. Please try again or remove the GPS data manually',
-  PRIVACY_FAILED: "Haven couldn't process this file. Please try again or upload a different file.",
+  PRIVACY_GPS_REMAINS: 'Your file contains GPS data that Habitat failed to remove. Please try again or remove the GPS data manually',
+  PRIVACY_FAILED: "Habitat couldn't process this file. Please try again or upload a different file.",
 };
 
 class PrivacyError extends Error {

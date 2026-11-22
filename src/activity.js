@@ -295,7 +295,7 @@ function createActivity({ db, getOnlineUserIds, onChange, onConnectionsChanged }
       ? {
           type: 'listening',
           name: clean(track.title, 120),
-          details: clean(track.channelName || 'Haven', 80),
+          details: clean(track.channelName || 'Habitat', 80),
           image: safeImage(track.thumbnail) || null,
           source: 'haven',
           startedAt: Date.now(),

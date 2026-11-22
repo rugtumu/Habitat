@@ -385,7 +385,7 @@ module.exports = function register(socket, ctx) {
         const file = value.slice(5);
         const metadata = readThemeMetadataFile(THEMES_DIR, file);
         if (!metadata?.compatible) {
-          return socket.emit('error-msg', 'That theme is missing or incompatible with this Haven server.');
+          return socket.emit('error-msg', 'That theme is missing or incompatible with this Habitat server.');
         }
         try {
           const row = db.prepare("SELECT value FROM server_settings WHERE key = 'published_themes'").get();

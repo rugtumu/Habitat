@@ -164,7 +164,7 @@
     // authenticated app does so multi-server tabs stay distinguishable
     // even before signing in.
     if (d.server_name && d.server_name.toLowerCase() !== 'haven') {
-      document.title = `Haven: ${d.server_name}`;
+      document.title = `Habitat: ${d.server_name}`;
     }
     if (d.server_icon) {
       let link = document.querySelector('link[rel="icon"]');

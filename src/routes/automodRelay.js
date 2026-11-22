@@ -164,12 +164,12 @@ module.exports = function registerAutomodRelay({ app, getModUser, verifyToken, i
       }
     }
     const available = !!p && models.includes(p.recommendedModel);
-    res.set('Cache-Control', 'no-store').json({ available, model: p?.recommendedModel || '', rules: store.get('automod_rules'), reason: available ? '' : !p ? 'Run scripts/setup-automod-ai.sh on the Haven server to set up local AI' : models.length ? `Model ${p.recommendedModel} is not installed in Ollama` : 'Ollama is not running on the Haven server' });
+    res.set('Cache-Control', 'no-store').json({ available, model: p?.recommendedModel || '', rules: store.get('automod_rules'), reason: available ? '' : !p ? 'Run scripts/setup-automod-ai.sh on the Habitat server to set up local AI' : models.length ? `Model ${p.recommendedModel} is not installed in Ollama` : 'Ollama is not running on the Habitat server' });
   });
   app.post('/api/automod/scan', scanLimiter, express.json({ limit: '8kb' }), async (req, res) => {
     if (!member(req)) return res.status(401).json({ error: 'Unauthorized' });
     if (!enabled()) return off(res);
-    if (!profile()) return res.status(404).json({ error: 'This Haven server has no local AI set up' });
+    if (!profile()) return res.status(404).json({ error: 'This Habitat server has no local AI set up' });
     const { url } = req.body || {};
     let u;
     try {
@@ -181,7 +181,7 @@ module.exports = function registerAutomodRelay({ app, getModUser, verifyToken, i
     const known = fresh(u.href) || inflight.get(u.href);
     if (!known && !mod(req)) return res.status(202).json({ pending: true });
     const v = await (known || scan(u.href, { priority: true }));
-    v ? res.set('Cache-Control', 'no-store').json({ safe: v.safe, reason: v.reason, source: v.source }) : res.status(503).json({ error: 'The Haven server AI is busy or offline' });
+    v ? res.set('Cache-Control', 'no-store').json({ safe: v.safe, reason: v.reason, source: v.source }) : res.status(503).json({ error: 'The Habitat server AI is busy or offline' });
   });
   app.post('/api/automod/claim-warn', limiter, express.json({ limit: '4kb' }), (req, res) => {
     if (!mod(req)) return res.status(403).json({ error: 'Insufficient permissions' });
@@ -215,7 +215,7 @@ module.exports = function registerAutomodRelay({ app, getModUser, verifyToken, i
     } catch {
       return res.status(400).json({ error: 'A valid https url is required' });
     }
-    if (u.protocol !== 'https:' || (u.port && u.port !== '443') || u.username || u.password || !HOSTS.has(u.hostname)) return res.status(400).json({ error: `Haven only relays to known AI hosts, and ${u.hostname} is not one` });
+    if (u.protocol !== 'https:' || (u.port && u.port !== '443') || u.username || u.password || !HOSTS.has(u.hostname)) return res.status(400).json({ error: `Habitat only relays to known AI hosts, and ${u.hostname} is not one` });
     if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).json({ error: 'A JSON body is required' });
     const lower = Object.fromEntries(Object.entries(headers && typeof headers === 'object' ? headers : {}).map(([k, v]) => [String(k).toLowerCase(), v]));
     const out = Object.fromEntries([['content-type', 'application/json'], ...HEADERS.filter(k => typeof lower[k] === 'string' && lower[k].length < 4096).map(k => [k, lower[k]])]);

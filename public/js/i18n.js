@@ -69,6 +69,19 @@ const I18n = (() => {
   // update, a proxy or mobile network hiccup) left every t() showing its raw
   // key for the whole visit, timestamps reading "utils.today_at" most of all.
   // So each fetch gets a few tries.
+  // Habitat fork: the locale files still say "Haven" so upstream merges stay
+  // clean; the name is swapped here as each file loads. Left alone: links and
+  // identifiers (github.com/ancsemi/Haven, X-Haven-Signature, Amni-Haven) and
+  // "Haven Desktop", which is a separate app people look up by that name.
+  const _BRAND_RE = /(^|[^\w\/.\-])Haven(?![\w\/\-]| Desktop)/g;
+  function _rebrand(node) {
+    if (typeof node === 'string') return node.replace(_BRAND_RE, '$1Habitat');
+    if (node && typeof node === 'object') {
+      for (const key of Object.keys(node)) node[key] = _rebrand(node[key]);
+    }
+    return node;
+  }
+
   async function _fetchLocale(locale) {
     let lastErr = null;
     for (const wait of [0, 700, 2000]) {
@@ -76,7 +89,7 @@ const I18n = (() => {
       try {
         const res = await fetch(`/locales/${locale}.json`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
+        return _rebrand(await res.json());
       } catch (err) {
         lastErr = err;
       }

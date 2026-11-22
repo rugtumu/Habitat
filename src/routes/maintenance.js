@@ -460,7 +460,7 @@ module.exports = function registerMaintenance(deps) {
         runnable: true,
         mode: 'git',
         command: 'node scripts/update.js git',
-        message: 'Haven pulls the latest code from GitHub, reinstalls dependencies and starts again. It is offline for a minute or two; this page reconnects by itself.',
+        message: 'Habitat pulls the latest code from GitHub, reinstalls dependencies and starts again. It is offline for a minute or two; this page reconnects by itself.',
       };
       // Install Haven.bat, install.sh and release zips have no git history, so
       // the updater downloads the latest release and copies it over the code.
@@ -469,7 +469,7 @@ module.exports = function registerMaintenance(deps) {
         runnable: true,
         mode: 'release',
         command: 'node scripts/update.js release',
-        message: 'Haven downloads the latest release, installs it and starts again. It is offline for a minute or two; this page reconnects by itself. Your data folder is not touched.',
+        message: 'Habitat downloads the latest release, installs it and starts again. It is offline for a minute or two; this page reconnects by itself. Your data folder is not touched.',
       };
       default: return {
         runnable: false,

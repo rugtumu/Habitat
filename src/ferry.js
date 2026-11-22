@@ -1709,9 +1709,9 @@ function discordAvatarUrl(author) {
  * is repaired rather than passed through and hoped for.
  */
 function sanitizeWebhookUsername(name) {
-  let out = String(name || 'Haven user').replace(/discord/gi, 'disc0rd').replace(/clyde/gi, 'clyd3');
+  let out = String(name || 'Habitat user').replace(/discord/gi, 'disc0rd').replace(/clyde/gi, 'clyd3');
   out = out.replace(/[\r\n]+/g, ' ').trim();
-  if (!out) out = 'Haven user';
+  if (!out) out = 'Habitat user';
   return out.slice(0, MAX_WEBHOOK_USERNAME);
 }
 
@@ -2020,7 +2020,7 @@ function sendFailure(link, err) {
   if (err.status === 403) reason = 'The bot needs the "Manage Webhooks" permission in that Discord channel.';
   // Discord's codes for "this forum needs a tag on every post", and for a
   // forum webhook sent without a post to go in.
-  else if (err.discordCode === 40067) reason = 'That Discord forum requires a tag on every post. Give the Haven forum a tag with the same name as one of the Discord forum\'s tags, and tag the topic with it.';
+  else if (err.discordCode === 40067) reason = 'That Discord forum requires a tag on every post. Give the Habitat forum a tag with the same name as one of the Discord forum\'s tags, and tag the topic with it.';
   else if (err.discordCode === 220001) reason = KIND_MISMATCH;
   touchLink(link.id, reason);
   return new Error(reason);
@@ -2037,12 +2037,12 @@ function sendFailure(link, err) {
  */
 function forumThreadName(title, body) {
   const pick = (s) => String(s || '').replace(/\s+/g, ' ').trim();
-  let name = pick(title) || pick(String(body || '').split('\n')[0]) || 'Haven topic';
+  let name = pick(title) || pick(String(body || '').split('\n')[0]) || 'Habitat topic';
   if (name.length > 100) name = name.slice(0, 99) + '…';
   return name;
 }
 
-const NSFW_HELD = 'This topic is marked NSFW and the paired Discord forum is not age-restricted, so it stayed in Haven. Mark the Discord forum as age-restricted to carry NSFW topics.';
+const NSFW_HELD = 'This topic is marked NSFW and the paired Discord forum is not age-restricted, so it stayed in Habitat. Mark the Discord forum as age-restricted to carry NSFW topics.';
 
 // Whether a Haven topic is marked NSFW, read from the stored topic so it holds
 // whatever the caller passed along.
@@ -2125,7 +2125,7 @@ async function sendReplyToDiscord(link, { username, avatar, content, sender, top
     // A topic marked NSFW after its post was made stops sending replies to a
     // forum that is not age-restricted.
     if (topicIsNsfw(topicId) && !discordForumIsNsfw(guild, link)) {
-      throw new Error('This topic is marked NSFW and the paired Discord forum is not age-restricted, so this reply stayed in Haven.');
+      throw new Error('This topic is marked NSFW and the paired Discord forum is not age-restricted, so this reply stayed in Habitat.');
     }
     try {
       const hook = await ensureLinkWebhook(link);
@@ -2137,11 +2137,11 @@ async function sendReplyToDiscord(link, { username, avatar, content, sender, top
       // 10003 is "unknown channel": the post is gone, so forget it.
       if (err.discordCode === 10003) {
         deps.db.prepare('DELETE FROM ferry_forum_threads WHERE discord_thread_id = ?').run(row.discord_thread_id);
-        throw new Error('That Discord post was deleted, so replies now stay in Haven.');
+        throw new Error('That Discord post was deleted, so replies now stay in Habitat.');
       }
       // Discord's codes for a locked or archived post.
       if (err.discordCode === 160005 || err.discordCode === 50083) {
-        throw new Error('That Discord post is locked, so this reply stayed in Haven.');
+        throw new Error('That Discord post is locked, so this reply stayed in Habitat.');
       }
       throw sendFailure(link, err);
     }
@@ -2171,8 +2171,8 @@ async function sendDiscordDm(discordUserId, { fromName, content, sender }) {
         : `Could not open a Discord DM: ${err.message}`);
     }
 
-    const prefix = `**${sanitizeWebhookUsername(fromName)}** sent this from Haven:\n`;
-    const footer = '\n\n_Replies to this DM stay in Discord and do not reach Haven._';
+    const prefix = `**${sanitizeWebhookUsername(fromName)}** sent this from Habitat:\n`;
+    const footer = '\n\n_Replies to this DM stay in Discord and do not reach Habitat._';
     const room = MAX_DISCORD_CONTENT - prefix.length - footer.length;
 
     try {

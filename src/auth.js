@@ -1076,7 +1076,7 @@ router.post('/totp/validate', authLimiter, async (req, res) => {
 
     // Try TOTP code first
     const totp = new OTPAuth.TOTP({
-      issuer: 'Haven',
+      issuer: 'Habitat',
       label: user.username,
       algorithm: 'SHA1',
       digits: 6,
@@ -1160,7 +1160,7 @@ router.post('/totp/setup', authLimiter, async (req, res) => {
     // Generate a new TOTP secret
     const secret = new OTPAuth.Secret({ size: 20 });
     const totp = new OTPAuth.TOTP({
-      issuer: 'Haven',
+      issuer: 'Habitat',
       label: user.username,
       algorithm: 'SHA1',
       digits: 6,
@@ -1219,7 +1219,7 @@ router.post('/totp/verify-setup', authLimiter, async (req, res) => {
     }
 
     const totp = new OTPAuth.TOTP({
-      issuer: 'Haven',
+      issuer: 'Habitat',
       label: user.username,
       algorithm: 'SHA1',
       digits: 6,
@@ -1391,7 +1391,7 @@ router.post('/change-password', authLimiter, async (req, res) => {
     // (#12) There is no Haven password on a federated account to change. The
     // compare below would just fail as "incorrect", which reads like a bug.
     if (user.oidc_subject && !hasLocalPassword(user)) {
-      return res.status(400).json({ error: 'This account signs in through SSO, so it has no Haven password. Change it with your identity provider instead.' });
+      return res.status(400).json({ error: 'This account signs in through SSO, so it has no Habitat password. Change it with your identity provider instead.' });
     }
 
     if (newPassword.toLowerCase().includes(user.username.toLowerCase())) {
@@ -1460,7 +1460,7 @@ router.post('/revoke-sessions', authLimiter, async (req, res) => {
     // Re-checking the password is the point: it stops someone who walked up to
     // an unlocked machine from locking the real owner out of their own devices.
     if (user.oidc_subject && !hasLocalPassword(user)) {
-      return res.status(400).json({ error: 'This account signs in through SSO, so there is no Haven password to confirm with. Sign out from your identity provider instead.' });
+      return res.status(400).json({ error: 'This account signs in through SSO, so there is no Habitat password to confirm with. Sign out from your identity provider instead.' });
     }
     const password = typeof req.body.password === 'string' ? req.body.password : '';
     if (!password) return res.status(400).json({ error: 'Password required' });
@@ -1777,7 +1777,7 @@ router.post('/admin-recover', authLimiter, async (req, res) => {
       }
       const code = typeof req.body.code === 'string' ? req.body.code.replace(/\s/g, '') : '';
       if (!code) return res.status(401).json({ error: 'Enter your two-factor code', needsCode: true });
-      const totp = new OTPAuth.TOTP({ issuer: 'Haven', label: user.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
+      const totp = new OTPAuth.TOTP({ issuer: 'Habitat', label: user.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
       let ok = acceptTotpCode(user.id, totp, code);
       if (!ok) {
         const norm = code.toUpperCase().replace(/-/g, '');
@@ -1977,7 +1977,7 @@ router.get('/SSO', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Haven SSO</title>
+  <title>Habitat SSO</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d0d1a; color: #e0e0e0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
@@ -2004,7 +2004,7 @@ router.get('/SSO', (req, res) => {
 </head>
 <body>
   <div class="card">
-    <h2>⬡ Haven SSO</h2>
+    <h2>⬡ Habitat SSO</h2>
     <div id="loading" class="loading"><p>Checking login status...</p></div>
     <div id="sso-debug" class="debug">Starting SSO checks...</div>
     <div id="not-logged-in" style="display:none">
@@ -2013,7 +2013,7 @@ router.get('/SSO', (req, res) => {
       <button class="btn btn-primary" id="login-btn">Go to Login</button>
     </div>
     <div id="consent" style="display:none">
-      <p>Another Haven server wants to use your identity to pre-fill registration.</p>
+      <p>Another Habitat server wants to use your identity to pre-fill registration.</p>
       ${htmlOrigin ? `<p>Requesting server: <span class="origin">${htmlOrigin}</span></p>` : ''}
       <div class="info">
         <div class="info-row"><span class="info-label">Username</span><span class="info-value" id="sso-username">-</span></div>
@@ -2088,13 +2088,13 @@ router.get('/SSO', (req, res) => {
         token = localStorage.getItem('haven_token');
       } catch {
         // localStorage blocked (third-party cookies, popup restrictions, etc.)
-        showNotLoggedIn('Browser storage is blocked in this tab, so Haven cannot read your login token.');
+        showNotLoggedIn('Browser storage is blocked in this tab, so Habitat cannot read your login token.');
         clearTimeout(bootTimeout);
         return;
       }
 
       if (!token) {
-        showNotLoggedIn('No Haven login token found in this browser profile.');
+        showNotLoggedIn('No Habitat login token found in this browser profile.');
         clearTimeout(bootTimeout);
         return;
       }

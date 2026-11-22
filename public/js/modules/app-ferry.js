@@ -537,7 +537,7 @@ export default {
 
     const pairTable = (cfg.links || []).length
       ? `<table class="ferry-table">
-            <thead><tr><th>Haven</th><th>Discord</th><th>${esc(t('modals.ferry.direction'))}</th><th>${esc(t('modals.ferry.outgoing'))}</th><th></th></tr></thead>
+            <thead><tr><th>Habitat</th><th>Discord</th><th>${esc(t('modals.ferry.direction'))}</th><th>${esc(t('modals.ferry.outgoing'))}</th><th></th></tr></thead>
            <tbody>${linkRows}</tbody>
          </table>`
       : `<p class="muted-text" style="margin-top:10px">${esc(t('modals.ferry.no_pairings'))}</p>`;

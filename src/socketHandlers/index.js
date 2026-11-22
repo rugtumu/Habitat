@@ -1559,8 +1559,8 @@ function setupSocketHandlers(io, db, opts = {}) {
     const own = ferry.keepOwnUploads(body, sender);
     if (own.refused) {
       notify(own.refused === 1
-        ? 'Only your own uploads go to Discord, so 1 file stayed in Haven'
-        : `Only your own uploads go to Discord, so ${own.refused} files stayed in Haven`);
+        ? 'Only your own uploads go to Discord, so 1 file stayed in Habitat'
+        : `Only your own uploads go to Discord, so ${own.refused} files stayed in Habitat`);
     }
     return own.content;
   }

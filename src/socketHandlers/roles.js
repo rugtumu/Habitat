@@ -1795,7 +1795,7 @@ module.exports = function register(socket, ctx) {
         if (!adminUser.totp_secret || !adminUser.totp_enabled) {
           transferAdminRef.value = false;
           return cb({
-            error: 'Your account signs in through SSO, so there is no Haven password to confirm with. Turn on two-factor authentication in Settings, then transfer admin.',
+            error: 'Your account signs in through SSO, so there is no Habitat password to confirm with. Turn on two-factor authentication in Settings, then transfer admin.',
             code: 'mfa_required'
           });
         }
@@ -1804,7 +1804,7 @@ module.exports = function register(socket, ctx) {
         let validCode;
         try {
           const totp = new OTPAuth.TOTP({
-            issuer: 'Haven',
+            issuer: 'Habitat',
             label: adminUser.username,
             algorithm: 'SHA1',
             digits: 6,

@@ -204,7 +204,7 @@ module.exports = function register(socket, ctx) {
     const direction = DIRECTIONS.has(data.direction) ? data.direction : 'both';
     let outMode = OUT_MODES.has(data.outMode) ? data.outMode : 'command';
 
-    if (!/^[a-f0-9]{8}$/i.test(channelCode)) return socket.emit('error-msg', 'Pick a Haven channel');
+    if (!/^[a-f0-9]{8}$/i.test(channelCode)) return socket.emit('error-msg', 'Pick a Habitat channel');
     if (!SNOWFLAKE.test(guildId) || !SNOWFLAKE.test(discordChannelId)) {
       return socket.emit('error-msg', 'Pick a Discord server and channel');
     }
@@ -229,7 +229,7 @@ module.exports = function register(socket, ctx) {
     if (!!channel.is_forum !== discordIsForum) {
       return socket.emit('error-msg', channel.is_forum
         ? `#${channel.name} is a forum, so it can only pair with a Discord forum channel`
-        : `#${dChannel.name} is a Discord forum, so it can only pair with a Haven forum channel`);
+        : `#${dChannel.name} is a Discord forum, so it can only pair with a Habitat forum channel`);
     }
     // Forum pairings always carry every post and reply. "On command" has no
     // meaning there: a reply cannot go to a post that was never sent.

@@ -39,7 +39,7 @@ async function checkAdminReauth(db, userId, { password, code } = {}) {
     if (auth.totpLimited(user.id)) return 'Too many wrong codes. Wait a few minutes and try again.';
     const clean = typeof code === 'string' ? code.replace(/\s/g, '') : '';
     if (!clean) return 'Enter your two-factor code';
-    const totp = new OTPAuth.TOTP({ issuer: 'Haven', label: user.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
+    const totp = new OTPAuth.TOTP({ issuer: 'Habitat', label: user.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(user.totp_secret) });
     if (!auth.acceptTotpCode(user.id, totp, clean)) {
       auth.noteTotpFail(user.id);
       return 'Incorrect two-factor code';

@@ -26,7 +26,7 @@ let projectId = '';
 // has to read the database. Default on so nothing breaks before it's loaded.
 let adminEnabled = true;
 let hideContent = false;
-const SEALED_TITLE = 'Haven';
+const SEALED_TITLE = 'Habitat';
 const SEALED_BODY = 'New message';
 const SEAL_PAD_BYTES = 512;
 const SEAL_MAX_CHARS = 3072;

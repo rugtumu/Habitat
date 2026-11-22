@@ -1217,7 +1217,7 @@ module.exports = function register(socket, ctx) {
 
     const channel = db.prepare('SELECT id, name, slow_mode_interval, text_enabled, voice_enabled, media_enabled, read_only, is_dm, is_group, is_self_dm, is_forum, forum_tags, role_gate FROM channels WHERE code = ?').get(code);
     if (!channel) return socket.emit('error-msg', 'Channel not found. Try switching channels and back');
-    if (channel.is_group && !isGroupEnvelope(content)) return socket.emit('error-msg', 'Group messages must be end-to-end encrypted. Update Haven to send here.');
+    if (channel.is_group && !isGroupEnvelope(content)) return socket.emit('error-msg', 'Group messages must be end-to-end encrypted. Update Habitat to send here.');
     // A top-level message in a forum is a topic, written in New Post.
     const _sizeWhy = sizeRefusal(content, channel, { maxChars: _maxChars, maxAttachments: maxAttachmentsSetting(), forumTopic: !!channel.is_forum });
     if (_sizeWhy) return socket.emit('error-msg', _sizeWhy);
@@ -2111,7 +2111,7 @@ module.exports = function register(socket, ctx) {
     // Editing takes still being there: someone removed from a channel or a
     // group could otherwise keep rewriting what they had posted in it.
     if (!(socket.user.isAdmin && !channel.is_dm) && !hasChannelAccess(channel.id)) return;
-    if (channel.is_group && !isGroupEnvelope(data.content)) return socket.emit('error-msg', 'Group messages must be end-to-end encrypted. Update Haven to send here.');
+    if (channel.is_group && !isGroupEnvelope(data.content)) return socket.emit('error-msg', 'Group messages must be end-to-end encrypted. Update Habitat to send here.');
 
     const msg = db.prepare(
       'SELECT id, user_id, is_archived, thread_id FROM messages WHERE id = ? AND channel_id = ?'
