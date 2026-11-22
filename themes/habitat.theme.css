@@ -1,0 +1,151 @@
+/**
+ * @name        Habitat
+ * @description Quiet near-black workspace with hairline borders and a restrained indigo accent.
+ * @author      Umut Gür
+ * @version     1.0
+ * @icon        ◆
+ * @haven-theme-api 1
+ */
+
+/*
+  Habitat (dark). Uses only Theme API v1: public tokens, page markers and
+  data-haven-region selectors, so it does not depend on internal class names.
+  Depth comes from two surface levels and 1px borders, not shadows or glows.
+  Sizes are rem so the interface Zoom slider scales them.
+*/
+
+:root {
+  /* ── Backgrounds ───────────────────────────────── */
+  --bg-primary:    #0f1014;
+  --bg-secondary:  #0a0b0e;
+  --bg-tertiary:   #14161b;
+  --bg-hover:      #1a1c23;
+  --bg-active:     #22252e;
+  --bg-input:      #14161b;
+  --bg-card:       #15171c;
+
+  /* ── Accent ────────────────────────────────────── */
+  --accent:        #5e6ad2;
+  --accent-hover:  #6c78e6;
+  --accent-glow:   rgba(94, 106, 210, .22);
+  --accent-text:   #ffffff;
+
+  /* ── Text ──────────────────────────────────────── */
+  --text-primary:  #ececf1;
+  --text-secondary:#a9adba;
+  --text-muted:    #7d8291;
+  --text-link:     #8ea2ff;
+
+  /* ── Borders ───────────────────────────────────── */
+  --border:        #1f222a;
+  --border-light:  #2c303b;
+
+  /* ── Status ────────────────────────────────────── */
+  --success:       #3ecf8e;
+  --success-text:  #06150e;
+  --danger:        #f2555a;
+  --danger-text:   #ffffff;
+  --warning:       #e5b454;
+  --warning-text:  #1a1204;
+  --led-on:        #3ecf8e;
+  --led-off:       #2c303b;
+  --led-glow:      rgba(62, 207, 142, .25);
+
+  /* ── Typography ────────────────────────────────── */
+  --font-main:     Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-heading:  Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono:     ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ── Shape ─────────────────────────────────────── */
+  --radius:        .5rem;
+  --radius-sm:     .375rem;
+  --transition:    .14s ease;
+
+  --msg-glow:      none;
+  --scanline:      none;
+}
+
+html[data-haven-theme-api="1"] {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+html[data-haven-theme-api="1"] ::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text-primary);
+}
+
+html[data-haven-theme-api="1"] :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── Application chrome ──────────────────────────── */
+[data-haven-page="app"] [data-haven-region="server-rail"],
+[data-haven-page="app"] [data-haven-region="navigation-sidebar"] {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="context-sidebar"] {
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="main"] {
+  background: var(--bg-primary);
+}
+
+[data-haven-page="app"] [data-haven-region="channel-header"] {
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  -webkit-backdrop-filter: blur(.75rem) saturate(140%);
+  backdrop-filter: blur(.75rem) saturate(140%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="composer"] {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="account"],
+[data-haven-page="app"] [data-haven-region="sidebar-footer"],
+[data-haven-page="app"] [data-haven-region="voice-controls"] {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="thread-panel"],
+[data-haven-page="app"] [data-haven-region="search-results"],
+[data-haven-page="app"] [data-haven-region="pinned-messages"],
+[data-haven-page="app"] [data-haven-region="soundboard"] {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="status-bar"] {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ── Login and registration ──────────────────────── */
+[data-haven-page="auth"] [data-haven-region="auth-shell"] {
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--bg-secondary);
+}
+
+[data-haven-page="auth"] [data-haven-region="auth-card"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: .875rem;
+  box-shadow: 0 1.5rem 4rem -1.5rem rgba(0, 0, 0, .7);
+}

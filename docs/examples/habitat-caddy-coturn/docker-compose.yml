@@ -1,0 +1,81 @@
+# Habitat + Caddy (HTTPS) + coturn (TURN relay) on one VPS.
+# Builds Habitat from this checkout instead of pulling the upstream image.
+# See README.md in this folder for the steps.
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      - DOMAIN=${DOMAIN:?Set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - habitat
+
+  habitat:
+    build: ../../..
+    image: habitat:local
+    container_name: habitat
+    restart: unless-stopped
+    volumes:
+      - habitat_data:/data
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      # Caddy terminates TLS, so Habitat listens on plain HTTP inside the
+      # Docker network. Port 3000 is deliberately not published.
+      - FORCE_HTTP=true
+      - PUBLIC_URL=https://${DOMAIN}
+      - SERVER_NAME=${SERVER_NAME:-Habitat}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?Set ADMIN_USERNAME in .env}
+      - TURN_URL=turn:${DOMAIN}:3478
+      - TURN_SECRET=${TURN_SECRET:?Set TURN_SECRET in .env}
+    ports:
+      # Only used if you turn on the optional voice relay
+      # (Settings, Large Server Setup). Harmless otherwise.
+      - "40000:40000/udp"
+      - "40000:40000/tcp"
+
+  coturn:
+    image: ghcr.io/coturn/coturn:4.9
+    container_name: coturn
+    restart: unless-stopped
+    # Host networking: coturn needs the whole UDP relay range directly.
+    network_mode: host
+    command:
+      - -n
+      - --listening-port=3478
+      - --realm=${DOMAIN}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET}
+      - --min-port=49152
+      - --max-port=65535
+      - --fingerprint
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-multicast-peers
+      # Never relay into the VPS itself or private networks.
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      # Only if the VPS has a private address on its interface and the public
+      # IP is NATed to it (check with `ip -4 addr`): uncomment and fill in.
+      # - --external-ip=YOUR_PUBLIC_IP
+
+volumes:
+  habitat_data:
+  caddy_data:
+  caddy_config:

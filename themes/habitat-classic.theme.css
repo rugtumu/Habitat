@@ -1,0 +1,187 @@
+/**
+ * @name        Habitat Classic
+ * @description The familiar chat-app arrangement: layered grey surfaces, channels first, your account docked bottom-left.
+ * @author      Umut Gür
+ * @version     1.0
+ * @icon        ◧
+ * @haven-theme-api 1
+ */
+
+/*
+  Habitat Classic. Tokens and data-haven-region selectors are Theme API v1.
+  The "Sidebar arrangement" block at the bottom is the one exception: docking
+  the account bar under the channel list needs two internal class names
+  (.sidebar-header, .brand), because the account region sits inside the header.
+  If an update renames them, only that block stops applying; the colours stay.
+*/
+
+:root {
+  /* ── Backgrounds: rail darkest, sidebar mid, chat lightest ── */
+  --bg-primary:    #303237;
+  --bg-secondary:  #27292e;
+  --bg-tertiary:   #1d1e22;
+  --bg-hover:      #383a41;
+  --bg-active:     #42454d;
+  --bg-input:      #393b42;
+  --bg-card:       #27292e;
+
+  /* ── Accent ────────────────────────────────────── */
+  --accent:        #5e6ad2;
+  --accent-hover:  #6c78e6;
+  --accent-glow:   rgba(94, 106, 210, .25);
+  --accent-text:   #ffffff;
+
+  /* ── Text ──────────────────────────────────────── */
+  --text-primary:  #f1f2f4;
+  --text-secondary:#b8bcc5;
+  --text-muted:    #9397a1;
+  --text-link:     #6cb6ff;
+
+  /* ── Borders ───────────────────────────────────── */
+  --border:        #1f2024;
+  --border-light:  #474a52;
+
+  /* ── Status ────────────────────────────────────── */
+  --success:       #2fb267;
+  --success-text:  #ffffff;
+  --danger:        #ee4b50;
+  --danger-text:   #ffffff;
+  --warning:       #eeb23a;
+  --warning-text:  #1a1204;
+  --led-on:        #2fb267;
+  --led-off:       #6f737d;
+  --led-glow:      transparent;
+
+  /* ── Typography ────────────────────────────────── */
+  --font-main:     Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-heading:  Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono:     ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ── Shape ─────────────────────────────────────── */
+  --radius:        .5rem;
+  --radius-sm:     .25rem;
+  --transition:    .12s ease;
+
+  --msg-glow:      none;
+  --scanline:      none;
+}
+
+html[data-haven-theme-api="1"] {
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--bg-tertiary) transparent;
+}
+
+html[data-haven-theme-api="1"] ::selection {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--text-primary);
+}
+
+html[data-haven-theme-api="1"] :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  outline-offset: 2px;
+}
+
+/* ── Surfaces: separated by tone, not by lines ───── */
+[data-haven-page="app"] [data-haven-region="server-rail"] {
+  background: var(--bg-tertiary);
+  border-right: 0;
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="navigation-sidebar"],
+[data-haven-page="app"] [data-haven-region="context-sidebar"] {
+  background: var(--bg-secondary);
+  border: 0;
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="main"] {
+  background: var(--bg-primary);
+}
+
+[data-haven-page="app"] [data-haven-region="channel-header"] {
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .12);
+}
+
+[data-haven-page="app"] [data-haven-region="composer"] {
+  background: var(--bg-primary);
+  border-top: 0;
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="sidebar-footer"],
+[data-haven-page="app"] [data-haven-region="voice-controls"] {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="thread-panel"],
+[data-haven-page="app"] [data-haven-region="search-results"],
+[data-haven-page="app"] [data-haven-region="pinned-messages"],
+[data-haven-page="app"] [data-haven-region="soundboard"] {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+[data-haven-page="app"] [data-haven-region="status-bar"] {
+  background: var(--bg-tertiary);
+  border-top: 0;
+  color: var(--text-muted);
+}
+
+/* ── Channels first; join and create sit below them ─ */
+[data-haven-page="app"] [data-haven-region="join-channel"],
+[data-haven-page="app"] [data-haven-region="create-channel"] {
+  order: 2;
+}
+
+/* ── Sidebar arrangement (internal class names, see header note) ── */
+@media (min-width: 48.0625rem) {
+  [data-haven-page="app"] [data-haven-region="navigation-sidebar"] > .sidebar-header {
+    display: contents;
+  }
+
+  [data-haven-page="app"] [data-haven-region="navigation-sidebar"] > .sidebar-header > .brand {
+    order: 0;
+    min-height: 3rem;
+    margin: 0;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .12);
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-content"] {
+    order: 1;
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] {
+    order: 2;
+  }
+
+  [data-haven-page="app"] [data-haven-region="account"] {
+    order: 3;
+    margin: 0;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg-tertiary);
+  }
+}
+
+/* ── Login and registration ──────────────────────── */
+[data-haven-page="auth"] [data-haven-region="auth-shell"] {
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    var(--bg-tertiary);
+}
+
+[data-haven-page="auth"] [data-haven-region="auth-card"] {
+  background: var(--bg-primary);
+  border: 0;
+  border-radius: .5rem;
+  box-shadow: 0 .5rem 2.5rem rgba(0, 0, 0, .45);
+}
