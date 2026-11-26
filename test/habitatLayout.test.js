@@ -33,7 +33,20 @@ class FakeStyle {
   removeProperty(property) { this.values.delete(property); }
   getPropertyValue(property) { return this.values.get(property)?.value || ''; }
   getPropertyPriority(property) { return this.values.get(property)?.priority || ''; }
+  get display() { return this.getPropertyValue('display'); }
+  set display(value) { this.setProperty('display', value); }
 }
+
+// Records what the plugin watches, and lets a test deliver a change by hand.
+class FakeMutationObserver {
+  constructor(callback) { this.callback = callback; this.target = null; FakeMutationObserver.live.add(this); }
+  observe(target) { this.target = target; }
+  disconnect() { FakeMutationObserver.live.delete(this); this.target = null; }
+  static notify(target) {
+    for (const observer of [...FakeMutationObserver.live]) if (observer.target === target) observer.callback([]);
+  }
+}
+FakeMutationObserver.live = new Set();
 
 function parseCompound(selector) {
   const out = { tag: null, id: null, attrs: [] };
@@ -179,7 +192,10 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     button('voice-mute-btn', 'Mute'),
     button('voice-deafen-btn', 'Deafen')
   ]);
-  const footer = region(doc, 'sidebar-footer', [el(doc, 'div', { id: 'theme-popup' }), actions]);
+  // Haven draws the voice bar only during a call; outside one it is hidden and empty.
+  const voiceBar = el(doc, 'div', { id: 'voice-bar' });
+  voiceBar.style.display = 'none';
+  const footer = region(doc, 'sidebar-footer', [el(doc, 'div', { id: 'theme-popup' }), voiceBar, actions]);
   const navigation = region(doc, 'navigation-sidebar', [header, content, footer], 'aside');
   const voiceControls = region(doc, 'voice-controls');
   voiceControls.style.setProperty('position', 'absolute');
@@ -229,7 +245,14 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     app: { _applyComposerButtons() { composerRefreshes.push(doc.documentElement.hasAttribute('data-compact-composer')); } }
   };
   globalThis.HavenApi = api;
-  return { doc, media, phoneMedia, composerRefreshes, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
+  globalThis.MutationObserver = FakeMutationObserver;
+  const call = (on) => {
+    voiceBar.style.display = on ? 'flex' : 'none';
+    if (on && !voiceBar.children.length) voiceBar.appendChild(el(doc, 'div', { id: 'voice-bar-top' }));
+    if (!on) for (const child of [...voiceBar.children]) child.remove();
+    FakeMutationObserver.notify(voiceBar);
+  };
+  return { doc, media, phoneMedia, composerRefreshes, voiceBar, call, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
 }
 
 function snapshot(node) {
@@ -249,6 +272,8 @@ test.afterEach(() => {
   delete globalThis.document;
   delete globalThis.window;
   delete globalThis.HavenApi;
+  delete globalThis.MutationObserver;
+  FakeMutationObserver.live.clear();
 });
 
 // ── Tests ──────────────────────────────────────────────────
@@ -534,9 +559,64 @@ test('the add channel dialog opens from +, and closes on Escape or a real submit
   plugin.stop();
 });
 
+test('in a call, mute and deafen show beside the account, and go again afterwards', () => {
+  const app = buildApp();
+  const root = app.doc.documentElement;
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.equal(root.hasAttribute('data-habitat-in-voice'), false, 'no call yet');
+
+  app.call(true);
+  assert.ok(root.hasAttribute('data-habitat-in-voice'));
+  const tools = app.account.querySelector('[data-habitat-tools]');
+  assert.ok(tools.contains(app.doc.getElementById('voice-mute-btn')), 'the real mute button is in the account bar');
+  assert.ok(tools.contains(app.doc.getElementById('voice-deafen-btn')));
+  // The buttons are shown by this state alone, never by rewriting the inline
+  // style Haven keeps resetting on them.
+  assert.match(HabitatLayout.CSS,
+    /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)\s*\{[^}]*display:\s*inline-flex !important/);
+
+  app.call(false);
+  assert.equal(root.hasAttribute('data-habitat-in-voice'), false, 'hanging up takes them away');
+  plugin.stop();
+});
+
+test('a call that is already on when the layout starts is picked up straight away', () => {
+  const app = buildApp();
+  app.call(true);
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.ok(app.doc.documentElement.hasAttribute('data-habitat-in-voice'));
+  plugin.stop();
+});
+
+test('switching the layout off mid-call leaves no call state or watcher behind', () => {
+  const app = buildApp();
+  const plugin = new HabitatLayout();
+  plugin.start();
+  app.call(true);
+  plugin._disengage();
+  assert.equal(app.doc.documentElement.hasAttribute('data-habitat-in-voice'), false);
+  assert.equal(FakeMutationObserver.live.size, 0, 'the voice bar is no longer watched');
+  app.call(false);
+  app.call(true);
+  assert.equal(app.doc.documentElement.hasAttribute('data-habitat-in-voice'), false, 'a later call no longer reaches the layout');
+  plugin.stop();
+});
+
+test('the members panel keeps its own mute buttons on a phone, and drops the second copy on a desktop', () => {
+  const duplicate = HabitatLayout.CSS.match(/[^{}]*\.voice-header-actions\s*\{[^}]*\}/)?.[0] || '';
+  assert.match(duplicate, /html\[data-habitat-layout-desktop="1"\]\[data-habitat-in-voice\]/,
+    'only the desktop shape, and only during a call');
+  assert.match(duplicate, /display:\s*none/);
+});
+
 test('the layout keeps to public regions and named buttons, and ships no remote resources', () => {
   assert.doesNotMatch(source, /https?:\/\/(?!www\.w3\.org\/2000\/svg)/i);
-  assert.doesNotMatch(HabitatLayout.CSS, /!important/);
+  // One rule has to outrank an inline style Haven sets; nothing else may force its way.
+  const forced = HabitatLayout.CSS.match(/[^{}]*\{[^}]*!important[^}]*\}/g) || [];
+  assert.equal(forced.length, 1);
+  assert.match(forced[0], /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)/);
   for (const name of ['navigation-sidebar', 'account', 'sidebar-footer', 'sidebar-actions', 'channels',
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);

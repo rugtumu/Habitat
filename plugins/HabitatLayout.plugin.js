@@ -167,6 +167,7 @@ class HabitatLayout {
       this._buildMenu(header, account, actions);
       this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
+      this._watchVoice();
       this._setAttr(header, 'data-habitat-header', '');
       this._mode = mode;
       document.documentElement.setAttribute('data-habitat-layout', mode);
@@ -221,6 +222,25 @@ class HabitatLayout {
       ]);
       element.style.setProperty(property, value, 'important');
     }
+  }
+
+  // ── In a call: mute and deafen beside the account ─────────
+  // Haven draws these two in the sidebar only for a member who opted in to
+  // sidebar voice controls; for everyone else they sit in the members panel
+  // header. In this layout the account bar is where people look for them,
+  // so they show there whenever a call is on. The voice bar is Haven's own
+  // sign of that: it is only drawn during a call.
+  _watchVoice() {
+    const bar = document.getElementById('voice-bar');
+    if (!bar || typeof MutationObserver !== 'function') return;
+    const sync = () => {
+      const inCall = bar.style.display !== 'none' && bar.children.length > 0;
+      if (inCall) document.documentElement.setAttribute('data-habitat-in-voice', '');
+      else document.documentElement.removeAttribute('data-habitat-in-voice');
+    };
+    this._voiceObserver = new MutationObserver(sync);
+    this._voiceObserver.observe(bar, { attributes: true, attributeFilter: ['style'], childList: true });
+    sync();
   }
 
   // ── Server name menu ───────────────────────────────────────
@@ -401,6 +421,9 @@ class HabitatLayout {
 
   _restoreDesktop() {
     this._mode = null;
+    this._voiceObserver?.disconnect();
+    this._voiceObserver = null;
+    document.documentElement.removeAttribute('data-habitat-in-voice');
     document.documentElement.removeAttribute('data-habitat-layout');
     document.documentElement.removeAttribute('data-habitat-layout-desktop');
     for (const [target, type, listener, options] of this._applied) {
@@ -661,6 +684,23 @@ html[data-habitat-layout] [data-habitat-tools] > button > span:not(.haven-glyph)
   display: none;
 }
 html[data-habitat-layout] [data-habitat-emptied] {
+  display: none;
+}
+
+/* ── In a call ── */
+/* Haven hides these two with an inline style unless a member opted in to
+   sidebar voice controls, so this one rule has to outrank an inline style. */
+html[data-habitat-layout][data-habitat-in-voice] [data-habitat-tools] > :is(#voice-mute-btn, #voice-deafen-btn) {
+  display: inline-flex !important;
+}
+html[data-habitat-layout] [data-habitat-tools] > button.muted {
+  position: relative;
+  background: transparent;
+  color: var(--danger);
+}
+/* On a desktop the same two buttons in the members panel header would now be a
+   second copy. On a phone they stay: that drawer is where the call controls are. */
+html[data-habitat-layout-desktop="1"][data-habitat-in-voice] [data-haven-region="voice-roster"] .voice-header-actions {
   display: none;
 }
 html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"]) {

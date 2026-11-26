@@ -511,6 +511,200 @@ html[data-haven-theme-api="1"] :focus-visible {
   font-weight: 600;
 }
 
+/* ── Voice ───────────────────────────────────────
+   The bar that says you are in a call reads the way people expect: signal
+   bars and "Voice Connected" in the connected colour, the channel under it,
+   and hanging up as one red icon instead of a text button. */
+[data-haven-page="app"] .voice-bar {
+  gap: 0;
+  padding: .5rem .5rem .5rem .75rem;
+  background: var(--bg-secondary);
+  border-bottom: 0;
+  font-size: .75rem;
+}
+
+[data-haven-page="app"] .voice-bar-top,
+[data-haven-page="app"] .voice-bar-status {
+  align-items: center;
+}
+
+[data-haven-page="app"] .voice-bar-icon {
+  margin: 0;
+  color: var(--success);
+  font-size: 1rem;
+}
+
+[data-haven-page="app"] .voice-bar-icon .haven-glyph::before {
+  --hb-icon: var(--hb-icon-signal);
+}
+
+[data-haven-page="app"] .voice-bar-status-text {
+  color: var(--success);
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+[data-haven-page="app"] .voice-bar-channel {
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-weight: 500;
+}
+
+/* "Muted" and "Deafened" go on a line of their own under the status. Beside
+   it, two of them squeezed "Voice Connected" down to a few letters. */
+[data-haven-page="app"] .voice-bar-top {
+  flex-wrap: wrap;
+  row-gap: .25rem;
+}
+
+[data-haven-page="app"] .voice-bar-actions {
+  display: contents;
+}
+
+[data-haven-page="app"] .voice-bar-status {
+  order: 1;
+}
+
+[data-haven-page="app"] .voice-bar-leave {
+  order: 2;
+}
+
+[data-haven-page="app"] .voice-bar-badges {
+  order: 3;
+  flex: 1 1 100%;
+  justify-content: flex-start;
+  padding-left: 1.5rem;
+}
+
+[data-haven-page="app"] .voice-bar-badges:empty {
+  display: none;
+}
+
+/* The word stays in the button for screen readers and as its tooltip. */
+[data-haven-page="app"] .voice-bar-leave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--danger);
+  font-size: 0;
+}
+
+[data-haven-page="app"] .voice-bar-leave::before {
+  content: "";
+  width: 1.25rem;
+  height: 1.25rem;
+  background: currentColor;
+  -webkit-mask: var(--hb-icon-hangup) center / contain no-repeat;
+  mask: var(--hb-icon-hangup) center / contain no-repeat;
+}
+
+[data-haven-page="app"] .voice-bar-leave:hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+[data-haven-page="app"] .voice-bar-badge {
+  border-color: transparent;
+  background: var(--bg-active);
+}
+
+[data-haven-page="app"] .voice-active-indicator {
+  color: var(--success);
+}
+
+/* People in a call, listed under its channel. A dot stands for each person
+   and lights up while they talk; the mute and deafen marks only show when
+   they apply, at the end of the row. */
+[data-haven-page="app"] .channel-voice-user {
+  gap: .375rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: .8125rem;
+}
+
+[data-haven-page="app"] .channel-voice-user::before {
+  content: "";
+  flex: none;
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: var(--border-light);
+}
+
+[data-haven-page="app"] .channel-voice-user.talking {
+  color: var(--text-primary);
+}
+
+[data-haven-page="app"] .channel-voice-user.talking::before {
+  background: var(--success);
+  box-shadow: 0 0 0 .1875rem color-mix(in srgb, var(--success) 28%, transparent);
+}
+
+[data-haven-page="app"] .channel-voice-user .cvu-mic,
+[data-haven-page="app"] .channel-voice-user .cvu-deafen {
+  order: 2;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  opacity: 1;
+}
+
+[data-haven-page="app"] .channel-voice-user .cvu-mic:not(.is-muted),
+[data-haven-page="app"] .channel-voice-user .cvu-deafen:not(.is-deafened) {
+  display: none;
+}
+
+[data-haven-page="app"] .channel-voice-user .cvu-mic.is-muted,
+[data-haven-page="app"] .channel-voice-user .cvu-deafen.is-deafened {
+  margin-left: auto;
+}
+
+[data-haven-page="app"] .channel-voice-user .cvu-mic.is-muted ~ .cvu-deafen.is-deafened {
+  margin-left: 0;
+}
+
+/* The call controls, once the Habitat layout has docked them under the voice
+   bar: one row of equal buttons. Leaving is already on the voice bar right
+   above, so the second leave button and its divider go. */
+@media (min-width: 901px) {
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] {
+    gap: .375rem;
+    padding: 0 .5rem .5rem;
+    border-top: 0;
+    overflow: visible;
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] > .voice-panel-btn {
+    flex: 1 1 0;
+    width: auto;
+    height: 2rem;
+    border: 0;
+    border-radius: var(--radius);
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] > .voice-panel-btn:not(.active):not(.sharing):not(.muted) {
+    background: var(--bg-active);
+    color: var(--text-secondary);
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] > .voice-panel-btn:not(.active):not(.sharing):not(.muted):hover {
+    background: var(--border-light);
+    color: var(--text-primary);
+  }
+
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] > .voice-panel-leave,
+  [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] > .voice-panel-divider {
+    display: none;
+  }
+}
+
 /* ── Edit profile ────────────────────────────────
    Desktop only: who you are on the left, how you look on the right, instead
    of one column three screens long. The appearance block spans far more rows
@@ -686,6 +880,7 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
   --hb-icon-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 4.5 20 12 4.5 19.5 7 12zM7 12h6'/%3E%3C/svg%3E");
   --hb-icon-shield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 19 6v6c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5V6z'/%3E%3C/svg%3E");
   --hb-icon-shuffle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h3.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h3.5c1.3 0 2.3-1 3.2-2.5M13.3 9.5C14.2 8 15.2 7 16.5 7H20M17 4l3 3-3 3'/%3E%3C/svg%3E");
+  --hb-icon-signal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 19v-3M10 19v-7M15 19V8M20 19V4'/%3E%3C/svg%3E");
   --hb-icon-sliders: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7h9M18 7h1M5 12h2M11 12h8M5 17h7M16 17h3M16 5v4M9 10v4M14 15v4'/%3E%3C/svg%3E");
   --hb-icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4l2.5 5.2 5.7.8-4.1 4 1 5.7L12 17l-5.1 2.7 1-5.7-4.1-4 5.7-.8z'/%3E%3C/svg%3E");
   --hb-icon-stopwatch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zM12 8.5v4l2.5 2M9.5 3h5'/%3E%3C/svg%3E");

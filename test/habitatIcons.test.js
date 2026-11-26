@@ -160,3 +160,26 @@ test('the manager titles and tools that Haven Glyphs used to skip are named for 
     assert.ok(icons.GLYPHS[glyphClass], `${glyphClass} has no Habitat drawing`);
   }
 });
+
+test('the voice bar is drawn with Habitat icons and still says what its button does', () => {
+  const css = themeSource('habitat-grafit.theme.css');
+  for (const name of icons.EXTRA) {
+    assert.ok(icons.ICONS[name], `${name} is listed as an extra icon but not drawn`);
+    assert.ok(css.includes(`--hb-icon-${name}: url(`), `${name} has no variable in the theme`);
+  }
+  assert.match(css, /\.voice-bar-icon \.haven-glyph::before\s*\{[^}]*--hb-icon:\s*var\(--hb-icon-signal\)/);
+  const leave = (css.match(/\.voice-bar-leave\s*\{[^}]*\}/g) || []).join('\n');
+  assert.match(leave, /font-size:\s*0/, 'the word is visually replaced by the hang-up icon');
+  assert.doesNotMatch(leave, /display:\s*none|visibility:\s*hidden/, 'but stays in the button for screen readers');
+  assert.match(css, /\.voice-bar-leave::before\s*\{[^}]*var\(--hb-icon-hangup\)/);
+  assert.ok(css.includes('--hb-icon-hangup: url('), 'the hang-up drawing is in the theme');
+});
+
+test('in the docked call controls only the duplicate leave button is hidden', () => {
+  const css = themeSource('habitat-grafit.theme.css');
+  const hidden = css.match(/[^{}]*\.voice-panel-leave,[^{}]*\{[^}]*display:\s*none[^}]*\}/)?.[0] || '';
+  assert.match(hidden, /\[data-haven-region="sidebar-footer"\] > \[data-haven-region="voice-controls"\] > \.voice-panel-leave/,
+    'only where the voice bar with its own hang-up sits right above');
+  assert.doesNotMatch(css.replace(hidden, ''), /\.voice-panel-leave[^{]*\{[^}]*display:\s*none/,
+    'the members drawer on a phone keeps its leave button');
+});

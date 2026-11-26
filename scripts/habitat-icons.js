@@ -112,7 +112,8 @@ const ICONS = {
   poll: 'M6 19v-6M12 19V5M18 19v-9M4 19h16',
   shuffle: 'M4 7h3.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h3.5c1.3 0 2.3-1 3.2-2.5M13.3 9.5C14.2 8 15.2 7 16.5 7H20M17 4l3 3-3 3',
   'voice-low': SPEAKER + 'M15.5 9a4.2 4.2 0 0 1 0 6',
-  box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8'
+  box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
+  signal: 'M5 19v-3M10 19v-7M15 19V8M20 19V4'
 };
 
 // Haven Glyphs class -> Habitat icon. A class left out keeps its Font Awesome glyph.
@@ -174,6 +175,10 @@ function encode(markup) {
   return 'url("data:image/svg+xml,' + markup.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/#/g, '%23') + '")';
 }
 
+// Icons a theme paints by hand, outside the Haven Glyphs classes: the signal
+// bars on the voice bar. They get a variable even though no glyph class uses them.
+const EXTRA = ['signal'];
+
 function svg(name) {
   const spec = ICONS[name];
   if (!spec) throw new Error(`Unknown Habitat icon: ${name}`);
@@ -189,7 +194,7 @@ function dataUri(name) {
 }
 
 function block() {
-  const used = [...new Set(Object.values(GLYPHS))].sort();
+  const used = [...new Set([...Object.values(GLYPHS), ...EXTRA])].sort();
   const lines = [START, ':root {'];
   for (const name of used) lines.push(`  --hb-icon-${name}: ${dataUri(name)};`);
   lines.push('}');
@@ -233,4 +238,4 @@ if (require.main === module) {
   console.log(`Habitat icons written to ${THEMES.join(', ')}`);
 }
 
-module.exports = { ICONS, GLYPHS, BADGES, THEMES, START, END, svg, badgeSvg, block };
+module.exports = { ICONS, GLYPHS, EXTRA, BADGES, THEMES, START, END, svg, badgeSvg, block };
