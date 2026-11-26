@@ -399,6 +399,219 @@ html[data-haven-theme-api="1"] :focus-visible {
   [data-haven-page="app"] [data-haven-region="composer"] > textarea:focus-visible {
     outline: 0;
   }
+
+  /* The tools moved to the right end of the field, so the pickers they open
+     follow them there instead of opening at the far left. */
+  [data-haven-page="app"] [data-haven-region="composer"] > .emoji-picker,
+  [data-haven-page="app"] [data-haven-region="composer"] > .gif-picker {
+    left: auto;
+    right: 1rem;
+  }
+}
+
+/* ── Profile card ────────────────────────────────
+   A solid card instead of glass. A member's own profile theme paints the
+   card itself (.has-profile-theme), so the surface rules stand aside for it;
+   the type, badge and button rules apply either way. */
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) {
+  background: var(--bg-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border);
+}
+
+[data-haven-page="app"] .profile-popup {
+  border-radius: .875rem;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, .55);
+}
+
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner {
+  background-color: var(--bg-active);
+}
+
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-status-dot {
+  border-color: var(--bg-card);
+}
+
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-avatar:not([class*="avatar-hexagon"]):not([class*="avatar-diamond"]):not([class*="avatar-shield"]) {
+  box-shadow: 0 0 0 .3125rem var(--bg-card);
+}
+
+[data-haven-page="app"] .profile-popup-displayname {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+[data-haven-page="app"] .profile-popup-section-label {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+/* Badges sit right under the name, where people look for them, and need no
+   heading of their own there. The row keeps its place in the tab order. */
+[data-haven-page="app"] .profile-popup-body {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-haven-page="app"] .profile-popup-body > * { order: 3; }
+[data-haven-page="app"] .profile-popup-body > .profile-popup-names { order: 1; }
+
+[data-haven-page="app"] .profile-popup-body > .profile-badges,
+[data-haven-page="app"] .profile-popup-body > .profile-badge-detail {
+  order: 2;
+}
+
+[data-haven-page="app"] .profile-popup-body > .profile-badges {
+  gap: .375rem;
+  margin: .5rem 0 .25rem;
+}
+
+[data-haven-page="app"] .profile-popup-body > .profile-popup-section-label:has(+ .profile-badges) {
+  display: none;
+}
+
+[data-haven-page="app"] .profile-badge {
+  padding: 0;
+  border: 0;
+  border-radius: .25rem;
+  background: transparent;
+}
+
+[data-haven-page="app"] .profile-badge .badge-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+[data-haven-page="app"] .profile-badge.is-open {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-badge-detail {
+  margin: .375rem 0 .5rem;
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-role {
+  border-color: var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+}
+
+[data-haven-page="app"] .profile-popup-action-btn {
+  min-height: 2.25rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+
+/* ── Edit profile ────────────────────────────────
+   Desktop only: who you are on the left, how you look on the right, instead
+   of one column three screens long. The appearance block spans far more rows
+   than the left side fills, so its extra height lands in empty rows rather
+   than opening gaps between the fields. */
+@media (min-width: 901px) {
+  [data-haven-page="app"] #rename-modal > .modal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 2rem;
+    align-content: start;
+    width: min(52rem, 94vw);
+    max-width: none;
+  }
+
+  [data-haven-page="app"] #rename-modal > .modal > * {
+    grid-column: 1;
+  }
+
+  [data-haven-page="app"] #rename-modal > .modal > h3,
+  [data-haven-page="app"] #rename-modal > .modal > .modal-actions {
+    grid-column: 1 / -1;
+  }
+
+  [data-haven-page="app"] #rename-modal > .modal > .edit-profile-avatar {
+    grid-column: 2;
+    grid-row: 2 / span 200;
+  }
+}
+
+/* The folded message tools menu takes its width from its longest label, which
+   on a phone ran it well past the edge of the screen. It now stops at the
+   screen and a long label is cut with an ellipsis. */
+[data-haven-page="app"] [data-haven-region="composer"] .input-actions-box,
+[data-haven-page="app"] [data-haven-region="composer"] .composer-overflow {
+  max-width: calc(100vw - 2.5rem);
+}
+
+html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > button,
+[data-haven-page="app"] [data-haven-region="composer"] .composer-overflow > button {
+  min-width: 0;
+}
+
+html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > button::after,
+[data-haven-page="app"] [data-haven-region="composer"] .composer-overflow > button::after {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Phone: the channel header ───────────────────
+   The channel name was left about four pixels beside the update pill and the
+   voice button. The name now takes the free space and the other two keep
+   their icon. The text is only dropped where an icon is there to stand for
+   it, so with Haven Glyphs off the buttons keep their words. */
+@media (max-width: 768px) {
+  [data-haven-page="app"] [data-haven-region="channel-header"] .channel-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  [data-haven-page="app"] [data-haven-region="channel-header"] .channel-info > h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  [data-haven-page="app"] [data-haven-region="channel-header"] .update-banner .update-text {
+    display: none;
+  }
+
+  [data-haven-page="app"] [data-haven-region="channel-header"] .btn-voice > span:has(> .haven-glyph) {
+    font-size: 0;
+  }
+
+  [data-haven-page="app"] [data-haven-region="channel-header"] .btn-voice > span > .haven-glyph {
+    font-size: 1.125rem;
+  }
+
+  [data-haven-page="app"] [data-haven-region="channel-header"] .voice-active-indicator:has(.haven-glyph) .voice-indicator-text {
+    display: none;
+  }
+}
+
+/* ── Phone: the Settings window ──────────────────
+   It keeps a 420px minimum, which on a 375px phone pushed both edges off the
+   screen. The enlarge button is dropped there: the window already fills the
+   width, and the room goes to the title, which was wrapping under its icon. */
+@media (max-width: 480px) {
+  [data-haven-page="app"] .modal.modal-settings {
+    min-width: 0;
+    width: 100%;
+  }
+
+  [data-haven-page="app"] .modal-settings .settings-header > h3 {
+    white-space: nowrap;
+  }
+
+  [data-haven-page="app"] .modal-settings .settings-header .modal-expand-btn {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -417,6 +630,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   --hb-icon-bars: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 7h15M4.5 12h15M4.5 17h15'/%3E%3C/svg%3E");
   --hb-icon-bell: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5L19 18H5zM10.2 20.2a2 2 0 0 0 3.6 0'/%3E%3C/svg%3E");
   --hb-icon-bell-off: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5L19 18H5zM10.2 20.2a2 2 0 0 0 3.6 0M4.5 4.5l15 15'/%3E%3C/svg%3E");
+  --hb-icon-box: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8'/%3E%3C/svg%3E");
   --hb-icon-camera: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 7h8l3 3v7h-11zM14.5 10.5l6-3v9l-6-3'/%3E%3C/svg%3E");
   --hb-icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
   --hb-icon-check-circle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM8 12.3l2.8 2.8L16 9.5'/%3E%3C/svg%3E");
@@ -471,6 +685,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   --hb-icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.8 17.1a6.3 6.3 0 1 0 0-12.6 6.3 6.3 0 0 0 0 12.6zM15.5 15.5 20 20'/%3E%3C/svg%3E");
   --hb-icon-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 4.5 20 12 4.5 19.5 7 12zM7 12h6'/%3E%3C/svg%3E");
   --hb-icon-shield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 19 6v6c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5V6z'/%3E%3C/svg%3E");
+  --hb-icon-shuffle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h3.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h3.5c1.3 0 2.3-1 3.2-2.5M13.3 9.5C14.2 8 15.2 7 16.5 7H20M17 4l3 3-3 3'/%3E%3C/svg%3E");
   --hb-icon-sliders: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7h9M18 7h1M5 12h2M11 12h8M5 17h7M16 17h3M16 5v4M9 10v4M14 15v4'/%3E%3C/svg%3E");
   --hb-icon-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4l2.5 5.2 5.7.8-4.1 4 1 5.7L12 17l-5.1 2.7 1-5.7-4.1-4 5.7-.8z'/%3E%3C/svg%3E");
   --hb-icon-stopwatch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zM12 8.5v4l2.5 2M9.5 3h5'/%3E%3C/svg%3E");
@@ -480,6 +695,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   --hb-icon-unlock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 11h10v8.5H7zM9 11V8a3 3 0 0 1 5.8-1'/%3E%3C/svg%3E");
   --hb-icon-user: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM5 19.5c.5-3.3 3.2-5.3 7-5.3s6.5 2 7 5.3'/%3E%3C/svg%3E");
   --hb-icon-voice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9.5v5h3.5l4.5 4v-13l-4.5 4zM15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11'/%3E%3C/svg%3E");
+  --hb-icon-voice-low: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9.5v5h3.5l4.5 4v-13l-4.5 4zM15.5 9a4.2 4.2 0 0 1 0 6'/%3E%3C/svg%3E");
   --hb-icon-voice-off: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9.5v5h3.5l4.5 4v-13l-4.5 4zM16 9.5l5 5M21 9.5l-5 5'/%3E%3C/svg%3E");
   --hb-icon-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4 21 19.5H3zM12 10v4.5M12 17v.1'/%3E%3C/svg%3E");
 }
@@ -557,7 +773,10 @@ html[data-haven-theme-api="1"] :focus-visible {
 .haven-glyph.fa-tag::before,
 .haven-glyph.fa-up-right-from-square::before,
 .haven-glyph.fa-mobile-screen::before,
-.haven-glyph.fa-chart-column::before {
+.haven-glyph.fa-chart-column::before,
+.haven-glyph.fa-shuffle::before,
+.haven-glyph.fa-volume-low::before,
+.haven-glyph.fa-box::before {
   content: "";
   display: inline-block;
   width: 1.15em;
@@ -642,4 +861,25 @@ html[data-haven-theme-api="1"] :focus-visible {
 .haven-glyph.fa-up-right-from-square::before { --hb-icon: var(--hb-icon-external); }
 .haven-glyph.fa-mobile-screen::before { --hb-icon: var(--hb-icon-phone); }
 .haven-glyph.fa-chart-column::before { --hb-icon: var(--hb-icon-poll); }
+.haven-glyph.fa-shuffle::before { --hb-icon: var(--hb-icon-shuffle); }
+.haven-glyph.fa-volume-low::before { --hb-icon: var(--hb-icon-voice-low); }
+.haven-glyph.fa-box::before { --hb-icon: var(--hb-icon-box); }
+:root {
+  --hb-badge-sprout: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%236cc3a3' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%2306231b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20v-7M12 13c0-3.5-2.5-6-7-6 0 4 2.5 6 7 6zM12 15c0-3 2.5-5 7-5 0 3.5-2.5 5-7 5z'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-clock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%237ab8e8' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%2306203a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zM12 8v4l2.5 2'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-calendar: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23a99bf0' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%231a1140' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 6.5h14v13H5zM5 10.5h14M9 4v4M15 4v4'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-chat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23f0a8c8' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%233d0f26' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 5h11v10h-8l-4 4v-4H5V8z'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23e9b949' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%232a1d00' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4l2.5 5.2 5.7.8-4.1 4 1 5.7L12 17l-5.1 2.7 1-5.7-4.1-4 5.7-.8z'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-shield: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23b0b6bd' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%2317191c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 19 6v6c0 4-3 7-7 8.5-4-1.5-7-4.5-7-8.5V6zM9 12l2.2 2.2L15 10'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23f0736a' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%233a0b08' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19.5 4.6 12.4a4.3 4.3 0 0 1 6.1-6.1L12 7.6l1.3-1.3a4.3 4.3 0 0 1 6.1 6.1z'/%3E%3C/g%3E%3C/svg%3E");
+  --hb-badge-trophy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23f09a55' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/%3E%3Cg transform='translate(14 16) scale(1.5)' fill='none' stroke='%233a1a00' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 4.5h8v5a4 4 0 0 1-8 0zM8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3M12 13.5V17M8.5 19.5h7'/%3E%3C/g%3E%3C/svg%3E");
+}
+img.badge-icon[src$="/img/badges/sprout.svg"] { content: var(--hb-badge-sprout); }
+img.badge-icon[src$="/img/badges/clock.svg"] { content: var(--hb-badge-clock); }
+img.badge-icon[src$="/img/badges/calendar.svg"] { content: var(--hb-badge-calendar); }
+img.badge-icon[src$="/img/badges/chat.svg"] { content: var(--hb-badge-chat); }
+img.badge-icon[src$="/img/badges/star.svg"] { content: var(--hb-badge-star); }
+img.badge-icon[src$="/img/badges/shield.svg"] { content: var(--hb-badge-shield); }
+img.badge-icon[src$="/img/badges/heart.svg"] { content: var(--hb-badge-heart); }
+img.badge-icon[src$="/img/badges/trophy.svg"] { content: var(--hb-badge-trophy); }
 /* HABITAT-ICONS:END */

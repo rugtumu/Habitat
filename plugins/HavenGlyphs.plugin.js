@@ -180,7 +180,13 @@ HavenGlyphs.ICON_EXPLICIT_SELECTOR = [
   '.music-search-picker-thumb', '.organize-tag-icon', '.thread-mention-badge',
   '.import-channel-type-icon', '.connectivity-test-icon',
   '.webhook-avatar-icon', '.webhook-status-icon',
-  '.wizard-check', '.file-type-icon'
+  '.wizard-check', '.file-type-icon',
+  // Habitat fork: the emoji and sticker managers are excluded as a whole so
+  // the emojis people upload stay as they are. Their own title and tools are
+  // interface, so those are named here; so is a sound's volume label.
+  '#emoji-modal .modal > h3', '#sticker-modal .modal > h3',
+  '#emoji-modal label.btn-sm', '#sticker-modal label.btn-sm',
+  '#emoji-modal .btn-xs', '#sticker-modal .btn-xs', '.sound-volume'
 ].join(',');
 
 HavenGlyphs.ICON_HOST_SELECTOR = [
@@ -315,7 +321,9 @@ HavenGlyphs.ICON_MAP = Object.freeze({
   '\ud83c\udf55': ['fa-pizza-slice'], '\ud83d\udea9': ['fa-flag'], '\u270b': ['fa-hand'],
   '\ud83c\udfde\ufe0f': ['fa-panorama'], '\ud83d\udd75\ufe0f': ['fa-user-secret'],
   '\ud83d\udcbf': ['fa-compact-disc'], '\u276e': ['fa-chevron-left'], '\u276f': ['fa-chevron-right'],
-  '\u2039': ['fa-chevron-left'], '\u203a': ['fa-chevron-right'], '\ud83d\udfe2': ['fa-circle']
+  '\u2039': ['fa-chevron-left'], '\u203a': ['fa-chevron-right'], '\ud83d\udfe2': ['fa-circle'],
+  // Habitat fork: merge channel title and the soundboard volume label.
+  '\ud83d\udd00': ['fa-shuffle'], '\ud83d\udd09': ['fa-volume-low']
 });
 
 HavenGlyphs.ICON_KEYS = Object.keys(HavenGlyphs.ICON_MAP).sort((a, b) => b.length - a.length);
@@ -373,7 +381,8 @@ HavenGlyphs.ICON_CODEPOINTS = Object.freeze({
   'fa-user-secret': 'f21b', 'fa-users': 'f0c0', 'fa-video': 'f03d', 'fa-volume-high': 'f028',
   'fa-volume-xmark': 'f6a9',
   'fa-wand-magic-sparkles': 'e2ca', 'fa-water': 'f773', 'fa-window-maximize': 'f2d0',
-  'fa-wrench': 'f0ad', 'fa-xmark': 'f00d', 'fa-chevron-left': 'f053', 'fa-chevron-right': 'f054'
+  'fa-wrench': 'f0ad', 'fa-xmark': 'f00d', 'fa-chevron-left': 'f053', 'fa-chevron-right': 'f054',
+  'fa-shuffle': 'f074', 'fa-volume-low': 'f027'
 });
 
 HavenGlyphs.CSS = `@font-face {

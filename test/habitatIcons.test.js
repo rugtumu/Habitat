@@ -112,3 +112,51 @@ test('Habitat Grafit ships every font it names, with the licenses beside them', 
     assert.match(fs.readFileSync(path.join(fontDir, license), 'utf8'), /SIL Open Font License, Version 1\.1/);
   }
 });
+
+test('every built-in profile badge has Habitat artwork that stays readable', () => {
+  const { BUILTIN_ICONS } = require('../src/badges');
+  assert.deepEqual(Object.keys(icons.BADGES).sort(), [...BUILTIN_ICONS].sort(),
+    'a built-in badge without Habitat artwork would keep the purple disc beside the new tiles');
+  const css = themeSource('habitat-grafit.theme.css');
+  const luminance = (hex) => {
+    const channel = (i) => {
+      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  };
+  for (const [name, [tile, ink, glyph]] of Object.entries(icons.BADGES)) {
+    assert.match(glyph, /^[MmLlHhVvAaCcSsZz0-9 .\-]+$/, `${name} has characters outside path data`);
+    const [hi, lo] = [luminance(tile), luminance(ink)].sort((a, b) => b - a);
+    assert.ok((hi + 0.05) / (lo + 0.05) >= 4.5, `${name}: the glyph does not stand out from its tile`);
+    assert.doesNotMatch(icons.badgeSvg(name), /"/, `${name} would break out of the url("...") value`);
+    assert.ok(css.includes(`img.badge-icon[src$="/img/badges/${name}.svg"] { content: var(--hb-badge-${name}); }`),
+      `${name} is not swapped in by the theme`);
+  }
+  // The tiles all differ, so two badges are never told apart by glyph alone.
+  assert.equal(new Set(Object.values(icons.BADGES).map(([tile]) => tile)).size, Object.keys(icons.BADGES).length);
+});
+
+test('a member profile theme still paints its own card under Habitat Grafit', () => {
+  const css = themeSource('habitat-grafit.theme.css');
+  const surface = css.match(/\.profile-popup[^{]*\{[^}]*background:\s*var\(--bg-card\)[^}]*\}/g) || [];
+  assert.ok(surface.length > 0, 'the card gets a solid surface');
+  for (const rule of surface) {
+    assert.match(rule, /\.profile-popup:not\(\.has-profile-theme\)/, 'the solid surface must stand aside for a profile theme');
+  }
+  assert.doesNotMatch(css, /--profile-banner-height/, 'the banner height belongs to the app: a picture banner needs its own');
+});
+
+test('the manager titles and tools that Haven Glyphs used to skip are named for it', () => {
+  for (const selector of ['#emoji-modal .modal > h3', '#sticker-modal .modal > h3', '#sticker-modal label.btn-sm', '.sound-volume']) {
+    assert.ok(HavenGlyphs.ICON_EXPLICIT_SELECTOR.split(',').includes(selector), `${selector} is not an explicit icon host`);
+  }
+  // The managers as a whole stay excluded, so uploaded emojis are left alone.
+  assert.match(HavenGlyphs.ICON_EXCLUSION_SELECTOR, /#emoji-modal, #sticker-modal/);
+  assert.deepEqual(HavenGlyphs.ICON_MAP['🔀'], ['fa-shuffle']);
+  assert.deepEqual(HavenGlyphs.ICON_MAP['🔉'], ['fa-volume-low']);
+  for (const glyphClass of ['fa-shuffle', 'fa-volume-low', 'fa-box']) {
+    assert.ok(HavenGlyphs.ICON_CODEPOINTS[glyphClass], `${glyphClass} has no Font Awesome fallback`);
+    assert.ok(icons.GLYPHS[glyphClass], `${glyphClass} has no Habitat drawing`);
+  }
+});

@@ -109,7 +109,10 @@ const ICONS = {
   tag: 'M4.5 4.5h7l8 8-7 7-8-8zM8.5 8.5v.1',
   external: 'M13 5h6v6M19 5l-8.5 8.5M10 6.5H5V19h12.5v-5',
   phone: 'M7.5 3.5h7l2 2v15h-9zM11 17.5h2',
-  poll: 'M6 19v-6M12 19V5M18 19v-9M4 19h16'
+  poll: 'M6 19v-6M12 19V5M18 19v-9M4 19h16',
+  shuffle: 'M4 7h3.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h3.5c1.3 0 2.3-1 3.2-2.5M13.3 9.5C14.2 8 15.2 7 16.5 7H20M17 4l3 3-3 3',
+  'voice-low': SPEAKER + 'M15.5 9a4.2 4.2 0 0 1 0 6',
+  box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8'
 };
 
 // Haven Glyphs class -> Habitat icon. A class left out keeps its Font Awesome glyph.
@@ -137,8 +140,39 @@ const GLYPHS = {
   'fa-phone-slash': 'hangup', 'fa-circle-info': 'info', 'fa-expand': 'expand',
   'fa-compress': 'compress', 'fa-bars': 'bars', 'fa-arrow-up': 'arrow-up',
   'fa-arrow-down': 'arrow-down', 'fa-face-smile': 'emoji', 'fa-tag': 'tag',
-  'fa-up-right-from-square': 'external', 'fa-mobile-screen': 'phone', 'fa-chart-column': 'poll'
+  'fa-up-right-from-square': 'external', 'fa-mobile-screen': 'phone', 'fa-chart-column': 'poll',
+  'fa-shuffle': 'shuffle', 'fa-volume-low': 'voice-low', 'fa-box': 'box'
 };
+
+// Profile badges. Haven ships eight built-in badge pictures as round purple
+// discs in /img/badges; a Habitat theme swaps each for a tile with the cut
+// corner, in its own colour, with a glyph from the set above. An <img> takes
+// the replacement through the CSS content property, so the badge code and the
+// stored badges are untouched. name: [tile colour, glyph colour, glyph path]
+const BADGES = {
+  sprout: ['6cc3a3', '06231b', 'M12 20v-7M12 13c0-3.5-2.5-6-7-6 0 4 2.5 6 7 6zM12 15c0-3 2.5-5 7-5 0 3.5-2.5 5-7 5z'],
+  clock: ['7ab8e8', '06203a', 'M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zM12 8v4l2.5 2'],
+  calendar: ['a99bf0', '1a1140', 'M5 6.5h14v13H5zM5 10.5h14M9 4v4M15 4v4'],
+  chat: ['f0a8c8', '3d0f26', ICONS.forum],
+  star: ['e9b949', '2a1d00', ICONS.star],
+  shield: ['b0b6bd', '17191c', SHIELD + 'M9 12l2.2 2.2L15 10'],
+  heart: ['f0736a', '3a0b08', ICONS.heart],
+  trophy: ['f09a55', '3a1a00', 'M8 4.5h8v5a4 4 0 0 1-8 0zM8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3M12 13.5V17M8.5 19.5h7']
+};
+
+function badgeSvg(name) {
+  const spec = BADGES[name];
+  if (!spec) throw new Error(`Unknown Habitat badge: ${name}`);
+  const [tile, ink, glyph] = spec;
+  return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+    + `<path fill='#${tile}' d='M12 4h28l20 20v28a8 8 0 0 1-8 8H12a8 8 0 0 1-8-8V12a8 8 0 0 1 8-8z'/>`
+    + `<g transform='translate(14 16) scale(1.5)' fill='none' stroke='#${ink}' stroke-width='2' `
+    + `stroke-linecap='round' stroke-linejoin='round'><path d='${glyph}'/></g></svg>`;
+}
+
+function encode(markup) {
+  return 'url("data:image/svg+xml,' + markup.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/#/g, '%23') + '")';
+}
 
 function svg(name) {
   const spec = ICONS[name];
@@ -151,7 +185,7 @@ function svg(name) {
 }
 
 function dataUri(name) {
-  return 'url("data:image/svg+xml,' + svg(name).replace(/</g, '%3C').replace(/>/g, '%3E') + '")';
+  return encode(svg(name));
 }
 
 function block() {
@@ -173,6 +207,12 @@ function block() {
   for (const [cls, name] of Object.entries(GLYPHS)) {
     lines.push(`.haven-glyph.${cls}::before { --hb-icon: var(--hb-icon-${name}); }`);
   }
+  lines.push(':root {');
+  for (const name of Object.keys(BADGES)) lines.push(`  --hb-badge-${name}: ${encode(badgeSvg(name))};`);
+  lines.push('}');
+  for (const name of Object.keys(BADGES)) {
+    lines.push(`img.badge-icon[src$="/img/badges/${name}.svg"] { content: var(--hb-badge-${name}); }`);
+  }
   lines.push(END);
   return lines.join('\n');
 }
@@ -193,4 +233,4 @@ if (require.main === module) {
   console.log(`Habitat icons written to ${THEMES.join(', ')}`);
 }
 
-module.exports = { ICONS, GLYPHS, THEMES, START, END, svg, block };
+module.exports = { ICONS, GLYPHS, BADGES, THEMES, START, END, svg, badgeSvg, block };
