@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'Haven';
   const options = {
     body: payload.body || '',
-    icon: payload.icon || '/icon-192.svg',
+    icon: payload.icon || '/icon-192.png',
     badge: '/icon-192.svg',
     tag: payload.tag || 'haven-message',       // collapse similar notifications
     renotify: true,                            // alert even if same tag
