@@ -136,16 +136,36 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-muted);
 }
 
-/* ── Login and registration ──────────────────────── */
-[data-haven-page="auth"] [data-haven-region="auth-shell"] {
+/* ── Login and registration: monochrome ──────────────
+   Black, graphite and a white primary action. The indigo accent is kept for
+   the app itself; here the tokens are re-pointed so the selected tab, the
+   submit button, the logo and focus rings all read as white on black. */
+[data-haven-page="auth"] {
+  --bg-primary:    #060709;
+  --bg-secondary:  #060709;
+  --bg-tertiary:   #0c0d10;
+  --bg-input:      #0c0d10;
+  --bg-card:       #0f1013;
+  --bg-hover:      #17181d;
+  --border:        #1d1f25;
+  --border-light:  #2a2d35;
+  --accent:        #f2f3f5;
+  --accent-hover:  #ffffff;
+  --accent-glow:   rgba(255, 255, 255, .10);
+  --accent-text:   #08090b;
+  --text-link:     #d5d8e0;
   background:
-    radial-gradient(60rem 30rem at 50% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
-    var(--bg-secondary);
+    radial-gradient(50rem 26rem at 50% -8%, rgba(255, 255, 255, .07), transparent 70%),
+    var(--bg-primary);
+}
+
+[data-haven-page="auth"] [data-haven-region="auth-shell"] {
+  background: transparent;
 }
 
 [data-haven-page="auth"] [data-haven-region="auth-card"] {
-  background: var(--bg-card);
+  background: linear-gradient(180deg, #121317, var(--bg-card));
   border: 1px solid var(--border-light);
-  border-radius: .875rem;
-  box-shadow: 0 1.5rem 4rem -1.5rem rgba(0, 0, 0, .7);
+  border-radius: .75rem;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 2rem 5rem -1.5rem rgba(0, 0, 0, .9);
 }
