@@ -482,6 +482,42 @@ html[data-habitat-layout] [data-habitat-icon] {
   stroke-linejoin: round;
 }
 
+/* ── Motion ──
+   Opacity and the translate and scale properties only. Haven's reduce-motion
+   switch takes these to zero along with everything else. */
+@keyframes habitat-layout-fade {
+  from { opacity: 0; }
+}
+@keyframes habitat-layout-drop {
+  from { opacity: 0; translate: 0 -0.25rem; }
+}
+@keyframes habitat-layout-pop {
+  from { opacity: 0; translate: 0 0.5rem; scale: 0.98; }
+}
+html[data-habitat-layout] [data-habitat-menu]:not([hidden]) {
+  animation: habitat-layout-drop 0.14s ease-out;
+}
+html[data-habitat-layout] [data-habitat-menu-button] > [data-habitat-icon] {
+  transition: rotate 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+html[data-habitat-layout] [data-habitat-menu-button][aria-expanded="true"] > [data-habitat-icon] {
+  rotate: 180deg;
+}
+html[data-habitat-layout] :where([data-habitat-menu] button, [data-habitat-tools] > button,
+  [data-habitat-menu-button], [data-habitat-add-button], [data-habitat-dialog-close]) {
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+html[data-habitat-layout] :is([data-habitat-menu-button], [data-habitat-add-button],
+  [data-habitat-dialog-close], [data-habitat-tools] > button):active {
+  scale: 0.94;
+}
+[data-habitat-dialog]:not([hidden]) {
+  animation: habitat-layout-fade 0.16s ease-out;
+}
+[data-habitat-dialog]:not([hidden]) > [data-habitat-dialog-panel] {
+  animation: habitat-layout-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* ── Server rail ── */
 html[data-habitat-layout-desktop="1"] :where([data-haven-region="server-rail"]) {
   width: 4.5rem;

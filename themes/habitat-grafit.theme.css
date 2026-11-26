@@ -68,6 +68,9 @@
   --hb-rail:       #111315;
   --hb-raise:      #26292e;
   --hb-cut:        0.3125rem;
+  --hb-ease:       cubic-bezier(.2, .8, .2, 1);
+  --hb-fast:       .12s;
+  --hb-base:       .18s;
 
   /* ── Backgrounds ───────────────────────────────── */
   --bg-primary:    #1e2024;
@@ -808,8 +811,138 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
   }
 }
 
+/* ── Motion ──────────────────────────────────────
+   Things that open rise into place, things you point at answer, and nothing
+   moves on its own. Every rule animates opacity or the translate and scale
+   properties only: those are cheap to draw, and unlike transform they add to
+   whatever transform Haven already positions an element with.
+
+   Reduced motion needs nothing here for the app. Haven's own switch
+   (Settings, Accessibility: system, on or off) puts .reduce-motion on <html>
+   and takes every animation and transition to zero, these included. */
+@keyframes hb-fade {
+  from { opacity: 0; }
+}
+
+@keyframes hb-rise {
+  from { opacity: 0; translate: 0 .375rem; }
+}
+
+@keyframes hb-drop {
+  from { opacity: 0; translate: 0 -.25rem; }
+}
+
+@keyframes hb-pop {
+  from { opacity: 0; translate: 0 .5rem; scale: .98; }
+}
+
+/* Windows: the backdrop fades, the window settles into place. */
+[data-haven-page="app"] .modal-overlay {
+  animation: hb-fade var(--hb-base) ease-out;
+}
+
+[data-haven-page="app"] .modal-overlay > .modal {
+  animation: hb-pop .22s var(--hb-ease);
+}
+
+/* Pickers and menus that open upwards from the message box. */
+[data-haven-page="app"] [data-haven-region="composer"] > .emoji-picker,
+[data-haven-page="app"] [data-haven-region="composer"] > .gif-picker,
+[data-haven-page="app"] [data-haven-region="composer"] > .mention-dropdown,
+[data-haven-page="app"] [data-haven-region="composer"] > .emoji-dropdown,
+[data-haven-page="app"] [data-haven-region="composer"] > .slash-dropdown,
+[data-haven-page="app"] [data-haven-region="composer"] .input-actions-box.open,
+[data-haven-page="app"] [data-haven-region="composer"] > .composer-overflow.open,
+[data-haven-page="app"] .theme-popup,
+[data-haven-page="app"] .reply-bar {
+  animation: hb-rise var(--hb-base) var(--hb-ease);
+}
+
+/* Menus that open downwards or at the pointer. */
+[data-haven-page="app"] .user-context-menu,
+[data-haven-page="app"] .channel-ctx-menu,
+[data-haven-page="app"] .image-context-menu,
+[data-haven-page="app"] .voice-user-menu,
+[data-haven-page="app"] .dm-sort-menu,
+[data-haven-page="app"] .stream-layout-menu,
+[data-haven-page="app"] .emoji-skin-menu,
+[data-haven-page="app"] .status-picker,
+[data-haven-page="app"] .tag-popup,
+[data-haven-page="app"] .reaction-picker,
+[data-haven-page="app"] .reaction-full-picker,
+[data-haven-page="app"] .e2e-dropdown,
+[data-haven-page="app"] .search-filter-popover,
+[data-haven-page="app"] .mobile-server-menu {
+  animation: hb-drop var(--hb-fast) ease-out;
+}
+
+/* The tools that appear over a message you point at, and tooltips. */
+[data-haven-page="app"] .msg-toolbar,
+[data-haven-page="app"] .haven-tooltip {
+  animation: hb-fade var(--hb-fast) ease-out;
+}
+
+/* Joining a call: the voice bar and its controls arrive, they do not blink in. */
+[data-haven-page="app"] .voice-bar,
+[data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] {
+  animation: hb-rise var(--hb-base) var(--hb-ease);
+}
+
+/* Rows answer the pointer with a short fade instead of a hard switch. */
+[data-haven-page="app"] .message,
+[data-haven-page="app"] .user-item,
+[data-haven-page="app"] .channel-voice-user {
+  transition: background-color var(--hb-fast) ease, color var(--hb-fast) ease;
+}
+
+[data-haven-page="app"] .channel-voice-user::before {
+  transition: background-color var(--hb-base) ease, box-shadow var(--hb-base) ease;
+}
+
+[data-haven-page="app"] [data-haven-region="composer"] > textarea,
+[data-haven-page="app"] [data-haven-region="composer"] > .input-actions-box {
+  transition: background-color var(--hb-base) ease;
+}
+
+/* Buttons give a little under a press. */
+[data-haven-page="app"] :is(.icon-btn, .server-icon, .voice-panel-btn, .voice-header-btn, .voice-bar-leave,
+  .btn-send, .btn-accent, .btn-sm, .btn-voice, .sidebar-bottom-btn, .profile-popup-action-btn,
+  .profile-badge, .layout-opt, .settings-tab, .btn-composer-plus):active {
+  scale: .96;
+}
+
+/* The mark beside a server grows from nothing to a tick on hover and to full
+   height for the one you are in. It carries the Habitat cut at both ends. */
+[data-haven-page="app"] .server-icon:not(.add-server):not(.manage-servers):not(.sync-servers)::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(-1 * var(--hb-rail-gap, .5rem));
+  width: .3125rem;
+  height: 0;
+  translate: 0 -50%;
+  background: var(--text-primary);
+  clip-path: polygon(0 0, 100% .1875rem, 100% calc(100% - .1875rem), 0 100%);
+  transition: height var(--hb-base) var(--hb-ease);
+}
+
+[data-haven-page="app"] .server-icon:not(.add-server):not(.manage-servers):not(.sync-servers):hover::before {
+  height: 1.25rem;
+}
+
+[data-haven-page="app"] .server-icon.active:not(.add-server):not(.manage-servers):not(.sync-servers)::before {
+  height: 2.25rem;
+}
+
+html[data-habitat-layout-desktop="1"] {
+  --hb-rail-gap: .75rem;
+}
+
+/* The login page has no reduce-motion switch of its own, so it follows the system. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-haven-theme-api="1"] * {
+  [data-haven-page="auth"],
+  [data-haven-page="auth"] * {
+    animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }
 }
