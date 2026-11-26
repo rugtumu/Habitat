@@ -1,0 +1,20 @@
+Fonts used by the Habitat themes
+
+Figtree
+
+The figtree-latin.woff2 and figtree-latin-ext.woff2 files are the Figtree
+variable font by Erik Kennedy (https://github.com/erikdkennedy/figtree), as
+subset for the web by Google Fonts, included unmodified.
+The font is licensed under the SIL Open Font License 1.1; the full license is
+in OFL-Figtree.txt.
+
+Bricolage Grotesque
+
+The bricolage-grotesque-latin.woff2 and bricolage-grotesque-latin-ext.woff2
+files are the Bricolage Grotesque variable font by Mathieu Triay
+(https://github.com/ateliertriay/bricolage), as subset for the web by Google
+Fonts, included unmodified.
+The font is licensed under the SIL Open Font License 1.1; the full license is
+in OFL-BricolageGrotesque.txt.
+
+SIL Open Font License: https://scripts.sil.org/OFL
