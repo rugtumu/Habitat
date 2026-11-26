@@ -171,6 +171,10 @@
     link.rel = 'stylesheet';
     link.href = '/themes/' + encodeURIComponent(file);
     link.id = 'haven-theme-file-early';
+    // Habitat fork: a script-inserted stylesheet does not hold up the first
+    // paint by itself, so the base theme could show for a frame. Browsers
+    // that know blocking="render" wait for it; the rest ignore the attribute.
+    link.blocking = 'render';
     if (onSettled) {
       link.onload = onSettled;
       link.onerror = onSettled;
@@ -180,7 +184,12 @@
 
   // Safe mode and a pending recovery reset always start from Haven's base
   // appearance. Preferences stay stored until the user explicitly resets them.
-  var t = (_safeMode || _resetPending) ? 'haven' : localStorage.getItem('haven_theme');
+  // Habitat fork: with no theme of their own, a visitor starts from the server
+  // default as it was last reported (haven_default_theme, written by auth.js
+  // and the app), so a reload does not paint Haven's base first. It is a
+  // cache, not a choice: haven_theme still wins and stays unset.
+  var t = (_safeMode || _resetPending) ? 'haven'
+    : (localStorage.getItem('haven_theme') || localStorage.getItem('haven_default_theme'));
   // Light or dark native controls (dropdown lists, scrollbars), as theme.js
   // last measured them, so a light theme's first frame is light too. Haven's
   // base (safe mode, no theme yet) is dark, the stylesheet default.

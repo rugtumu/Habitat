@@ -544,6 +544,24 @@ test('pre-paint loader injects only a theme with a cached compatible verdict', (
   assert.equal(unknown.documentElement.attributes.get('data-haven-theme-pending'), 'test.theme.css');
 });
 
+test('a visitor with no theme of their own starts from the cached server default', () => {
+  // Without this the login page paints Haven's base on every reload and only
+  // then swaps to the server's default theme. The cache must never outrank or
+  // become the visitor's own choice, or a changed default could not reach them.
+  const cache = [{ file: 'test.theme.css', compatibility: 'compatible', compatible: true, themeApi: 1 }];
+  const fromDefault = runThemeInit({ theme: null, cache, stored: { haven_default_theme: 'file:test.theme.css' } });
+  assert.equal(fromDefault.links.length, 1);
+  assert.equal(fromDefault.links[0].href, '/themes/test.theme.css');
+  assert.equal(fromDefault.localStorage.getItem('haven_theme'), null, 'the default is not saved as their choice');
+
+  const ownChoice = runThemeInit({ theme: 'nord', cache, stored: { haven_default_theme: 'file:test.theme.css' } });
+  assert.equal(ownChoice.links.length, 0);
+  assert.equal(ownChoice.documentElement.attributes.get('data-theme'), 'nord');
+
+  const safeMode = runThemeInit({ theme: null, cache, search: '?haven-safe-mode=1', stored: { haven_default_theme: 'file:test.theme.css' } });
+  assert.equal(safeMode.links.length, 0, 'safe mode still starts from the base appearance');
+});
+
 test('pre-paint loader validates and injects an uncached compatible theme', async () => {
   const result = runThemeInit({
     themes: [{ file: 'test.theme.css', compatibility: 'compatible', compatible: true, themeApi: 1 }],

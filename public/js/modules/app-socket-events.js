@@ -950,6 +950,11 @@ _listenAdminAndPrefs() {
     // Effects come back from the server like the theme does; restore them
     // first so applyThemeFromServer() applies the saved pick, not the default.
     if (prefs.effects && typeof syncEffectsFromServer === 'function') syncEffectsFromServer(prefs.effects);
+    // Habitat fork: keep theme-init.js's cached server default current.
+    try {
+      if (this.serverSettings.default_theme) localStorage.setItem('haven_default_theme', this.serverSettings.default_theme);
+      else localStorage.removeItem('haven_default_theme');
+    } catch { /* storage blocked */ }
     if (prefs.theme) {
       // User has a saved personal theme preference: apply it
       applyThemeFromServer(prefs.theme, true, true);

@@ -137,6 +137,12 @@
   // Only applies when the user has no personal theme preference stored locally.
   // Also fetch server title for login page branding.
   fetch('/api/public-config').then(r => r.json()).then(async d => {
+    // Habitat fork: cache the default for theme-init.js to paint first next
+    // time. Refreshed on every load, so a changed default is one reload away.
+    try {
+      if (d.default_theme) localStorage.setItem('haven_default_theme', d.default_theme);
+      else localStorage.removeItem('haven_default_theme');
+    } catch { /* storage blocked: the default still applies below, after paint */ }
     if (d.default_theme && !localStorage.getItem('haven_theme')) {
       // A published theme is stored as "file:whatever.theme.css". Writing that
       // straight into data-theme matched no stylesheet at all, so an admin who
