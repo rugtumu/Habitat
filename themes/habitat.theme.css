@@ -163,6 +163,20 @@ html[data-haven-theme-api="1"] :focus-visible {
   background: transparent;
 }
 
+/* The theme buttons stay usable (they are how a visitor switches away from
+   this theme) but sit back until pointed at or focused. */
+[data-haven-page="auth"] [data-haven-region="theme-picker"] {
+  filter: grayscale(1);
+  opacity: .35;
+  transition: opacity var(--transition), filter var(--transition);
+}
+
+[data-haven-page="auth"] [data-haven-region="theme-picker"]:hover,
+[data-haven-page="auth"] [data-haven-region="theme-picker"]:focus-within {
+  filter: none;
+  opacity: 1;
+}
+
 [data-haven-page="auth"] [data-haven-region="auth-card"] {
   background: linear-gradient(180deg, #121317, var(--bg-card));
   border: 1px solid var(--border-light);

@@ -163,7 +163,7 @@
     // Tab branding for the login page (issue #5284). Mirrors what the
     // authenticated app does so multi-server tabs stay distinguishable
     // even before signing in.
-    if (d.server_name && d.server_name.toLowerCase() !== 'haven') {
+    if (d.server_name && !['haven', 'habitat'].includes(d.server_name.toLowerCase())) {
       document.title = `Habitat: ${d.server_name}`;
     }
     if (d.server_icon) {

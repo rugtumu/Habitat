@@ -491,7 +491,7 @@ _updateTabTitle() {
   // Include the server's display name so multiple Haven tabs are easy to tell
   // apart at a glance (issue #5284).
   const serverName = (this.serverSettings && this.serverSettings.server_name) || '';
-  const base = serverName && serverName.toLowerCase() !== 'haven'
+  const base = serverName && !['haven', 'habitat'].includes(serverName.toLowerCase())
     ? `Habitat: ${serverName}`
     : 'Habitat';
   document.title = total > 0 ? `(${total}) ${base}` : base;
