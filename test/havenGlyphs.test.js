@@ -116,6 +116,42 @@ test('Haven Glyphs scopes hosts and protects user content', () => {
 // The template names sit in a native <select>, which the plugin cannot draw
 // into, so they keep their emoji for everyone; the delete prompt drops the
 // marker again.
+test('redrawn interface does not pile up in memory, and plain text is skipped cheaply', () => {
+  // The app redraws its lists constantly. A plugin that remembers every icon
+  // it ever made keeps each removed list alive, so a tab left open grows and
+  // slows down. The icon itself has to carry what is needed to undo it.
+  const made = [];
+  const realDocument = global.document;
+  global.document = {
+    createDocumentFragment: () => ({ children: [], appendChild(node) { this.children.push(node); } }),
+    createTextNode: data => ({ nodeType: 3, data }),
+    createElement: () => {
+      const attrs = new Map();
+      const el = { className: '', setAttribute: (k, v) => attrs.set(k, v), getAttribute: k => attrs.get(k) };
+      made.push(el);
+      return el;
+    }
+  };
+  try {
+    const plugin = new HavenGlyphs();
+    const host = { matches: () => true, closest: () => host, tagName: 'SPAN', children: [], isConnected: true, normalize() {} };
+    for (let i = 0; i < 500; i++) {
+      plugin._swapIconNode({ nodeType: 3, data: '🔒 Private', parentElement: host, replaceWith() {} });
+    }
+    assert.equal(made.length, 500);
+    assert.equal(made[0].getAttribute('data-haven-glyph'), '🔒');
+    const held = Object.values(plugin).filter(value => value && typeof value === 'object')
+      .map(value => value.length ?? value.size ?? 0);
+    assert.ok(held.every(count => count === 0), 'the plugin keeps no list that grows with each icon');
+
+    // Text with no mapped emoji must not even look up its host.
+    const untouched = { matches() { throw new Error('host lookup'); }, closest() { throw new Error('host lookup'); } };
+    plugin._swapIconNode({ nodeType: 3, data: 'general chat, 12 online', parentElement: untouched, replaceWith() {} });
+  } finally {
+    global.document = realDocument;
+  }
+});
+
 test('native channel template options keep their emoji', () => {
   assert.match(roleToolsSource, /label: `\$\{tp\.emoji\} /);
   assert.match(roleToolsSource, /label: `💾 /);

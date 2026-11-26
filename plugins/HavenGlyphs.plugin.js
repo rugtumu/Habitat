@@ -9,8 +9,6 @@ class HavenGlyphs {
     if (this._started) return;
     this._started = true;
     this._listeners = [];
-    this._iconSwapped = [];
-    this._iconParents = [];
     this._iconBusy = false;
 
     try {
@@ -45,16 +43,17 @@ class HavenGlyphs {
     if (!this._started) return;
     this._iconObs?.disconnect();
     this._iconObs = null;
-    for (const [icon, emoji] of this._iconSwapped) {
-      try {
-        if (icon.isConnected) icon.replaceWith(document.createTextNode(emoji));
-      } catch { /* the icon was removed mid-loop: nothing to put back */ }
+    // Each icon carries the emoji it replaced, so the page itself is the
+    // record of what to put back. Keeping our own list of every icon ever
+    // made held on to icons the app had long since redrawn, and with them the
+    // whole removed list or message they sat in: memory grew for as long as
+    // the tab stayed open.
+    const parents = new Set();
+    for (const icon of document.querySelectorAll('i.haven-glyph[data-haven-glyph]')) {
+      if (icon.parentElement) parents.add(icon.parentElement);
+      icon.replaceWith(document.createTextNode(icon.getAttribute('data-haven-glyph')));
     }
-    this._iconSwapped = [];
-    for (const parent of this._iconParents) {
-      if (parent.isConnected) parent.normalize();
-    }
-    this._iconParents = [];
+    for (const parent of parents) parent.normalize();
     HavenApi.DOM.removeStyle('HavenGlyphs');
     this._started = false;
   }
@@ -103,6 +102,10 @@ class HavenGlyphs {
 
   _swapIconNode(node) {
     if (!node || node.nodeType !== 3 || !node.data) return;
+    // Nearly every text change in the app has no icon emoji in it. One test
+    // settles those, instead of looking up the host and searching the text
+    // for each of the map's keys in turn.
+    if (!HavenGlyphs.ICON_TEST.test(node.data)) return;
     const parent = node.parentElement;
     const host = this._iconHost(parent);
     if (!parent || !host || this._iconExcluded(parent, host)) return;
@@ -129,17 +132,14 @@ class HavenGlyphs {
       const [name, extra] = this._iconSpec(hit, host);
       icon.className = 'haven-glyph ' + name + (extra ? ' ' + extra : '');
       icon.setAttribute('aria-hidden', 'true');
+      icon.setAttribute('data-haven-glyph', hit);
       fragment.appendChild(icon);
-      this._iconSwapped.push([icon, hit]);
       data = data.slice(index + hit.length);
     }
     if (!found) return;
     if (data) fragment.appendChild(document.createTextNode(data));
     node.replaceWith(fragment);
-    if (parent.isConnected) {
-      parent.normalize();
-      this._iconParents.push(parent);
-    }
+    if (parent.isConnected) parent.normalize();
   }
 }
 
@@ -319,6 +319,9 @@ HavenGlyphs.ICON_MAP = Object.freeze({
 });
 
 HavenGlyphs.ICON_KEYS = Object.keys(HavenGlyphs.ICON_MAP).sort((a, b) => b.length - a.length);
+
+// True when a string holds any mapped emoji at all.
+HavenGlyphs.ICON_TEST = new RegExp(HavenGlyphs.ICON_KEYS.map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
 
 HavenGlyphs.ICON_CODEPOINTS = Object.freeze({
   'fa-arrow-down': 'f063', 'fa-arrow-right-arrow-left': 'f0ec',
