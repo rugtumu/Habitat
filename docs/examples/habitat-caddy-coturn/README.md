@@ -81,6 +81,38 @@ açılmalıdır.
 5. Kurulum sihirbazı "Port 3000 is not reachable" diyebilir. Port 3000 bilerek
    dışarı açılmadı, Caddy üzerinden gidiyor; yok sayın.
 
+## 5. Habitat arayüzünü açma
+
+Habitat'ın kendi görünümü üç parçadır. Hepsi repoda hazır gelir, yeni bir şey
+kurmak gerekmez.
+
+| Parça | Dosya | Ne yapar |
+|---|---|---|
+| Tema | `themes/habitat-grafit.theme.css` | Grafit zemin, logodaki yeşim vurgu |
+| Yerleşim | `plugins/HabitatLayout.plugin.js` | Hesap ve ses kontrolleri sol altta, kanal ekleme bir `+` düğmesinde, kenar çubuğu araçları sunucu adı menüsünde |
+| İkonlar | Haven Glyphs eklentisi | Arayüz emojilerinin yerine Habitat ikonları çizilir |
+
+**Admin, bir kez:**
+
+1. Kenar çubuğundaki tema düğmesinden **Habitat Grafit**'i bulun ve altındaki
+   **Publish** anahtarını açın. Sonra temayı kendiniz için seçin.
+2. Ayarlar → Layout → **Sidebar Layout** altında **Habitat**'ı seçin.
+3. Ayarlar → **Interface Icons** altında **Glyphs**'i seçin.
+4. Ayarlar → Admin → **Defaults for New Members** bölümünde tema, yerleşim ve
+   ikon satırlarını işaretleyip **Use my current settings as the defaults**'a
+   basın. Yeni gelen herkes bu görünümle başlar. Mevcut üyelere de vermek için
+   **Apply once to everyone now** düğmesini kullanın; kendi ayarını değiştirmiş
+   olanlara dokunulmaz.
+
+Her üye sonradan kendi tarayıcısında istediğini değiştirebilir. Yerleşim
+yalnızca 901 pikselden geniş pencerede devreye girer; telefonda ve dar
+pencerede uygulamanın kendi mobil düzeni kalır. Vazgeçmek için Layout'tan
+**Original**'ı seçmek yeter, her şey eski yerine döner.
+
+İkon eklemek ya da değiştirmek için `scripts/habitat-icons.js` içindeki çizimi
+düzenleyip `node scripts/habitat-icons.js` çalıştırın; temadaki ikon bloğu
+yeniden yazılır.
+
 ## Güncelleme
 
 Uygulama içindeki **Update Now** düğmesi Docker kurulumunu güncelleyemez.
