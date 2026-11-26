@@ -10,7 +10,11 @@ _composerButtonsCfg() {
   let c;
   try { c = JSON.parse(localStorage.getItem('haven_composer_buttons') || '{}') || {}; } catch { c = {}; }
   const keys = Object.keys(COMPOSER_BUTTONS);
-  return { order: [...new Set([...(Array.isArray(c.order) ? c.order : []), ...keys])].filter(k => keys.includes(k)), folded: (Array.isArray(c.folded) ? c.folded : []).filter(k => keys.includes(k)) };
+  // Habitat fork: keep reactions and voice beside the draft. The + menu holds
+  // the other tools until the member chooses their own arrangement.
+  const defaults = document.documentElement.hasAttribute('data-habitat-layout')
+    ? ['upload', 'poll', 'time', 'format', 'self-destruct', 'silent', 'highlight', 'burn'] : [];
+  return { order: [...new Set([...(Array.isArray(c.order) ? c.order : []), ...keys])].filter(k => keys.includes(k)), folded: (Array.isArray(c.folded) ? c.folded : defaults).filter(k => keys.includes(k)) };
 },
 _applyComposerButtons() {
   const box = document.querySelector('#message-input-area .input-actions-box');
@@ -45,6 +49,7 @@ _setupComposerButtons() {
     const { order, folded } = this._composerButtonsCfg();
     list.innerHTML = order.map((k, i) => `<div class="toolbar-order-item"><span class="toolbar-order-item-label">${t(COMPOSER_BUTTONS[k]).split(/[:(]/)[0].trim()}</span><div class="toolbar-order-item-controls"><input type="checkbox" data-fold="${k}" title="${t('settings.layout.composer.in_bar')}"${folded.includes(k) ? '' : ' checked'}><button type="button" class="toolbar-order-move" data-dir="-1" data-key="${k}"${i === 0 ? ' disabled' : ''} title="${t('media_runtime.move_up')}">▲</button><button type="button" class="toolbar-order-move" data-dir="1" data-key="${k}"${i === order.length - 1 ? ' disabled' : ''} title="${t('media_runtime.move_down')}">▼</button></div></div>`).join('');
   };
+  this._renderComposerButtons = render;
   list?.addEventListener('click', (e) => {
     const btn = e.target.closest('.toolbar-order-move');
     if (!btn) return;
@@ -73,6 +78,7 @@ _setupComposerButtons() {
 _bindSettings() {
   // ── Settings popout modal ────────────────────────────
   const openSettingsModal = () => {
+    this._renderComposerButtons?.();
     this._snapshotAdminSettings();
     document.getElementById('settings-modal').style.display = 'flex';
     this._syncSettingsNav();

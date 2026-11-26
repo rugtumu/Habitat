@@ -420,28 +420,6 @@
             <span class="disk-low-dot"></span>
             <span class="disk-low-text" data-i18n="banners.disk_low">Server disk almost full</span>
           </span>
-          <!-- Desktop app banner -->
-          <!-- The dismiss button is a SIBLING of the link, not inside it. A
-               <button> nested in an <a> is invalid HTML: the parser hoists it
-               out, so clicking the X activated the anchor and opened the
-               download page instead of dismissing. Same trap as the Android
-               banner below, which hit it with nested <button>s. -->
-          <span id="desktop-app-banner" class="desktop-app-banner" style="display: inline-flex;">
-            <a class="desktop-app-link" href="https://haven-app.com/#download" target="_blank" rel="noopener">
-              <span class="desktop-app-icon">🖥️</span>
-              <span class="desktop-app-text" data-i18n="header.get_desktop_app">Get the Desktop App</span>
-            </a>
-            <button type="button" class="desktop-app-dismiss" id="desktop-app-dismiss" data-i18n-title="modals.common.dismiss" data-i18n-aria-label="modals.common.dismiss" title="Dismiss" aria-label="Dismiss">×</button>
-          </span>
-          <!-- Android beta banner (must be <div>, not <button>; nesting
-               <button> inside <button> is invalid HTML and causes the
-               dismiss ×  to be hoisted out of its parent by the parser,
-               creating a phantom X in the channel header on mobile) -->
-          <div id="android-beta-banner" class="android-beta-banner" role="button" tabindex="0" style="display: inline-flex;" data-wired="1">
-            <span class="android-beta-icon">📱</span>
-            <span class="android-beta-text" data-i18n="header.android_beta">Android App</span>
-            <button class="android-beta-dismiss" id="android-beta-dismiss" data-i18n-title="modals.common.dismiss" data-i18n-aria-label="modals.common.dismiss" title="Dismiss" aria-label="Dismiss">×</button>
-          </div>
           <!-- Spacer pushes voice controls to the right -->
           <div style="flex:1"></div>
           <!-- Right-side: dynamic indicators, then voice (always furthest right) -->

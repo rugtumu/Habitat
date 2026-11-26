@@ -28,6 +28,20 @@ test('the saved layout is cleaned: unknown buttons dropped, missing ones added i
   assert.deepEqual(plain(cfg.folded), ['poll']);
   assert.deepEqual(plain(setup().app._composerButtonsCfg()), { order: KEYS, folded: [] });
 });
+test('Habitat groups secondary tools until the member saves a personal layout', () => {
+  const { app, attrs, box, menu, data } = setup();
+  attrs.add('data-habitat-layout');
+  app._applyComposerButtons();
+  assert.deepEqual(ids(box), ['emoji', 'gif', 'voice']);
+  assert.ok(ids(menu).includes('upload'));
+  data.set('haven_composer_buttons', JSON.stringify({ folded: [] }));
+  app._applyComposerButtons();
+  assert.deepEqual(ids(box), KEYS);
+  data.delete('haven_composer_buttons');
+  attrs.delete('data-habitat-layout');
+  app._applyComposerButtons();
+  assert.deepEqual(ids(box), KEYS);
+});
 test('buttons left out of the bar move into the + menu and the rest are ordered', () => {
   const { app, box, menu, attrs, byId } = setup({ order: ['gif', 'emoji'], folded: KEYS.filter(k => k !== 'emoji' && k !== 'gif') });
   app._closeComposerMenu = () => {};

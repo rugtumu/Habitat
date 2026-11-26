@@ -437,7 +437,7 @@ test('the desktop composer is never folded by the layout', () => {
   const plugin = new HabitatLayout();
   plugin.start();
   assert.equal(app.doc.documentElement.hasAttribute('data-compact-composer'), false);
-  assert.deepEqual(app.composerRefreshes, []);
+  assert.deepEqual(app.composerRefreshes, [false], 'the native toolbar refreshes with the Habitat defaults');
   plugin.stop();
 });
 
@@ -611,12 +611,63 @@ test('the members panel keeps its own mute buttons on a phone, and drops the sec
   assert.match(duplicate, /display:\s*none/);
 });
 
+test('the call view returns the live roster and the drawer close button on leave or layout change', () => {
+  const { doc, context } = buildApp({ desktop: false, phone: true });
+  const area = region(doc, 'message-area');
+  const indicator = el(doc, 'div', { id: 'voice-active-indicator' });
+  const close = el(doc, 'button', { id: 'mobile-right-close' });
+  const roster = doc.querySelector('[data-haven-region="voice-roster"]');
+  roster.appendChild(close);
+  doc.body.appendChild(area);
+  doc.body.appendChild(indicator);
+  indicator.style.display = 'none';
+  const before = snapshot(doc.body);
+  const layout = new HabitatLayout();
+  layout.start();
+  const toggle = doc.querySelector('[data-habitat-call-view]');
+  assert.ok(toggle.hidden);
+  indicator.style.display = 'flex';
+  FakeMutationObserver.notify(indicator);
+  toggle.fire('click');
+  assert.equal(roster.parentNode, area);
+  assert.ok(context.contains(close));
+  indicator.style.display = 'none';
+  FakeMutationObserver.notify(indicator);
+  assert.equal(roster.parentNode, context);
+  assert.equal(close.parentNode, roster);
+  indicator.style.display = 'flex';
+  FakeMutationObserver.notify(indicator);
+  toggle.fire('click');
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
+});
+
+test('the channel disclosure preserves its original buttons and their visibility', () => {
+  const { doc } = buildApp();
+  const copy = el(doc, 'button', { id: 'copy-code-btn' });
+  const settings = el(doc, 'button', { id: 'channel-code-settings-btn' });
+  settings.style.display = 'none';
+  const box = el(doc, 'div', { id: 'header-actions-box' }, [copy, settings]);
+  doc.body.appendChild(box);
+  const before = snapshot(box);
+  const layout = new HabitatLayout();
+  layout.start();
+  const menu = doc.querySelector('[data-habitat-channel-menu]');
+  assert.equal(copy.parentNode, menu);
+  assert.equal(settings.style.display, 'none');
+  layout.stop();
+  assert.equal(snapshot(box), before);
+});
+
 test('the layout keeps to public regions and named buttons, and ships no remote resources', () => {
   assert.doesNotMatch(source, /https?:\/\/(?!www\.w3\.org\/2000\/svg)/i);
-  // One rule has to outrank an inline style Haven sets; nothing else may force its way.
+  // Forced display is limited to the duplicated call controls and the tools
+  // the upstream phone stylesheet forcibly hides even inside our disclosure.
   const forced = HabitatLayout.CSS.match(/[^{}]*\{[^}]*!important[^}]*\}/g) || [];
-  assert.equal(forced.length, 1);
+  assert.equal(forced.length, 3);
   assert.match(forced[0], /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)/);
+  assert.match(forced[1], /#header-actions-box\[style\*="display: flex"\]/);
+  assert.match(forced[2], /#copy-code-btn\[style\*="inline-flex"\]/);
   for (const name of ['navigation-sidebar', 'account', 'sidebar-footer', 'sidebar-actions', 'channels',
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);

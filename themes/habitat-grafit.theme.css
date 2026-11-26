@@ -65,21 +65,22 @@
 
 :root {
   /* Habitat's own, not part of the public token set */
-  --hb-rail:       #111315;
-  --hb-raise:      #26292e;
+  --hb-rail:       #1e1f22;
+  --hb-raise:      #383a40;
+  --hb-profile-banner: #425c55;
   --hb-cut:        0.3125rem;
   --hb-ease:       cubic-bezier(.2, .8, .2, 1);
   --hb-fast:       .12s;
   --hb-base:       .18s;
 
   /* ── Backgrounds ───────────────────────────────── */
-  --bg-primary:    #1e2024;
-  --bg-secondary:  #17191c;
-  --bg-tertiary:   #111315;
-  --bg-hover:      #26292e;
-  --bg-active:     #30343a;
-  --bg-input:      #26292e;
-  --bg-card:       #23262a;
+  --bg-primary:    #313338;
+  --bg-secondary:  #2b2d31;
+  --bg-tertiary:   #1e1f22;
+  --bg-hover:      #383a40;
+  --bg-active:     #41434a;
+  --bg-input:      #383a40;
+  --bg-card:       #303136;
 
   /* ── Accent ────────────────────────────────────── */
   --accent:        #6cc3a3;
@@ -90,12 +91,12 @@
   /* ── Text ──────────────────────────────────────── */
   --text-primary:  #e8eaed;
   --text-secondary:#b0b6bd;
-  --text-muted:    #868d96;
+  --text-muted:    #a6aab3;
   --text-link:     #8ad3b8;
 
   /* ── Borders ───────────────────────────────────── */
-  --border:        #2a2d32;
-  --border-light:  #3a3f46;
+  --border:        #35373c;
+  --border-light:  #4b4e56;
 
   /* ── Status ────────────────────────────────────── */
   --success:       #6cc3a3;
@@ -200,8 +201,8 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 /* ── Login and registration ──────────────────────── */
 [data-haven-page="auth"] {
-  --bg-primary:   #111315;
-  --bg-secondary: #111315;
+  --bg-primary:   #1e1f22;
+  --bg-secondary: #1e1f22;
   background:
     radial-gradient(48rem 24rem at 50% -6%, rgba(108, 195, 163, .09), transparent 70%),
     var(--bg-primary);
@@ -962,6 +963,172 @@ html[data-habitat-layout-desktop="1"] {
     animation-duration: .01ms !important;
     transition-duration: .01ms !important;
   }
+}
+
+/* Conversations share a baseline across the main feed, private chats and threads.
+   Haven's density and accessibility settings still size the avatar gutter. */
+[data-haven-page="app"] .message-user-sep {
+  border-top: 0;
+  margin-block-start: .625rem;
+}
+html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: 1rem; font-weight: 700; }
+html:not([data-density="compact"]) [data-haven-page="app"] .message-time { font-size: .75rem; }
+html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content, .thread-msg-content) {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+[data-haven-page="app"] .msg-toolbar {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: .5rem;
+}
+[data-haven-page="app"] .channel-item {
+  min-height: 2.125rem; padding-inline: .625rem;
+  color: var(--text-secondary); font-size: .9375rem; font-weight: 550;
+}
+[data-haven-page="app"] .channel-item.active {
+  background: var(--bg-active); color: var(--text-primary); font-weight: 680;
+}
+[data-haven-page="app"] .user-item { min-height: 2.375rem; padding-inline: .5rem; }
+[data-haven-page="app"] .user-search-input {
+  border-radius: .5rem; border-color: var(--border); background: var(--bg-tertiary);
+}
+[data-haven-page="app"] [data-haven-region="sidebar-footer"] {
+  margin: .375rem; border-radius: .75rem; background: var(--hb-rail);
+}
+[data-haven-page="app"] [data-haven-region="account"] { border-radius: inherit; }
+[data-haven-page="app"] .channel-info h3 {
+  margin: 0; font: 700 1.0625rem/1.25 var(--font-main); letter-spacing: -.015em;
+}
+[data-haven-page="app"] [data-haven-region="channel-header"] .header-actions-box {
+  border: 0; padding-block: 0;
+}
+[data-haven-page="app"] .channel-header .channel-info {
+  flex: 100 1 auto; min-width: 0; overflow-wrap: anywhere;
+}
+[data-haven-page="app"] .welcome-content {
+  max-width: 30rem; text-align: start;
+}
+[data-haven-page="app"] .welcome-icon {
+  display: grid; place-items: center; width: 4rem; height: 4rem; margin: 0 0 1rem;
+  border-radius: 1.25rem; background: var(--bg-active); color: var(--accent); font-size: 2.5rem;
+}
+[data-haven-page="app"] .welcome-content h2 {
+  font: 750 clamp(1.625rem, 3vw, 2.375rem)/1.12 var(--font-heading); letter-spacing: -.035em;
+}
+[data-haven-page="app"] :is(.thread-panel, .dm-pip-panel, .quick-switcher-box, .channel-ctx-menu, .emoji-picker, .gif-picker) {
+  border-color: var(--border-light); border-radius: .875rem; background-color: var(--bg-secondary);
+}
+[data-haven-page="app"] :is(.dm-pip-header, .thread-panel-header) {
+  padding: .75rem 1rem; border-bottom: 1px solid var(--border); background-color: var(--bg-secondary);
+}
+[data-haven-page="app"] :is(.dm-pip-input, .thread-input, #quick-switcher-input) {
+  background-color: var(--bg-input); border-radius: .625rem; color: var(--text-primary);
+}
+[data-haven-page="app"] .quick-switcher-item.selected { background: var(--bg-active); color: var(--text-primary); }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner {
+  background-color: var(--hb-profile-banner);
+}
+[data-haven-page="app"] .profile-popup-displayname { font-weight: 750; }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-body {
+  margin: .25rem .5rem .5rem; border-radius: .625rem; background-color: var(--bg-secondary);
+}
+[data-haven-page="app"] :is(.panel.voice-panel, .voice-settings-panel) { background-color: var(--bg-secondary); }
+[data-haven-page="app"] .modal:not(.has-profile-theme) {
+  border-color: var(--border-light); border-radius: .875rem;
+}
+[data-haven-page="app"] .modal-settings {
+  background: var(--bg-primary); border: 1px solid var(--border-light);
+}
+[data-haven-page="app"] .settings-header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+[data-haven-page="app"] .settings-nav { background: var(--bg-secondary); }
+[data-haven-page="app"] .settings-nav :is(.sp-cat, .settings-nav-item) { font-size: .875rem; }
+[data-haven-page="app"] .settings-nav :is(.sp-cat, .settings-nav-item).active {
+  background: var(--bg-active); color: var(--text-primary);
+}
+[data-haven-page="app"] .settings-section-title {
+  color: var(--text-primary); font: 700 1.125rem/1.35 var(--font-main); letter-spacing: 0; text-transform: none;
+}
+[data-haven-page="auth"] .auth-header { text-align: start; }
+[data-haven-page="auth"] .auth-header h1 { font-size: 1.875rem; letter-spacing: -.035em; }
+[data-haven-page="auth"] :is(.auth-tabs, .auth-form input) { background: var(--bg-tertiary); border-radius: .5rem; }
+[data-haven-page="auth"] .auth-tab.active { color: var(--text-primary); background: var(--bg-active); }
+[data-haven-page="auth"] .auth-form .btn-primary { background: var(--accent); color: var(--accent-text); }
+@media (min-width: 901px) {
+  [data-haven-page="app"] .modal.modal-settings:not(.expanded) {
+    width: min(60rem, 92vw); height: min(46rem, 86dvh);
+  }
+  [data-haven-page="app"] .settings-nav.sp-nav { width: 14rem; min-width: 12rem; padding: .875rem .625rem; }
+  [data-haven-page="app"] .settings-body { padding-inline: 1.25rem; }
+  [data-haven-page="app"] [data-haven-region="channel-header"] { min-height: 3.25rem; }
+}
+@media (max-width: 768px) {
+  [data-haven-page="app"] .channel-header { gap: .25rem; }
+  [data-haven-page="app"] .modal.modal-settings { width: 100%; max-width: 100%; max-height: 100dvh; }
+  [data-haven-page="app"] .settings-nav.sp-nav { padding: .5rem; }
+  [data-haven-page="app"] [data-haven-region="composer"] > textarea {
+    min-width: 0; border: 1px solid var(--border-light); border-radius: 1.25rem;
+    background: var(--bg-input); padding-inline: .875rem;
+  }
+  [data-haven-page="app"] .message-user-sep { margin-block-start: .375rem; }
+}
+
+[data-haven-page="auth"] .auth-appearance {
+  margin-block-start: .875rem; padding-block-start: .75rem; border-top: 1px solid var(--border-light);
+}
+[data-haven-page="auth"] .auth-appearance summary {
+  width: fit-content; margin-inline: auto; padding: .375rem .625rem;
+  color: var(--text-secondary); font-size: .875rem; cursor: pointer;
+}
+[data-haven-page="auth"] .auth-appearance [data-haven-region="theme-picker"] {
+  opacity: 1; border: 0; margin: .375rem auto; padding: .25rem;
+}
+
+/* On a wide screen the server identity and the sign-in form have their
+   own columns. Registration and recovery keep the same reading order. */
+@media (min-width: 901px) {
+  [data-haven-page="auth"] .auth-container { max-width: 43rem; }
+  [data-haven-page="auth"] .auth-card {
+    display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); column-gap: 2rem;
+  }
+  [data-haven-page="auth"] .auth-card > * { grid-column: 2; min-width: 0; }
+  [data-haven-page="auth"] .auth-card > .auth-header {
+    grid-column: 1; grid-row: 1 / span 2; margin: 0; padding-inline-end: 1.25rem;
+    border-inline-end: 1px solid var(--border-light); overflow-wrap: anywhere;
+  }
+  [data-haven-page="auth"] .auth-header .logo {
+    display: grid; place-items: center; width: 4rem; height: 4rem; margin-block-end: 1rem;
+    border-radius: 1.125rem; background: var(--accent); color: var(--accent-text);
+  }
+  [data-haven-page="auth"] .auth-header .auth-server-logo { margin-inline: 0; }
+  [data-haven-page="auth"] .auth-card > :is(.auth-appearance, .auth-lang-bar, .auth-version) { grid-column: 1 / -1; }
+}
+
+[data-haven-page="app"] [data-habitat-inbox][aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-text); border-radius: 1rem;
+}
+@media (min-width: 901px) {
+  html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > .btn-composer-plus {
+    align-self: stretch; height: auto; margin: 0; border: 0; border-radius: .75rem 0 0 .75rem;
+    background: var(--bg-input); color: var(--text-secondary);
+  }
+  html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > textarea {
+    border-start-start-radius: 0; border-end-start-radius: 0;
+  }
+}
+
+/* A short conversation rests above the composer. Longer histories consume
+   the auto margin naturally, including when older messages are prepended. */
+[data-haven-page="app"] #messages:not(.forum-view, .forum-gallery, .forum-feed):has(> .message)::before {
+  content: '';
+  margin-block-start: auto;
+}
+[data-haven-page="app"] .voice-panel-btn:not(.active, .muted, .sharing, .voice-panel-leave) {
+  background-color: var(--bg-active); border-color: transparent; border-radius: .5rem;
+}
+[data-haven-page="app"] .voice-panel-leave { border-radius: .5rem; }
+[data-haven-page="app"] .pinned-panel, [data-haven-page="app"] .search-panel {
+  background-color: var(--bg-secondary); border-color: var(--border-light);
 }
 
 /* ═══ Part 3: Habitat icons ════════════════════════════════════════════ */

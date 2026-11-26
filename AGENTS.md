@@ -17,6 +17,10 @@ JavaScript with no build step). Upstream moves fast, so the fork stays small.
 - Comments explain why, in plain sentences. Commit messages are one imperative
   line, then a short body.
 
+The channel header omits the Android and desktop app download buttons. The
+welcome queue skips the Android promotion because its modal is absent from
+the page. The desktop welcome popup still follows the member's preference.
+
 ## Where things are
 
 | What | Where |
@@ -79,14 +83,9 @@ server's owner; the steps, checks and rollback are in
 
 ## Open work
 
-1. **Haven app promotions.** `public/js/modules/app-platform.js` shows an
-   Android app window to every member on every load (`_runWelcomePromoQueue`),
-   plus desktop and Android pills in the channel header. They advertise
-   upstream's apps under Habitat's name. Removing them is a core edit and has
-   not been decided yet: ask before doing it.
-2. **Voice.** No separate voice channel type and no call view in the main
-   area; both need core work. Camera, screen share and the speaking indicator
-   have not been checked in a real call.
-3. **Light theme.** Habitat Grafit is dark only.
-4. **Native apps.** The TestFlight and Play Store apps are upstream's and
+1. **Voice.** The Habitat layout can show the live call roster above the
+   conversation. A separate voice channel type still needs core work. Camera,
+   screen sharing and the speaking indicator need a real multi-device check.
+2. **Light theme.** Habitat Grafit is dark only.
+3. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.

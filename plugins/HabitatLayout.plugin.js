@@ -31,6 +31,7 @@ class HabitatLayout {
     this._built = [];
     this._mode = null;
     this._folded = false;
+    this._composerActive = false;
     this._media = window.matchMedia('(min-width: 901px)');
     this._phone = window.matchMedia('(max-width: 768px)');
 
@@ -129,12 +130,15 @@ class HabitatLayout {
   // the layout switches it on at phone width and hands it back afterwards.
   _syncComposer() {
     const fold = this._mode === 'compact' && this._phone?.matches === true;
-    if (fold === this._folded) return;
+    const active = Boolean(this._mode);
+    if (fold === this._folded && active === this._composerActive) return;
+    this._composerActive = active;
+    const wasFolded = this._folded;
     this._folded = fold;
     const root = document.documentElement;
     if (fold) {
       root.setAttribute('data-compact-composer', '');
-    } else {
+    } else if (wasFolded) {
       const setting = document.getElementById('compact-composer');
       if (setting?.checked) root.setAttribute('data-compact-composer', '');
       else root.removeAttribute('data-compact-composer');
@@ -167,6 +171,10 @@ class HabitatLayout {
       this._buildMenu(header, account, actions);
       this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
+      this._buildNavigation();
+      this._buildChannelTools();
+      this._buildConversationIntro();
+      this._buildCallStage();
       this._watchVoice();
       this._setAttr(header, 'data-habitat-header', '');
       this._mode = mode;
@@ -176,6 +184,183 @@ class HabitatLayout {
       this._restoreDesktop();
       throw error;
     }
+  }
+
+  // Switch the list without switching conversations or marking anything read.
+  _buildNavigation() {
+    const split = document.getElementById('sidebar-split');
+    const channels = this._region('channels');
+    const dms = this._region('direct-messages');
+    if (!split || !channels || !dms) return;
+
+    const nav = this._make('div', { 'data-habitat-nav': '' });
+    split.parentNode.insertBefore(nav, split);
+    const jump = this._make('button', { type: 'button', 'data-habitat-jump': '' }, nav);
+    jump.appendChild(this._icon('M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0'));
+    this._make('span', {}, jump).textContent = this._text('find');
+    this._on(jump, 'click', () => window.app?._openQuickSwitcher?.());
+    const choices = this._make('div', { 'data-habitat-lists': '' }, nav);
+    const rail = this._region('server-rail');
+    const home = document.getElementById('home-server');
+    let inbox;
+    if (home && rail?.contains(home)) {
+      const label = dms.querySelector('.section-label-text')?.textContent || this._text('messages');
+      inbox = this._make('button', { type: 'button', class: 'server-icon', 'data-habitat-inbox': '', 'aria-label': label, title: label });
+      inbox.appendChild(this._icon('M4 4h16v12H9l-5 4zM8 8h8M8 12h5'));
+      rail.insertBefore(inbox, home);
+    }
+    const buttons = {};
+    const select = (name) => {
+      inbox?.setAttribute('aria-pressed', String(name === 'messages'));
+      this._list = name;
+      split.setAttribute('data-habitat-list', name);
+      for (const [key, button] of Object.entries(buttons)) {
+        button.setAttribute('aria-pressed', String(name === key));
+      }
+    };
+    for (const [key, region] of [['channels', channels], ['messages', dms]]) {
+      const button = this._make('button', { type: 'button', 'aria-controls': region.id }, choices);
+      button.textContent = region.querySelector('.section-label-text')?.textContent || this._text(key);
+      buttons[key] = button;
+      this._on(button, 'click', () => select(key));
+    }
+    if (inbox) {
+      this._on(inbox, 'click', () => select('messages'));
+      this._on(home, 'click', () => select('channels'));
+    }
+    this._selectList = select;
+    const badge = document.getElementById('dm-unread-badge');
+    if (badge) {
+      const count = this._make('span', { 'data-habitat-count': '' }, buttons.messages);
+      const sync = () => { count.textContent = badge.style.display === 'none' ? '' : badge.textContent; };
+      this._badgeObserver = new MutationObserver(sync);
+      this._badgeObserver.observe(badge, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style'] });
+      sync();
+    }
+    this._make('p', { 'data-habitat-dm-empty': '' }, split).textContent = this._text('noDM');
+    this._setAttr(split, 'data-habitat-list', '');
+    select(this._list || (document.body.classList.contains('viewing-dm') ? 'messages' : 'channels'));
+  }
+
+  // The original buttons keep their handlers and permission-dependent visibility.
+  _buildChannelTools() {
+    const box = document.getElementById('header-actions-box');
+    if (!box) return;
+    const details = this._make('details', { 'data-habitat-channel-tools': '' });
+    box.appendChild(details);
+    const label = this._text('tools');
+    const trigger = this._make('summary', { 'aria-label': label, title: label }, details);
+    trigger.appendChild(this._icon('M4 12h2m5 0h2m5 0h2'));
+    const panel = this._make('div', { 'data-habitat-channel-menu': '' }, details);
+    for (const id of ['channel-code-display', 'copy-code-btn', 'channel-code-settings-btn', 'pinned-toggle-btn', 'gallery-toggle-btn', 'threads-toggle-btn', 'move-select-btn']) {
+      const item = document.getElementById(id);
+      if (item && box.contains(item)) this._move(item, panel, null);
+    }
+    this._on(document, 'pointerdown', event => {
+      if (details.open && !details.contains(event.target)) details.open = false;
+    }, true);
+    this._on(details, 'keydown', event => {
+      if (event.key === 'Escape') {
+        details.open = false;
+        trigger.focus();
+        event.stopPropagation();
+      }
+    }, true);
+    this._on(panel, 'click', event => {
+      if (event.target.closest('button')) details.open = false;
+    });
+  }
+
+  _buildConversationIntro() {
+    const messages = this._region('message-list');
+    const header = document.getElementById('channel-header-name');
+    if (!messages || !header) return;
+    const intro = this._make('div', { 'data-habitat-intro': '' });
+    messages.parentNode.insertBefore(intro, messages.nextSibling);
+    const mark = this._make('span', { 'aria-hidden': 'true' }, intro);
+    const title = this._make('h2', {}, intro);
+    const hint = this._make('p', {}, intro);
+    const sync = () => {
+      const name = header.textContent.trim();
+      const dm = document.body.classList.contains('viewing-dm');
+      const channel = HavenApi.currentChannel;
+      if (channel && channel !== this._lastConversation) {
+        this._lastConversation = channel;
+        this._selectList?.(dm ? 'messages' : 'channels');
+      }
+      mark.textContent = dm ? '@' : '#';
+      title.textContent = name;
+      hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
+    };
+    this._nameObserver = new MutationObserver(sync);
+    this._nameObserver.observe(header, { childList: true, characterData: true, subtree: true });
+    sync();
+  }
+
+  // The roster itself supplies live names, speaking state and member actions.
+  // Its placeholder also keeps the drawer close button in reach on a phone.
+  _buildCallStage() {
+    const indicator = document.getElementById('voice-active-indicator');
+    const area = this._region('message-area');
+    const roster = this._region('voice-roster');
+    if (!area || !indicator || !roster) return;
+    const anchor = this._make('div', { 'data-habitat-roster-home': '' });
+    roster.parentNode.insertBefore(anchor, roster);
+    const label = this._text('callView');
+    const button = this._make('button', {
+      type: 'button', 'data-habitat-call-view': '', 'aria-pressed': 'false',
+      'aria-controls': roster.id, 'aria-label': label, title: label
+    });
+    indicator.parentNode.insertBefore(button, indicator);
+    button.appendChild(this._icon('M3 4h8v7H3zM14 4h7v7h-7zM3 14h8v6H3zM14 14h7v6h-7z'));
+    const close = document.getElementById('mobile-right-close');
+    const closeParent = close?.parentNode;
+    const closeNext = close?.nextSibling;
+    const users = document.getElementById('voice-users');
+    const drawAvatars = () => {
+      const members = new Map();
+      for (const member of document.querySelectorAll('#online-users .user-item[data-user-id]')) {
+        members.set(member.dataset.userId, member);
+      }
+      for (const row of users.querySelectorAll('.voice-user-item')) {
+        if (row.querySelector('[data-habitat-call-avatar]')) continue;
+        const member = members.get(row.dataset.userId);
+        const photo = member?.querySelector('img.user-item-avatar');
+        const face = this._make('span', { 'data-habitat-call-avatar': '', 'aria-hidden': 'true' }, row);
+        if (photo) this._make('img', { src: photo.src, alt: '' }, face);
+        else face.textContent = Array.from(row.querySelector('.user-item-name')?.textContent || '?')[0];
+        row.insertBefore(face, row.firstChild);
+      }
+    };
+    const setOpen = (open) => {
+      if (open === roster.hasAttribute('data-habitat-stage')) return;
+      if (open) {
+        if (close) anchor.appendChild(close);
+        area.insertBefore(roster, area.firstChild);
+        roster.setAttribute('data-habitat-stage', '');
+        if (users) {
+          drawAvatars();
+          this._stageObserver = new MutationObserver(drawAvatars);
+          this._stageObserver.observe(users, { childList: true });
+        }
+      } else {
+        this._stageObserver?.disconnect();
+        for (const face of roster.querySelectorAll('[data-habitat-call-avatar]')) face.remove();
+        anchor.parentNode.insertBefore(roster, anchor.nextSibling);
+        if (closeParent) closeParent.insertBefore(close, closeNext?.parentNode === closeParent ? closeNext : null);
+        roster.removeAttribute('data-habitat-stage');
+      }
+      button.setAttribute('aria-pressed', String(open));
+    };
+    const sync = () => {
+      button.hidden = indicator.style.display === 'none';
+      if (button.hidden) setOpen(false);
+    };
+    this._closeStage = () => setOpen(false);
+    this._on(button, 'click', () => setOpen(!roster.hasAttribute('data-habitat-stage')));
+    this._indicatorObserver = new MutationObserver(sync);
+    this._indicatorObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+    sync();
   }
 
   // ── Bottom-left: account, mute, deafen, settings ──────────
@@ -421,6 +606,12 @@ class HabitatLayout {
 
   _restoreDesktop() {
     this._mode = null;
+    this._indicatorObserver?.disconnect();
+    this._closeStage?.();
+    this._closeStage = null;
+    this._selectList = null;
+    this._badgeObserver?.disconnect();
+    this._nameObserver?.disconnect();
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
     document.documentElement.removeAttribute('data-habitat-in-voice');
@@ -464,8 +655,18 @@ class HabitatLayout {
 }
 
 HabitatLayout.TEXT = Object.freeze({
-  en: Object.freeze({ menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters' }),
-  tr: Object.freeze({ menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler' })
+  en: Object.freeze({
+    menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters',
+    callView: 'Call view', find: 'Find a conversation', channels: 'Channels', messages: 'Messages',
+    tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
+    channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.'
+  }),
+  tr: Object.freeze({
+    menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
+    callView: 'Arama görünümü', find: 'Sohbet bul', channels: 'Kanallar', messages: 'Mesajlar',
+    tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
+    channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.'
+  })
 });
 
 // Cosmetic rules sit in :where() so any theme can restyle them; rules the
@@ -799,6 +1000,128 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 }
 [data-habitat-dialog-body] > :where([data-haven-region]) + :where([data-haven-region]) {
   border-top: 1px solid var(--border);
+}
+[data-habitat-roster-home]:empty, [data-habitat-call-view][hidden] { display: none; }
+[data-habitat-call-view] {
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none;
+  border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; cursor: pointer;
+}
+[data-habitat-call-view][aria-pressed="true"] { background: var(--bg-active); color: var(--accent); }
+[data-habitat-roster-home]:not(:empty) { position: relative; min-height: 2.5rem; }
+[data-habitat-roster-home]:not(:empty) #mobile-right-close { margin-inline-start: auto; }
+[data-haven-region="message-area"] > [data-habitat-stage] {
+  position: relative; flex: none; max-height: 42dvh; overflow: auto;
+  padding: .75rem; background: var(--bg-tertiary); border-bottom: 1px solid var(--border);
+}
+[data-habitat-stage] .panel { margin: 0; padding: 0; border: 0; background: transparent; }
+[data-habitat-stage] #voice-users { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: .5rem; }
+[data-habitat-stage] #voice-users .voice-user-item {
+  display: flex; flex-direction: column; justify-content: center; gap: .375rem;
+  min-height: 7.5rem; padding: .75rem; border-radius: .75rem; background: var(--bg-active);
+}
+[data-habitat-stage] .voice-user-item.talking { outline: 2px solid var(--success); outline-offset: -2px; }
+[data-habitat-stage] .voice-status-icons { margin: 0; }
+[data-habitat-stage] .voice-user-item .user-dot { position: absolute; inset: .625rem auto auto .625rem; }
+[data-habitat-stage] .voice-user-item { position: relative; }
+[data-habitat-call-avatar] {
+  display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%;
+  overflow: hidden; color: var(--accent-text); background: var(--accent); font: 700 1.25rem/1 var(--font-main);
+}
+[data-habitat-call-avatar] img { width: 100%; height: 100%; object-fit: cover; }
+[data-habitat-stage] .user-item-name { font-weight: 650; }
+[data-habitat-inbox] { margin-block-end: .375rem; }
+[data-habitat-inbox][aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-text); border-radius: 1rem;
+}
+[data-habitat-nav] {
+  display: grid;
+  gap: .625rem;
+  padding: .75rem;
+  flex: none;
+}
+[data-habitat-nav] button, [data-habitat-channel-tools] summary {
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+[data-habitat-jump] {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: .375rem .625rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  text-align: start;
+}
+[data-habitat-lists] { display: flex; gap: .25rem; }
+[data-habitat-lists] button {
+  flex: 1; min-width: 0; min-height: 2.125rem;
+  padding: .25rem; border: 0; border-radius: var(--radius-sm);
+  background: transparent; font-size: .875rem; font-weight: 600;
+}
+[data-habitat-lists] button[aria-pressed="true"], [data-habitat-lists] button:hover {
+  background: var(--bg-active); color: var(--text-primary);
+}
+[data-habitat-count]:not(:empty) {
+  margin-inline-start: .25rem; border-radius: 1rem;
+  padding: .0625rem .3125rem; background: var(--danger); color: var(--danger-text);
+}
+#sidebar-split[data-habitat-list="channels"] > [data-haven-region="direct-messages"],
+#sidebar-split[data-habitat-list="messages"] > [data-haven-region="channels"],
+[data-habitat-list] > .sidebar-split-handle,
+[data-habitat-dm-empty] { display: none; }
+[data-habitat-list="messages"]:has(> #dm-pane[style*="display: none"]) > [data-habitat-dm-empty] {
+  display: block; margin: .5rem 1rem; color: var(--text-secondary); line-height: 1.5;
+}
+[data-habitat-channel-tools] { position: relative; flex: none; }
+[data-habitat-channel-tools] summary {
+  display: grid; place-items: center; list-style: none; width: 2rem; height: 2rem;
+  border-radius: var(--radius-sm);
+}
+[data-habitat-channel-tools] summary::-webkit-details-marker { display: none; }
+[data-habitat-channel-tools][open] summary, [data-habitat-channel-tools] summary:hover {
+  color: var(--text-primary); background: var(--bg-active);
+}
+[data-habitat-channel-menu] {
+  position: absolute; z-index: 60; inset-block-start: calc(100% + .375rem); inset-inline-end: 0;
+  display: grid; min-width: min(14rem, 82vw); padding: .375rem;
+  background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius);
+  box-shadow: 0 .5rem 1.5rem #0005;
+}
+[data-habitat-channel-menu] > button.icon-btn {
+  justify-content: start; align-items: center; gap: .625rem; padding: .5rem .625rem;
+  width: 100%; height: auto; min-height: 2.25rem; opacity: 1; text-align: start;
+}
+[data-habitat-channel-menu] > button::after { content: attr(aria-label); font: 500 .875rem/1.25 var(--font-main); }
+[data-habitat-channel-menu] .channel-code-tag:not(:empty) { margin: .25rem .5rem; width: fit-content; }
+[data-habitat-channel-menu] .channel-code-tag:empty, html[data-habitat-layout] .header-actions-divider { display: none; }
+html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; overflow: visible; }
+[data-habitat-intro] { display: none; }
+[data-haven-region="message-list"]:not(:has(> :not(#msg-more-btn))) + [data-habitat-intro] {
+  display: block; flex: none; padding: 1rem 1.5rem; color: var(--text-primary);
+}
+[data-habitat-intro] > span {
+  display: grid; place-items: center; width: 3.25rem; height: 3.25rem;
+  background: var(--bg-active); border-radius: 50%; font: 600 1.875rem/1 var(--font-main);
+}
+[data-habitat-intro] h2 { margin: .75rem 0 .25rem; overflow-wrap: anywhere; font: 750 1.625rem/1.15 var(--font-heading); }
+[data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
+@media (min-width: 901px) {
+  html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #voice-join-mobile { display: none; }
+  html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #right-sidebar-voice:has(#voice-users > .muted-text:only-child) { display: none; }
+}
+@media (max-width: 768px) {
+  html[data-habitat-layout] #header-actions-box[style*="display: flex"] { display: flex !important; padding: 0; gap: 0; }
+  html[data-habitat-layout] #header-actions-box #search-toggle-btn,
+  html[data-habitat-layout] [data-habitat-channel-menu] #pinned-toggle-btn,
+  html[data-habitat-layout] [data-habitat-channel-menu] #copy-code-btn[style*="inline-flex"] { display: inline-flex !important; }
+  [data-habitat-channel-tools] summary, html[data-habitat-layout] #search-toggle-btn {
+    width: 2.5rem; min-height: 2.5rem; justify-content: center; align-items: center;
+  }
+  [data-habitat-channel-menu] { max-height: 65dvh; overflow: auto; }
 }
 `;
 
