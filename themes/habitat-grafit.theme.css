@@ -412,6 +412,23 @@ html[data-haven-theme-api="1"] :focus-visible {
   }
 }
 
+/* ── Server banner ───────────────────────────────
+   Haven draws the server's banner as a band at the top of the chat, behind
+   the header and the first messages. With the header opaque, which is the
+   default, only the part under the messages is left: a picture, and any
+   lettering in it, sitting straight behind the text. In that mode it becomes
+   a faint backdrop that has faded out before it can get in the way. A member
+   who picked a see-through header (Settings, Banner Display) asked to see the
+   banner, so those modes are left as Haven draws them. */
+[data-haven-page="app"] .main.has-banner:not(.banner-mode-shaded):not(.banner-mode-minimal):not(.banner-mode-transparent) > .server-banner-display {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
+}
+
+[data-haven-page="app"] .main.has-banner:not(.banner-mode-shaded):not(.banner-mode-minimal):not(.banner-mode-transparent) > .server-banner-display > .server-banner-img {
+  opacity: .28;
+}
+
 /* ── Profile card ────────────────────────────────
    A solid card instead of glass. A member's own profile theme paints the
    card itself (.has-profile-theme), so the surface rules stand aside for it;

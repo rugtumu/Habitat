@@ -183,3 +183,18 @@ test('in the docked call controls only the duplicate leave button is hidden', ()
   assert.doesNotMatch(css.replace(hidden, ''), /\.voice-panel-leave[^{]*\{[^}]*display:\s*none/,
     'the members drawer on a phone keeps its leave button');
 });
+
+test('the server banner cannot sit behind message text at full strength', () => {
+  const css = themeSource('habitat-grafit.theme.css');
+  const rules = css.match(/[^{}]*\.server-banner-(display|img)[^{}]*\{[^}]*\}/g) || [];
+  assert.equal(rules.length, 2, 'one rule fades the band out, one dims the picture');
+  for (const rule of rules) {
+    // Only the default, opaque-header mode: the see-through header modes are a
+    // member's own choice to see the banner.
+    assert.match(rule, /\.main\.has-banner:not\(\.banner-mode-shaded\):not\(\.banner-mode-minimal\):not\(\.banner-mode-transparent\)/);
+    assert.doesNotMatch(rule, /display:\s*none/, 'the banner is toned down, not removed');
+  }
+  const dim = Number(rules.join('\n').match(/opacity:\s*([\d.]+)/)?.[1]);
+  assert.ok(dim > 0 && dim <= 0.35, `the picture is drawn at ${dim}`);
+  assert.match(rules.join('\n'), /mask-image:\s*linear-gradient\(to bottom,[^)]*transparent/);
+});
