@@ -444,6 +444,7 @@ class HavenApp {
     this._setupCollapsibleSections();
     this._setupIOSKeyboard();
     this._setupMobileBridge();
+    this._setupThemeColorMeta();   // Habitat fork: see app-mobile.js
     this._setupStatusPicker();
     this._setupFileUpload();
     this._setupIdleDetection();

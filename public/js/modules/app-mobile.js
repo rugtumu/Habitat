@@ -586,6 +586,37 @@ _handleMobileBack() {
   this._postToShell({ type: 'haven:back-exhausted' });
 },
 
+// Habitat fork: a phone browser tints its own bar (Safari's toolbar, Android's
+// status bar) from <meta name="theme-color">. That was one fixed navy whatever
+// theme was on, so any other theme sat under a strip of the wrong colour. It
+// now follows the top of the page: the channel header, or what shows through
+// it when a theme leaves the header clear.
+_setupThemeColorMeta() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  const solid = (el) => {
+    const parts = el && getComputedStyle(el).backgroundColor.match(/[\d.]+/g);
+    if (!parts || parts.length < 3 || (parts.length > 3 && Number(parts[3]) < 1)) return null;
+    return '#' + parts.slice(0, 3).map(n => Math.round(Number(n)).toString(16).padStart(2, '0')).join('');
+  };
+  const sync = () => {
+    const hex = solid(document.querySelector('[data-haven-region="channel-header"]'))
+      || solid(document.querySelector('[data-haven-region="main"]'))
+      || solid(document.body);
+    if (hex && meta.getAttribute('content') !== hex) meta.setAttribute('content', hex);
+  };
+  const soon = () => setTimeout(sync, 150);
+  sync();
+  // A theme file can finish loading after this runs, and switching themes
+  // changes these attributes or fires the event.
+  new MutationObserver(soon).observe(document.documentElement, {
+    attributes: true, attributeFilter: ['data-theme', 'data-haven-theme-pending']
+  });
+  document.addEventListener('haven:themes-changed', soon);
+  window.addEventListener('load', soon);
+  setTimeout(sync, 1500);
+},
+
 _reportThemeColor() {
   if (!this._isMobileApp) return;
   // Read the computed background of the top bar or body
