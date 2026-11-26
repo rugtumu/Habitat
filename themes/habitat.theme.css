@@ -100,9 +100,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 [data-haven-page="app"] [data-haven-region="channel-header"] {
-  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
-  -webkit-backdrop-filter: blur(.75rem) saturate(140%);
-  backdrop-filter: blur(.75rem) saturate(140%);
+  background: var(--bg-primary);
   border-bottom: 1px solid var(--border);
   box-shadow: none;
 }
