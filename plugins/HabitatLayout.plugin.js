@@ -1,15 +1,21 @@
 /**
  * @name Habitat Layout
- * @description The layout people already know from other chat apps: your account, mute, deafen and settings sit bottom-left with the call controls above them, joining and creating a channel open from a + button instead of filling the sidebar, and the rest of the sidebar tools fold into the server name menu. Reversible, desktop only, picked in Settings, Layout.
+ * @description The layout people already know from other chat apps: your account, mute, deafen and settings sit bottom-left with the call controls above them, joining and creating a channel open from a + button instead of filling the sidebar, and the rest of the sidebar tools fold into the server name menu. On a phone the message box tools fold into one + button. Reversible, picked in Settings, Layout.
  * @author Habitat
  * @version 1.0.0
  */
 
 // Habitat fork: this layout only moves complete public regions and a few
 // named buttons, records where each one came from, and puts everything back
-// below the desktop breakpoint, while Mod Mode edits the layout, and when it
-// is switched off. Nothing is hidden without staying reachable: the buttons
-// that leave the sidebar are the same elements, in the server name menu.
+// while Mod Mode edits the layout and when it is switched off. Nothing is
+// hidden without staying reachable: the buttons that leave the sidebar are
+// the same elements, in the server name menu.
+//
+// It has two shapes. 'desktop' (901px and wider) is the whole arrangement.
+// 'compact' (tablet and phone) is the same sidebar inside Haven's own
+// drawer, which is where the join and create forms hurt most: on a phone
+// they left room for one channel. The call controls stay in the members
+// drawer there, where the phone layout expects them.
 class HabitatLayout {
   start() {
     if (this._started) return;
@@ -23,7 +29,10 @@ class HabitatLayout {
     this._inlineRestores = [];
     this._attrRestores = [];
     this._built = [];
+    this._mode = null;
+    this._folded = false;
     this._media = window.matchMedia('(min-width: 901px)');
+    this._phone = window.matchMedia('(max-width: 768px)');
 
     try {
       HavenApi.DOM.addStyle('HabitatLayout', HabitatLayout.CSS);
@@ -31,6 +40,7 @@ class HabitatLayout {
         this._suspended = event.detail?.active === true;
         if (!this._suspended && event.detail?.owner && event.detail.owner !== 'HabitatLayout') {
           this._restoreDesktop();
+          this._syncComposer();
           return;
         }
         this._syncDesktop();
@@ -39,6 +49,7 @@ class HabitatLayout {
         if (event.detail?.owner !== 'HabitatLayout') this._syncDesktop();
       });
       this._listen(this._media, 'change', () => this._syncDesktop());
+      this._listen(this._phone, 'change', () => this._syncComposer());
 
       if (HavenApi.Data.load('HabitatLayout', 'layoutOn', '1') !== '0') this._engage(false);
     } catch (error) {
@@ -55,6 +66,7 @@ class HabitatLayout {
     }
     this._listeners = [];
     this._media = null;
+    this._phone = null;
     HavenApi.DOM.removeStyle('HabitatLayout');
     this._started = false;
   }
@@ -96,16 +108,43 @@ class HabitatLayout {
     if (!this._engaged) return;
     this._engaged = false;
     this._restoreDesktop();
+    this._syncComposer();
     if (persist) HavenApi.Data.save('HabitatLayout', 'layoutOn', '0');
   }
 
   _syncDesktop() {
     const editing = document.documentElement.hasAttribute('data-haven-layout-editing');
-    if (this._engaged && !this._suspended && !editing && this._media?.matches) this._applyDesktop();
-    else this._restoreDesktop();
+    const want = this._engaged && !this._suspended && !editing && this._media
+      ? (this._media.matches ? 'desktop' : 'compact')
+      : null;
+    if (want !== this._mode) {
+      this._restoreDesktop();
+      if (want) this._applyDesktop(want);
+    }
+    this._syncComposer();
   }
 
-  _applyDesktop() {
+  // On a phone the eight message box tools leave about 22px for the text.
+  // Haven already has a folded mode for this (Settings, Layout: one + button);
+  // the layout switches it on at phone width and hands it back afterwards.
+  _syncComposer() {
+    const fold = this._mode === 'compact' && this._phone?.matches === true;
+    if (fold === this._folded) return;
+    this._folded = fold;
+    const root = document.documentElement;
+    if (fold) {
+      root.setAttribute('data-compact-composer', '');
+    } else {
+      const setting = document.getElementById('compact-composer');
+      if (setting?.checked) root.setAttribute('data-compact-composer', '');
+      else root.removeAttribute('data-compact-composer');
+    }
+    // Buttons a member folded away by hand sit in another menu; let the app
+    // put each one where the current mode looks for it.
+    window.app?._applyComposerButtons?.();
+  }
+
+  _applyDesktop(mode = 'desktop') {
     if (this._placements.length || this._built.length) return;
     const navigation = this._region('navigation-sidebar');
     const account = this._region('account');
@@ -126,10 +165,12 @@ class HabitatLayout {
     try {
       this._buildAccountTools(account, actions);
       this._buildMenu(header, account, actions);
-      this._dockAccount(account, footer);
+      this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
       this._setAttr(header, 'data-habitat-header', '');
-      document.documentElement.setAttribute('data-habitat-layout-desktop', '1');
+      this._mode = mode;
+      document.documentElement.setAttribute('data-habitat-layout', mode);
+      if (mode === 'desktop') document.documentElement.setAttribute('data-habitat-layout-desktop', '1');
     } catch (error) {
       this._restoreDesktop();
       throw error;
@@ -152,10 +193,11 @@ class HabitatLayout {
     }
   }
 
-  _dockAccount(account, footer) {
+  _dockAccount(account, footer, withCallControls) {
+    this._move(account, footer, null);
+    if (!withCallControls) return;
     const voiceSettings = this._region('voice-settings');
     const voiceControls = this._region('voice-controls');
-    this._move(account, footer, null);
     if (voiceSettings) this._move(voiceSettings, footer, account);
     if (voiceControls) {
       this._move(voiceControls, footer, account);
@@ -358,6 +400,8 @@ class HabitatLayout {
   }
 
   _restoreDesktop() {
+    this._mode = null;
+    document.documentElement.removeAttribute('data-habitat-layout');
     document.documentElement.removeAttribute('data-habitat-layout-desktop');
     for (const [target, type, listener, options] of this._applied) {
       target.removeEventListener(type, listener, options);
@@ -404,7 +448,7 @@ HabitatLayout.TEXT = Object.freeze({
 // Cosmetic rules sit in :where() so any theme can restyle them; rules the
 // layout needs in order to work at all keep their weight.
 HabitatLayout.CSS = `
-html[data-habitat-layout-desktop="1"] [data-habitat-icon] {
+html[data-habitat-layout] [data-habitat-icon] {
   width: 1.25rem;
   height: 1.25rem;
   flex: none;
@@ -428,7 +472,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="server-rail"] .
 }
 
 /* ── Server name header and its menu ── */
-html[data-habitat-layout-desktop="1"] [data-habitat-header] {
+html[data-habitat-layout] [data-habitat-header] {
   position: relative;
   display: flex;
   align-items: center;
@@ -440,12 +484,12 @@ html[data-habitat-layout-desktop="1"] [data-habitat-header] {
   border-bottom: 1px solid var(--border);
   overflow: visible;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-header] > :where(.brand) {
+html[data-habitat-layout] [data-habitat-header] > :where(.brand) {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
 }
-html[data-habitat-layout-desktop="1"] :where([data-habitat-header] .brand-text) {
+html[data-habitat-layout] :where([data-habitat-header] .brand-text) {
   font-family: var(--font-heading);
   font-size: 1.0625rem;
   font-weight: 600;
@@ -455,9 +499,9 @@ html[data-habitat-layout-desktop="1"] :where([data-habitat-header] .brand-text) 
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-html[data-habitat-layout-desktop="1"] :where([data-habitat-menu-button]),
-html[data-habitat-layout-desktop="1"] :where([data-habitat-add-button]),
-html[data-habitat-layout-desktop="1"] :where([data-habitat-dialog-close]) {
+html[data-habitat-layout] :where([data-habitat-menu-button]),
+html[data-habitat-layout] :where([data-habitat-add-button]),
+html[data-habitat-layout] :where([data-habitat-dialog-close]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -471,19 +515,25 @@ html[data-habitat-layout-desktop="1"] :where([data-habitat-dialog-close]) {
   color: var(--text-secondary);
   cursor: pointer;
 }
-html[data-habitat-layout-desktop="1"] :where([data-habitat-menu-button], [data-habitat-add-button], [data-habitat-dialog-close]):hover {
+html[data-habitat-layout] :where([data-habitat-menu-button], [data-habitat-add-button], [data-habitat-dialog-close]):hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-html[data-habitat-layout-desktop="1"] :where([data-habitat-add-button]) {
+html[data-habitat-layout] :where([data-habitat-add-button]) {
   width: 1.5rem;
   height: 1.5rem;
 }
-html[data-habitat-layout-desktop="1"] :where([data-habitat-add-button]) [data-habitat-icon] {
+html[data-habitat-layout] :where([data-habitat-add-button]) [data-habitat-icon] {
   width: 1rem;
   height: 1rem;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] {
+/* On a phone Haven's own close button sits in the header's top right corner. */
+@media (max-width: 768px) {
+  html[data-habitat-layout] [data-habitat-menu-button] {
+    margin-right: 2.75rem;
+  }
+}
+html[data-habitat-layout] [data-habitat-menu] {
   position: absolute;
   z-index: 60;
   top: calc(100% + 0.25rem);
@@ -498,10 +548,10 @@ html[data-habitat-layout-desktop="1"] [data-habitat-menu] {
   background: var(--bg-card);
   box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu][hidden] {
+html[data-habitat-layout] [data-habitat-menu][hidden] {
   display: none;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] [data-haven-region="sidebar-actions"] {
+html[data-habitat-layout] [data-habitat-menu] [data-haven-region="sidebar-actions"] {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
@@ -509,10 +559,10 @@ html[data-habitat-layout-desktop="1"] [data-habitat-menu] [data-haven-region="si
   border: 0;
   background: transparent;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] [data-haven-region="sidebar-actions"] > span {
+html[data-habitat-layout] [data-habitat-menu] [data-haven-region="sidebar-actions"] > span {
   display: none;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] button {
+html[data-habitat-layout] [data-habitat-menu] button {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -530,35 +580,35 @@ html[data-habitat-layout-desktop="1"] [data-habitat-menu] button {
   text-align: left;
   cursor: pointer;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] button::after {
+html[data-habitat-layout] [data-habitat-menu] button::after {
   content: attr(data-habitat-label);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] button:hover {
+html[data-habitat-layout] [data-habitat-menu] button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-menu] #logout-btn {
+html[data-habitat-layout] [data-habitat-menu] #logout-btn {
   color: var(--danger);
 }
 
 /* ── Channel list ── */
-html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-content"] .sidebar-section) {
+html[data-habitat-layout] :where([data-haven-region="sidebar-content"] .sidebar-section) {
   border-bottom: 0;
 }
-html[data-habitat-layout-desktop="1"] :where([data-haven-region="channels"], [data-haven-region="direct-messages"]) {
+html[data-habitat-layout] :where([data-haven-region="channels"], [data-haven-region="direct-messages"]) {
   padding-inline: 0.5rem;
 }
-html[data-habitat-layout-desktop="1"] :where([data-haven-region="channels"], [data-haven-region="direct-messages"]) > :where(h5) {
+html[data-habitat-layout] :where([data-haven-region="channels"], [data-haven-region="direct-messages"]) > :where(h5) {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   min-height: 1.75rem;
   padding-inline: 0.25rem;
 }
-html[data-habitat-layout-desktop="1"] :where([data-haven-region="channels"] .channel-item, [data-haven-region="direct-messages"] .channel-item) {
+html[data-habitat-layout] :where([data-haven-region="channels"] .channel-item, [data-haven-region="direct-messages"] .channel-item) {
   min-height: 2.125rem;
   height: auto;
   margin: 0.0625rem 0;
@@ -567,11 +617,11 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="channels"] .cha
 }
 
 /* ── Bottom-left account bar ── */
-html[data-habitat-layout-desktop="1"] [data-haven-region="sidebar-footer"] {
+html[data-habitat-layout] [data-haven-region="sidebar-footer"] {
   display: flex;
   flex-direction: column;
 }
-html[data-habitat-layout-desktop="1"] [data-haven-region="sidebar-footer"] > [data-haven-region="account"] {
+html[data-habitat-layout] [data-haven-region="sidebar-footer"] > [data-haven-region="account"] {
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -581,13 +631,13 @@ html[data-habitat-layout-desktop="1"] [data-haven-region="sidebar-footer"] > [da
   padding: 0.5rem;
   border-radius: 0;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-tools] {
+html[data-habitat-layout] [data-habitat-tools] {
   display: flex;
   align-items: center;
   gap: 0.125rem;
   margin-left: auto;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-tools] > button {
+html[data-habitat-layout] [data-habitat-tools] > button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -603,14 +653,14 @@ html[data-habitat-layout-desktop="1"] [data-habitat-tools] > button {
   font-size: 1rem;
   cursor: pointer;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-tools] > button:hover {
+html[data-habitat-layout] [data-habitat-tools] > button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-tools] > button > span:not(.haven-glyph) {
+html[data-habitat-layout] [data-habitat-tools] > button > span:not(.haven-glyph) {
   display: none;
 }
-html[data-habitat-layout-desktop="1"] [data-habitat-emptied] {
+html[data-habitat-layout] [data-habitat-emptied] {
   display: none;
 }
 html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"]) {
@@ -625,10 +675,12 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 }
 
 /* ── Add a channel dialog ── */
+/* Above Haven's phone drawers: the navigation drawer the + button lives in is
+   a fixed overlay at 100000, and the dialog has to open over it. */
 [data-habitat-dialog] {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 100020;
   display: grid;
   place-items: center;
   padding: 1rem;

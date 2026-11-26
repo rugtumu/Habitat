@@ -105,8 +105,10 @@ kurmak gerekmez.
    olanlara dokunulmaz.
 
 Her üye sonradan kendi tarayıcısında istediğini değiştirebilir. Yerleşim
-yalnızca 901 pikselden geniş pencerede devreye girer; telefonda ve dar
-pencerede uygulamanın kendi mobil düzeni kalır. Vazgeçmek için Layout'tan
+telefonda ve tablette de çalışır: kenar çubuğu uygulamanın kendi çekmecesinde
+aynı düzeni alır, telefonda mesaj kutusundaki araçlar tek bir `+` düğmesine
+katlanır. Arama kontrolleri yalnızca 901 pikselden geniş pencerede sol alta
+iner, dar ekranda üyeler çekmecesinde kalır. Vazgeçmek için Layout'tan
 **Original**'ı seçmek yeter, her şey eski yerine döner.
 
 İkon eklemek ya da değiştirmek için `scripts/habitat-icons.js` içindeki çizimi

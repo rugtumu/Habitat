@@ -155,7 +155,7 @@ function region(doc, name, children = [], tag = 'div') {
 }
 
 // The parts of app.html the layout touches, in their native order.
-function buildApp({ desktop = true, lang = 'en', layoutOn = '1' } = {}) {
+function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', foldSetting = null } = {}) {
   const doc = new FakeDocument();
   doc.documentElement.lang = lang;
   const button = (id, title) => el(doc, 'button', title ? { id, title } : { id });
@@ -191,8 +191,16 @@ function buildApp({ desktop = true, lang = 'en', layoutOn = '1' } = {}) {
     el(doc, 'div', { id: 'settings-panel' }, [button('open-settings-btn', 'Settings')])
   ], 'aside');
   doc.body.appendChild(el(doc, 'div', { id: 'app' }, [navigation, region(doc, 'main'), context]));
+  // The member's own "fold the message box buttons" setting, when the test wants one.
+  if (foldSetting !== null) {
+    const setting = el(doc, 'input', { id: 'compact-composer', type: 'checkbox' });
+    setting.checked = foldSetting;
+    doc.body.appendChild(setting);
+  }
 
   const media = new FakeMedia(desktop);
+  const phoneMedia = new FakeMedia(phone);
+  const composerRefreshes = [];
   const data = new Map([['HabitatLayout/layoutOn', layoutOn]]);
   const styles = new Set();
   const api = {
@@ -216,9 +224,12 @@ function buildApp({ desktop = true, lang = 'en', layoutOn = '1' } = {}) {
     }
   };
   globalThis.document = doc;
-  globalThis.window = { matchMedia() { return media; } };
+  globalThis.window = {
+    matchMedia(query) { return /max-width:\s*768px/.test(query) ? phoneMedia : media; },
+    app: { _applyComposerButtons() { composerRefreshes.push(doc.documentElement.hasAttribute('data-compact-composer')); } }
+  };
   globalThis.HavenApi = api;
-  return { doc, media, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
+  return { doc, media, phoneMedia, composerRefreshes, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
 }
 
 function snapshot(node) {
@@ -257,6 +268,7 @@ test('on a desktop the account, call controls and settings sit bottom-left', () 
   plugin.start();
 
   assert.equal(app.api.Layout.owner, 'HabitatLayout');
+  assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout'), 'desktop');
   assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout-desktop'), '1');
   assert.equal(app.account.parentNode, app.footer);
   assert.equal(app.footer.children.at(-1), app.account, 'the account bar is the last thing in the footer');
@@ -308,6 +320,7 @@ test('switching the layout off puts every element back where it was', () => {
   assert.equal(snapshot(app.doc.documentElement), before);
   assert.equal(app.doc.listenerCount(), 0, 'stop() leaves no document listeners behind');
   assert.equal(app.media.listenerCount(), 0);
+  assert.equal(app.phoneMedia.listenerCount(), 0);
   assert.equal(app.styles.size, 0);
   assert.equal(app.data.get('HabitatLayout/layoutOn'), '1', 'stop() does not change the saved choice');
 });
@@ -322,18 +335,84 @@ test('a saved "off" choice is respected on start', () => {
   plugin.stop();
 });
 
-test('below the desktop breakpoint the native layout is left alone', () => {
+test('on a tablet or phone the sidebar is tidied inside Haven\'s own drawer', () => {
   const app = buildApp({ desktop: false });
   const before = snapshot(app.doc.documentElement);
   const plugin = new HabitatLayout();
   plugin.start();
+
+  assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout'), 'compact');
+  assert.equal(app.doc.documentElement.hasAttribute('data-habitat-layout-desktop'), false);
+  assert.equal(app.footer.children.at(-1), app.account, 'the account bar closes the drawer');
+  assert.deepEqual(app.doc.querySelector('[data-habitat-dialog-body]').children, [app.join, app.create],
+    'the forms that left room for one channel are behind the + button');
+  assert.ok(app.header.querySelector('[data-habitat-menu]').contains(app.actions));
+  assert.equal(app.voiceControls.parentNode, app.context, 'the call controls stay in the members drawer');
+  assert.equal(app.voiceControls.style.getPropertyValue('position'), 'absolute');
+
+  plugin._disengage();
   assert.equal(snapshot(app.doc.documentElement), before);
+  plugin.stop();
+});
+
+test('crossing the desktop breakpoint swaps one shape for the other cleanly', () => {
+  const app = buildApp({ desktop: true });
+  const before = snapshot(app.doc.documentElement);
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.equal(app.voiceControls.parentNode, app.footer);
+
+  app.media.set(false);
+  assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout'), 'compact');
+  assert.equal(app.voiceControls.parentNode, app.context);
+  assert.equal(app.account.parentNode, app.footer);
+  assert.equal(app.doc.querySelectorAll('[data-habitat-menu]').length, 1, 'nothing is built twice');
+  assert.equal(app.doc.querySelectorAll('[data-habitat-dialog]').length, 1);
 
   app.media.set(true);
-  assert.equal(app.account.parentNode, app.footer);
-  app.media.set(false);
+  assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout'), 'desktop');
+  assert.equal(app.voiceControls.parentNode, app.footer);
+  assert.equal(app.api.Layout.owner, 'HabitatLayout');
+
+  plugin.stop();
   assert.equal(snapshot(app.doc.documentElement), before);
-  assert.equal(app.api.Layout.owner, null);
+});
+
+test('at phone width the message box tools fold into one button, and unfold again', () => {
+  const app = buildApp({ desktop: false, phone: true });
+  const root = app.doc.documentElement;
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.ok(root.hasAttribute('data-compact-composer'), 'eight tools leave no room to type on a phone');
+  assert.deepEqual(app.composerRefreshes, [true], 'the app re-places the buttons for the folded mode');
+
+  app.phoneMedia.set(false);
+  assert.equal(root.hasAttribute('data-compact-composer'), false, 'a tablet has room for the tools');
+  assert.deepEqual(app.composerRefreshes, [true, false]);
+
+  app.phoneMedia.set(true);
+  plugin._disengage();
+  assert.equal(root.hasAttribute('data-compact-composer'), false, 'switching the layout off hands the composer back');
+  plugin.stop();
+});
+
+test('the composer goes back to what the member chose, not simply to unfolded', () => {
+  const app = buildApp({ desktop: false, phone: true, foldSetting: true });
+  const root = app.doc.documentElement;
+  root.setAttribute('data-compact-composer', '');
+  const plugin = new HabitatLayout();
+  plugin.start();
+  plugin._disengage();
+  assert.ok(root.hasAttribute('data-compact-composer'), 'a member who folds the tools everywhere keeps them folded');
+  plugin.stop();
+});
+
+test('the desktop composer is never folded by the layout', () => {
+  const app = buildApp({ desktop: true, phone: false });
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.equal(app.doc.documentElement.hasAttribute('data-compact-composer'), false);
+  assert.deepEqual(app.composerRefreshes, []);
   plugin.stop();
 });
 
