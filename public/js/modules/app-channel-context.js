@@ -508,6 +508,8 @@ _initDmContextMenu() {
         if (!res || res.error) return this._showToast(res?.error || t('context_menu.channel.mark_all_read_failed'), 'error');
         const codes = new Set([...Object.keys(this.unreadCounts || {}), ...(this.channels || []).map(c => c.code)]);
         codes.forEach(code => { this.unreadCounts[code] = 0; });
+        // Habitat fork: bulk reads rebuild the list without calling the individual badge updater.
+        this._channelMentionIds = Object.create(null);
         (this.channels || []).forEach(c => { c.unreadCount = 0; });
         // Forums keep their unread topics apart from channel messages, so
         // each one with a dot is marked read as well.

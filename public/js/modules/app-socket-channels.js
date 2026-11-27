@@ -25,7 +25,6 @@ _listenChannelsAndMessages() {
     // show messages they no longer have access to. Invalidate the panel off
     // this already-broadcast event, so no new server plumbing. (search-overhaul)
     this._searchInvalidate?.(channels);
-    this._mentionsMerge?.(channels);
     // Fresh authoritative state: an optimistic Channel Functions toggle that
     // was still awaiting a verdict has just been accepted, so drop its undo.
     this._cfnPendingToggle = null;
@@ -86,6 +85,8 @@ _listenChannelsAndMessages() {
         this.unreadCounts[ch.code] = ch.unreadCount;
       }
     }
+    // Habitat fork: merge mention IDs after rotations and unread seeding, before drawing the badges.
+    this._mentionsMerge?.(channels);
     this._renderChannels();
     // Push accurate totals to the desktop shell / tab title immediately
     this._updateTabTitle();
@@ -984,6 +985,8 @@ _removeChannelLocally(code) {
   if (!code) return;
   this.channels = (this.channels || []).filter(c => c.code !== code);
   if (this.unreadCounts) delete this.unreadCounts[code];
+  // Habitat fork: a removed channel no longer owns any unread mentions.
+  delete this._channelMentionIds?.[code];
   // A DM gone while open in the pop-out DM window closes it too.
   if (this._activeDMPip === code) this._closeDMPiP?.();
   this._renderChannels?.();

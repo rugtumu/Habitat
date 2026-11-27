@@ -2,6 +2,10 @@
 // zoom, emoji size, picture and embed size, role display, toolbar icons, and
 // the custom dropdowns that replace plain select boxes.
 
+// Habitat fork: the picker and each message must interpret the same saved preferences.
+const DEFAULT_TOOLBAR_ORDER = ['react', 'reply', 'edit', 'quote', 'thread', 'copy-link', 'pin', 'archive', 'nsfw', 'delete'];
+const LEGACY_TOOLBAR_ORDER = ['react', 'reply', 'quote', 'thread', 'copy-link', 'pin', 'archive', 'nsfw', 'edit', 'delete'];
+
 export default {
 
 // ── Animated chat images (#5526) ─────────────────────────────────────────
@@ -706,6 +710,22 @@ _setupNameColorPicker() {
 
 // ── Toolbar Icon Style Picker ──
 
+_toolbarPreferences() {
+  const rawSlots = localStorage.getItem('haven-toolbar-visible-slots');
+  const parsed = parseInt(rawSlots, 10);
+  const visibleSlots = Number.isFinite(parsed) ? Math.max(1, Math.min(7, parsed)) : 3;
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem('haven-toolbar-order')); }
+  catch { /* A damaged order uses the default. */ }
+
+  // Habitat fork: older pickers saved this exact pair even if the member never touched it.
+  const legacy = (rawSlots === null || rawSlots === '3') &&
+    JSON.stringify(saved) === JSON.stringify(LEGACY_TOOLBAR_ORDER);
+  const keys = Array.isArray(saved) && !legacy ? saved.filter(k => DEFAULT_TOOLBAR_ORDER.includes(k)) : [];
+  const order = [...new Set([...keys, ...DEFAULT_TOOLBAR_ORDER])];
+  return { order, visibleSlots, isDefault: order.every((key, i) => key === DEFAULT_TOOLBAR_ORDER[i]) };
+},
+
 _setupToolbarIconPicker() {
   const picker = document.getElementById('toolbar-icon-picker');
   const slotsInput = document.getElementById('toolbar-visible-slots');
@@ -714,8 +734,6 @@ _setupToolbarIconPicker() {
   const resetBtn = document.getElementById('toolbar-order-reset-btn');
   if (!picker) return;
 
-  // The same keys, in the same order, as the toolbar itself (app-messages.js).
-  const defaultOrder = ['react', 'reply', 'quote', 'thread', 'copy-link', 'pin', 'archive', 'nsfw', 'edit', 'delete'];
   const actionLabels = {
     react: t('msg_toolbar.react'),
     reply: t('msg_toolbar.reply'),
@@ -727,18 +745,6 @@ _setupToolbarIconPicker() {
     nsfw: t('msg_toolbar.mark_nsfw'),
     edit: t('msg_toolbar.edit'),
     delete: t('msg_toolbar.delete')
-  };
-
-  const normalizeOrder = (value) => {
-    const arr = Array.isArray(value) ? value : [];
-    const clean = [];
-    arr.forEach((k) => {
-      if (defaultOrder.includes(k) && !clean.includes(k)) clean.push(k);
-    });
-    defaultOrder.forEach((k) => {
-      if (!clean.includes(k)) clean.push(k);
-    });
-    return clean;
   };
 
   const refreshCurrentMessages = () => {
@@ -762,21 +768,10 @@ _setupToolbarIconPicker() {
   const normalizedMode = savedMode === 'color' ? 'emoji' : savedMode;
   applyIconMode(normalizedMode);
 
-  let savedSlots = parseInt(localStorage.getItem('haven-toolbar-visible-slots') || '3', 10);
-  if (!Number.isFinite(savedSlots)) savedSlots = 3;
-  savedSlots = Math.max(1, Math.min(7, savedSlots));
-  localStorage.setItem('haven-toolbar-visible-slots', String(savedSlots));
-  if (slotsInput) slotsInput.value = String(savedSlots);
-  if (slotsValue) slotsValue.textContent = String(savedSlots);
-
-  let savedOrder;
-  try {
-    savedOrder = JSON.parse(localStorage.getItem('haven-toolbar-order') || '[]');
-  } catch {
-    savedOrder = [];
-  }
-  let currentOrder = normalizeOrder(savedOrder);
-  localStorage.setItem('haven-toolbar-order', JSON.stringify(currentOrder));
+  const { order, visibleSlots } = this._toolbarPreferences();
+  let currentOrder = order;
+  if (slotsInput) slotsInput.value = String(visibleSlots);
+  if (slotsValue) slotsValue.textContent = String(visibleSlots);
 
   const renderOrderList = () => {
     if (!orderList) return;
@@ -795,6 +790,13 @@ _setupToolbarIconPicker() {
     });
   };
 
+  // Habitat fork: after an explicit change, show the order the message renderer will use for this pair.
+  const saveOrder = (next) => {
+    localStorage.setItem('haven-toolbar-order', JSON.stringify(next));
+    currentOrder = this._toolbarPreferences().order;
+    renderOrderList();
+    refreshCurrentMessages();
+  };
   renderOrderList();
 
   picker.addEventListener('click', (e) => {
@@ -824,9 +826,10 @@ _setupToolbarIconPicker() {
     });
     slotsInput.addEventListener('change', () => {
       const value = Math.max(1, Math.min(7, parseInt(slotsInput.value || '3', 10) || 3));
+      // Habitat fork: keep the order shown in the picker when a slider change ends legacy migration.
       localStorage.setItem('haven-toolbar-visible-slots', String(value));
       if (slotsValue) slotsValue.textContent = String(value);
-      refreshCurrentMessages();
+      saveOrder(currentOrder);
     });
   }
 
@@ -842,20 +845,12 @@ _setupToolbarIconPicker() {
       if (swapWith < 0 || swapWith >= currentOrder.length) return;
       const next = currentOrder.slice();
       [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
-      currentOrder = next;
-      localStorage.setItem('haven-toolbar-order', JSON.stringify(currentOrder));
-      renderOrderList();
-      refreshCurrentMessages();
+      saveOrder(next);
     });
   }
 
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      currentOrder = defaultOrder.slice();
-      localStorage.setItem('haven-toolbar-order', JSON.stringify(currentOrder));
-      renderOrderList();
-      refreshCurrentMessages();
-    });
+    resetBtn.addEventListener('click', () => saveOrder(DEFAULT_TOOLBAR_ORDER));
   }
 },
 

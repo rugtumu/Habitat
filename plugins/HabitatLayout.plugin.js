@@ -2192,14 +2192,19 @@ html[data-habitat-layout] [data-haven-region="context-sidebar"] > [data-haven-re
 [data-habitat-call-view][aria-pressed="true"] { background: var(--bg-active); color: var(--accent); }
 html[data-habitat-layout="compact"] [data-habitat-roster-home]:not(:empty) { display: block; position: relative; min-height: 2.5rem; }
 [data-habitat-roster-home]:not(:empty) #mobile-right-close { margin-inline-start: auto; }
+:where(:root) {
+  --hb-stage-gap: .5rem;
+  --hb-stage-pad: .75rem;
+  --hb-stage-surface: var(--bg-tertiary);
+}
 [data-habitat-call-stage] {
-  --hb-stage-gap: .5rem; --hb-stage-pad: .75rem; --hb-stage-top: var(--hb-stage-pad);
+  --hb-stage-top: var(--hb-stage-pad);
   position: relative; flex: none; height: clamp(11rem, 42dvh, 30rem); min-height: 0; overflow: hidden;
   display: grid; gap: var(--hb-stage-gap); place-content: center;
   grid-template-columns: repeat(var(--hb-stage-cols, 2), calc((var(--hb-tile-w, 16rem) - var(--hb-stage-gap)) / 2));
   grid-auto-rows: var(--hb-tile-h, 9rem);
   padding: var(--hb-stage-top) var(--hb-stage-pad) var(--hb-stage-pad);
-  background: var(--bg-tertiary); border-bottom: 1px solid var(--border);
+  background: var(--hb-stage-surface); border-bottom: 1px solid var(--border);
 }
 /* A phone shows its own mute and deafen buttons in the roster header; they
    get a row of their own so they never sit on someone's picture. */

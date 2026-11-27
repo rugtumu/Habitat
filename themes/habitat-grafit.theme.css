@@ -65,6 +65,11 @@
 
 :root {
   /* Habitat's own, not part of the public token set */
+  --hb-stage-gap: .625rem;
+  --hb-stage-pad: .875rem;
+  --hb-stage-surface: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 5%, var(--bg-tertiary)), var(--bg-tertiary) 70%);
+  --hb-msg-text: 1.0625rem;
+  --hb-composer-text: .9375rem;
   --hb-rail:       #14171a;
   --hb-raise:      #31373b;
   --hb-settings-page: #242529;
@@ -308,13 +313,35 @@ html[data-haven-theme-api="1"] :focus-visible {
   border-block-start: .0625rem solid color-mix(in srgb, var(--border) 50%, transparent);
 }
 
-/* Unread counts stay distinct from room type and mention icons. */
-[data-haven-page="app"] .channel-badge {
+/* The original text remains the total unread count for Haven and other themes.
+   Announcements force their own colours in core, including on personal mentions. */
+[data-haven-page="app"] .channel-item:not(.dm-item) > .channel-badge:not([data-mentions], .channel-badge-bubble, .thread-mention-badge) {
+  flex: none;
+  width: .4375rem;
+  min-width: 0;
+  height: .4375rem;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--text-primary) !important;
+  font-size: 0;
+}
+[data-haven-page="app"] .channel-badge[data-mentions],
+[data-haven-page="app"] .dm-item > .channel-badge,
+[data-haven-page="app"] .channel-badge-bubble {
   background: var(--danger);
   color: var(--danger-text);
   border-radius: 1rem;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
+}
+[data-haven-page="app"] .channel-badge[data-mentions] { font-size: 0; }
+[data-haven-page="app"] .channel-badge[data-mentions]::after {
+  content: attr(data-mentions);
+  font-size: .625rem;
+}
+[data-haven-page="app"] .announcement-badge[data-mentions] {
+  background: var(--danger) !important;
+  color: var(--danger-text) !important;
 }
 
 /* Header tools sit on the header itself, not in a second box. */
@@ -409,7 +436,11 @@ html[data-haven-theme-api="1"] :focus-visible {
     border-radius: .75rem 0 0 .75rem;
     background: var(--bg-input);
     box-shadow: none;
-    font-size: .9375rem;
+    font-size: var(--hb-composer-text);
+  }
+
+  :root[data-text-size]:not([data-text-size="100"]):not([data-density="compact"]) [data-haven-page="app"] [data-haven-region="composer"] > textarea {
+    font-size: calc(var(--hb-composer-text) * var(--msg-text-scale, 1)) !important;
   }
 
   [data-haven-page="app"] [data-haven-region="composer"] > .input-actions-box {
@@ -1162,8 +1193,12 @@ html[data-habitat-layout-desktop="1"] {
 html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: 1.0625rem; font-weight: 700; }
 html:not([data-density="compact"]) [data-haven-page="app"] .message-time { font-size: .75rem; }
 html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content, .thread-msg-content) {
-  font-size: 1.0625rem;
+  font-size: calc(var(--hb-msg-text) * var(--msg-text-scale, 1));
   line-height: 1.45;
+}
+/* The thread topic body also carries message-content. Its non-forum rule has specificity (0,6,0). */
+html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact"]) [data-haven-page="app"] :is(.message-content, .thread-msg-content) {
+  font-size: calc(var(--hb-msg-text) * var(--msg-text-scale, 1)) !important;
 }
 [data-haven-page="app"] .msg-toolbar {
   background: var(--bg-secondary);
@@ -1187,7 +1222,7 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
   font: 500 1.375rem/1 var(--font-main);
 }
 [data-haven-page="app"] .channel-item.active .channel-hash { color: var(--accent); }
-[data-haven-page="app"] .channel-item:has(> .channel-badge) .channel-name {
+[data-haven-page="app"] .channel-item:has(> .channel-badge:not(.thread-mention-badge)) .channel-name {
   color: var(--text-primary);
   font-weight: 720;
 }
@@ -2029,10 +2064,6 @@ html[data-habitat-layout="compact"] #toast-container {
   top: auto; bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse;
 }
 
-[data-habitat-call-stage] {
-  --hb-stage-gap: .625rem; --hb-stage-pad: .875rem;
-  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 5%, var(--bg-tertiary)), var(--bg-tertiary) 70%);
-}
 [data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile) {
   border-radius: .875rem;
   box-shadow: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 7%, transparent);
@@ -2127,7 +2158,7 @@ html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-leave] 
    pictures, which stay put, fade in. */
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { animation: hb-fade var(--hb-base) var(--hb-ease) both; }
 @media (max-width: 768px) {
-  [data-habitat-call-stage] { --hb-stage-gap: .375rem; --hb-stage-pad: .5rem; }
+  :root { --hb-stage-gap: .375rem; --hb-stage-pad: .5rem; }
 }
 
 /* ═══ Part 3: Habitat icons ════════════════════════════════════════════ */

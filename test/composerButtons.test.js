@@ -32,8 +32,8 @@ test('Habitat groups secondary tools until the member saves a personal layout', 
   const { app, attrs, box, menu, data } = setup();
   attrs.add('data-habitat-layout');
   app._applyComposerButtons();
-  assert.deepEqual(ids(box), ['emoji', 'gif', 'voice']);
-  assert.ok(ids(menu).includes('upload'));
+  assert.deepEqual(ids(box), ['emoji']);
+  assert.deepEqual(ids(menu), KEYS.filter(key => key !== 'emoji'));
   data.set('haven_composer_buttons', JSON.stringify({ folded: [] }));
   app._applyComposerButtons();
   assert.deepEqual(ids(box), KEYS);

@@ -39,6 +39,8 @@ badge run `node scripts/habitat-icons.js`; never edit between the
 
 ## Theme and layout conventions
 
+- Grafit marks ordinary channel unreads with a dot and a bolder name. Personal mentions and replies show their count. DMs and collapsed groups keep numeric badges.
+- The default message toolbar shows React, Reply, Edit on your own messages, and More. Quote is under More. Personal orders fill available slots.
 - Sizes in `rem`. Colours through the tokens at the top of the theme.
 - Motion animates `opacity`, `translate`, `scale` or `rotate` only, never
   `transform`, never longer than 0.25s, nothing looping. Reduced motion is left
@@ -72,7 +74,7 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   given a grid cell; tiles are never rebuilt or re-parented one by one, so
   their buttons and handlers keep working. `HabitatLayout.stageGrid` picks the
   tile size. Haven writes sizes and `display` inline on those panels, which is
-  why the stage carries three `!important` rules; the layout test lists them.
+  why the stage carries four `!important` rules; the layout test lists them.
 - Haven redraws every voice row when anyone's state changes. Anything that
   should happen once per person (the join and leave effects, the avatars on
   the stage) is keyed by who is there, never by which element is new.

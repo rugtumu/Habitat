@@ -308,15 +308,18 @@ _setupDmDragDrop() {
 
 _updateBadge(code) {
   const el = document.querySelector(`.channel-item[data-code="${code}"]`);
+  // Habitat fork: a read clears personal mentions even when the row is hidden. The thread bell is independent.
+  const count = this.unreadCounts[code] || 0;
+  if (!count) delete this._channelMentionIds?.[code];
   if (el) {
-    let badge = el.querySelector('.channel-badge:not(.channel-badge-bubble)');
-    const count = this.unreadCounts[code] || 0;
+    let badge = el.querySelector('.channel-badge:not(.channel-badge-bubble):not(.thread-mention-badge)');
 
     if (count > 0) {
       const ch = this.channels.find(c => c.code === code);
       const isAnn = ch && ch.notification_type === 'announcement';
       if (!badge) { badge = document.createElement('span'); badge.className = 'channel-badge' + (isAnn ? ' announcement-badge' : ''); el.appendChild(badge); }
       badge.textContent = count > 99 ? '99+' : count;
+      if (!ch?.is_dm) this._setMentionBadge?.(badge, code);
     } else if (badge) {
       badge.remove();
     }

@@ -756,6 +756,8 @@ _renderChannels() {
       const badge = document.createElement('span');
       badge.className = 'channel-badge' + (isAnnouncement ? ' announcement-badge' : '');
       badge.textContent = count > 99 ? '99+' : count;
+      // Habitat fork: Grafit shows personal mentions on the unread badge from its first paint.
+      this._setMentionBadge?.(badge, ch.code);
       el.appendChild(badge);
     }
     // Thread @mention indicator (bell, distinct from unread bubble)

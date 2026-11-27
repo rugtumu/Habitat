@@ -40,10 +40,35 @@ _mentionsSeenUpTo(next) {
     return Number(localStorage.getItem(SEEN_UPTO_KEY)) || 0;
   } catch { return next || 0; } // private mode: storage is unavailable, count from what this page saw
 },
+// Habitat fork: opening the @ list acknowledges the account badge. Channel badges last until read.
+// The server counts personal mentions and replies. @everyone, @here and role mentions stay plain unread.
+_channelMentionSet(code) {
+  this._channelMentionIds ||= Object.create(null);
+  return this._channelMentionIds[code] ||= new Set();
+},
+_mentionCountFor(code) {
+  const ids = this._channelMentionIds?.[code];
+  if (!ids?.size) return 0;
+  const ch = this.channels?.find(c => c.code === code);
+  return ch && !ch.is_dm && (this.unreadCounts?.[code] ?? ch.unreadCount) > 0 ? ids.size : 0;
+},
+_setMentionBadge(badge, code) {
+  const count = this._mentionCountFor(code);
+  if (count) badge.dataset.mentions = count >= UNSEEN_CAP ? '99+' : String(count);
+  else delete badge.dataset.mentions;
+},
 _mentionsMerge(channels) {
   const upTo = this._mentionsSeenUpTo();
   const list = this._unseenMentions || (this._unseenMentions = []);
   const viewing = document.visibilityState === 'visible' ? this.currentChannel : null;
+  for (const ch of channels || []) {
+    if (ch.is_dm || (this.unreadCounts?.[ch.code] ?? ch.unreadCount) === 0) {
+      delete this._channelMentionIds?.[ch.code];
+    } else if (Array.isArray(ch.unreadMentionIds) && ch.unreadMentionIds.length) {
+      const ids = this._channelMentionSet(ch.code);
+      for (const id of ch.unreadMentionIds) ids.add(id);
+    }
+  }
   const fresh = (channels || []).filter(ch => !ch.is_dm && ch.code !== viewing && Array.isArray(ch.unreadMentionIds))
     .flatMap(ch => ch.unreadMentionIds.filter(id => id > upTo && !list.some(m => m.id === id)).map(id => ({ c: ch.code, id })));
   if (!fresh.length) return;
@@ -65,6 +90,9 @@ _mentionsIsForMe(message) {
 _mentionsCount(message, channelCode) {
   const ch = (this.channels || []).find(c => c.code === channelCode);
   if (!ch || ch.is_dm || !this._mentionsIsForMe(message)) return;
+  // Habitat fork: update the row even if the account badge already knows this ID.
+  this._channelMentionSet(channelCode).add(message.id);
+  this._updateBadge(channelCode);
   const list = this._unseenMentions || (this._unseenMentions = []);
   if (list.some(m => m.id === message.id)) return;
   list.push({ c: channelCode, id: message.id });
@@ -77,6 +105,13 @@ _mentionsSeenInChannel(channelCode, upToId) {
   const ch = (this.channels || []).find(c => c.code === channelCode);
   if (ch && !ch.is_dm) this._mentionsHome = channelCode;
   const list = this._unseenMentions || [];
+  // Habitat fork: another device can read only part of the channel while the @ list is empty.
+  const ids = this._channelMentionIds?.[channelCode];
+  if (ids) {
+    for (const id of ids) if (!upToId || id <= upToId) ids.delete(id);
+    if (!ids.size) delete this._channelMentionIds[channelCode];
+    this._updateBadge(channelCode);
+  }
   const kept = list.filter(m => m.c !== channelCode || (upToId && m.id > upToId));
   if (kept.length === list.length) return;
   this._unseenMentions = kept;

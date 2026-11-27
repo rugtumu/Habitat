@@ -1139,31 +1139,14 @@ _createMessageEl(msg, prevMsg) {
     toolbarActions.push({ key: 'delete', html: `<button data-action="delete" title="${t('msg_toolbar.delete')}">${iDelete}</button>` });
   }
 
-  // Settings > Appearance lists the same keys for reordering (app-appearance.js).
-  const defaultToolbarOrder = ['react', 'reply', 'quote', 'thread', 'copy-link', 'pin', 'archive', 'nsfw', 'edit', 'delete'];
-  let savedToolbarOrder = [];
-  try {
-    savedToolbarOrder = JSON.parse(localStorage.getItem('haven-toolbar-order') || '[]');
-  } catch {
-    savedToolbarOrder = [];
-  }
-  const normalizedOrder = [];
-  savedToolbarOrder.forEach((key) => {
-    if (defaultToolbarOrder.includes(key) && !normalizedOrder.includes(key)) normalizedOrder.push(key);
-  });
-  defaultToolbarOrder.forEach((key) => {
-    if (!normalizedOrder.includes(key)) normalizedOrder.push(key);
-  });
-
-  const orderRank = new Map(normalizedOrder.map((key, index) => [key, index]));
-  toolbarActions.sort((a, b) => (orderRank.get(a.key) ?? 999) - (orderRank.get(b.key) ?? 999));
-
-  let visibleSlots = parseInt(localStorage.getItem('haven-toolbar-visible-slots') || '3', 10);
-  if (!Number.isFinite(visibleSlots)) visibleSlots = 3;
-  visibleSlots = Math.max(1, Math.min(7, visibleSlots));
-
-  const visibleActions = toolbarActions.slice(0, visibleSlots);
-  const overflowActions = toolbarActions.slice(visibleSlots);
+  // Habitat fork: reserve default slots by rank, including Edit on the author's messages.
+  const { order, visibleSlots, isDefault } = this._toolbarPreferences();
+  const rank = key => order.indexOf(key);
+  toolbarActions.sort((a, b) => rank(a.key) - rank(b.key));
+  const visibleActions = isDefault
+    ? toolbarActions.filter(action => rank(action.key) < visibleSlots)
+    : toolbarActions.slice(0, visibleSlots);
+  const overflowActions = toolbarActions.slice(visibleActions.length);
   const coreToolbarBtns = visibleActions.map(a => a.html).join('');
   const overflowToolbarBtns = overflowActions.map(a => a.html).join('');
   const moreMenuHtml = overflowActions.length

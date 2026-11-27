@@ -13,6 +13,8 @@ _migrateChannelCodeState(oldCode, newCode) {
     return true;
   };
   migrateObjectKey(this.unreadCounts);
+  // Habitat fork: unread mentions belong to the same channel after its code rotates.
+  migrateObjectKey(this._channelMentionIds);
   migrateObjectKey(this.voiceCounts);
   migrateObjectKey(this.voiceChannelUsers);
   migrateObjectKey(this._pinnedCountByChannel);

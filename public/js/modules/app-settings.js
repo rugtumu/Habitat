@@ -10,10 +10,9 @@ _composerButtonsCfg() {
   let c;
   try { c = JSON.parse(localStorage.getItem('haven_composer_buttons') || '{}') || {}; } catch { c = {}; }
   const keys = Object.keys(COMPOSER_BUTTONS);
-  // Habitat fork: keep reactions and voice beside the draft. The + menu holds
-  // the other tools until the member chooses their own arrangement.
+  // Habitat fork: keep emoji beside the draft and put GIF, voice and the other tools under +.
   const defaults = document.documentElement.hasAttribute('data-habitat-layout')
-    ? ['upload', 'poll', 'time', 'format', 'self-destruct', 'silent', 'highlight', 'burn'] : [];
+    ? ['upload', 'gif', 'voice', 'poll', 'time', 'format', 'self-destruct', 'silent', 'highlight', 'burn'] : [];
   return { order: [...new Set([...(Array.isArray(c.order) ? c.order : []), ...keys])].filter(k => keys.includes(k)), folded: (Array.isArray(c.folded) ? c.folded : defaults).filter(k => keys.includes(k)) };
 },
 _applyComposerButtons() {
