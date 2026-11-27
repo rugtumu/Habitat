@@ -675,7 +675,7 @@ test('the call view returns the live roster and the drawer close button on leave
 });
 
 // A call with a roster, Haven's camera and stream panels, and a stage of a known size.
-function buildCall({ people = 2, width = 1000, height = 600, desktop = true } = {}) {
+function buildCall({ people = 2, width = 1000, height = 600, desktop = true, open = true } = {}) {
   const app = buildApp({ desktop, phone: !desktop });
   const { doc } = app;
   const tile = (id, name) => el(doc, 'div', { id, class: name }, [el(doc, 'video')]);
@@ -698,6 +698,7 @@ function buildCall({ people = 2, width = 1000, height = 600, desktop = true } = 
   const before = snapshot(doc.body);
   const layout = new HabitatLayout();
   layout.start();
+  if (!open) return { ...app, layout, area, indicator, users, cameras, shares, webcams, streams, tile, before };
   doc.querySelector('[data-habitat-call-view]').fire('click');
   const stage = doc.querySelector('[data-habitat-call-stage]');
   stage.clientWidth = width;
@@ -722,6 +723,18 @@ test('the stage grid picks the largest tiles that fit everyone on one screen', (
     assert.ok(ratio >= 4 / 3 - 0.01 && ratio <= 16 / 9 + 0.01, `${count} tiles keep a picture shape`);
   }
   assert.equal(HabitatLayout.stageGrid(6, 1000, 120, 10, 1).rows, 1, 'the strip under a shared screen stays one row');
+});
+
+test('a click made alone does not send that tile to the large spot when someone joins', () => {
+  const { stage, users, person, settle, layout } = buildCall({ people: 1 });
+  const [me] = users.querySelectorAll('.voice-user-item');
+  stage.fire('click', { target: me });
+  assert.ok(!stage.hasAttribute('data-habitat-focus'));
+  users.appendChild(person(2));
+  settle();
+  assert.ok(!stage.hasAttribute('data-habitat-focus'), 'two people share the grid');
+  assert.ok(!me.hasAttribute('data-habitat-focused'));
+  layout.stop();
 });
 
 test('the call stage gives every person one cell and centres a short last row', () => {
@@ -782,6 +795,42 @@ test('a camera fills its owner\'s tile, and a screen share takes the large spot 
   assert.ok(stage.fire('dblclick', { target: camera }).stopped, 'Haven\'s own enlarge stays out of the stage');
   assert.ok(stage.captured.has('dblclick'));
 
+  // A screen popped out into its own window keeps a place in the row only.
+  stage.fire('click', { target: share });
+  assert.ok(share.hasAttribute('data-habitat-focused'));
+  share.setAttribute('class', 'screen-share-tile stream-popped-out');
+  settle();
+  assert.ok(!share.hasAttribute('data-habitat-focused'), 'a placeholder never takes the large spot');
+  assert.notEqual(cell(share), '');
+  share.setAttribute('class', 'screen-share-tile');
+  stage.fire('click', { target: first });
+  settle();
+
+  // A second shared screen waits in the row until it is asked for.
+  const spread = stage.querySelector('[data-habitat-stage-spread]');
+  assert.ok(spread.hidden, 'one screen needs no choice');
+  stage.fire('click', { target: share });
+  assert.ok(share.hasAttribute('data-habitat-focused'));
+  const otherScreen = tile('screen-tile-3', 'screen-share-tile');
+  shares.appendChild(otherScreen);
+  settle();
+  assert.ok(!spread.hidden);
+  assert.ok(share.hasAttribute('data-habitat-focused'));
+  assert.ok(!otherScreen.hasAttribute('data-habitat-focused'), 'the first screen keeps the large spot');
+  assert.notEqual(cell(otherScreen), '', 'the newcomer joins the row');
+  spread.fire('click');
+  assert.equal(spread.getAttribute('aria-pressed'), 'true');
+  assert.ok(share.hasAttribute('data-habitat-focused') && otherScreen.hasAttribute('data-habitat-focused'), 'both, on request');
+  assert.notEqual(share.style.getPropertyValue('left') + share.style.getPropertyValue('top'),
+    otherScreen.style.getPropertyValue('left') + otherScreen.style.getPropertyValue('top'), 'each in its own part of the large spot');
+  stage.fire('click', { target: otherScreen });
+  assert.ok(otherScreen.hasAttribute('data-habitat-focused') && !share.hasAttribute('data-habitat-focused'), 'a click keeps the one clicked');
+  assert.equal(share.style.getPropertyValue('width'), '', 'a tile back in the row gives up its large size');
+  assert.equal(spread.getAttribute('aria-pressed'), 'false');
+  otherScreen.remove();
+  settle();
+  assert.ok(spread.hidden);
+
   // Leaving: Haven's tiles go, then the layout hands everything back.
   menu.remove();
   camera.remove();
@@ -791,6 +840,33 @@ test('a camera fills its owner\'s tile, and a screen share takes the large spot 
   assert.equal(streams.parentNode, area);
   assert.equal(snapshot(doc.body), before);
   for (const row of users.querySelectorAll('.voice-user-item')) assert.equal(cell(row), '');
+});
+
+test('a camera or a shared screen opens the stage by itself, once per call', () => {
+  const { doc, area, indicator, shares, streams, tile, layout, before } = buildCall({ open: false });
+  const toggle = doc.querySelector('[data-habitat-call-view]');
+  const open = () => doc.querySelector('[data-habitat-call-stage]')?.parentNode === area;
+  assert.ok(!open(), 'a call with voices only stays in the roster');
+  const share = tile('screen-tile-2', 'screen-share-tile');
+  shares.appendChild(share);
+  FakeMutationObserver.notify(streams);
+  assert.ok(open(), 'Haven\'s stacked panels are never the first thing shown');
+  assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+  // Closed by hand, it stays closed for the rest of the call.
+  toggle.fire('click');
+  shares.appendChild(tile('screen-tile-3', 'screen-share-tile'));
+  FakeMutationObserver.notify(streams);
+  assert.ok(!open());
+  // The next call starts fresh.
+  indicator.style.display = 'none';
+  FakeMutationObserver.notify(indicator);
+  indicator.style.display = 'flex';
+  FakeMutationObserver.notify(indicator);
+  assert.ok(open(), 'screens already shared when the call is joined open it too');
+  for (const node of [...shares.children]) node.remove();
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
+  assert.equal(FakeMutationObserver.live.size, 0);
 });
 
 test('on a phone the call buttons sit under the stage, and go back to the drawer with it', () => {
@@ -809,6 +885,21 @@ test('on a phone the call buttons sit under the stage, and go back to the drawer
   assert.equal(voiceControls.style.getPropertyValue('top'), '');
   layout.stop();
   assert.equal(snapshot(doc.body), before);
+});
+
+test('a voice room already joined when the phone layout is built gets its call buttons too', () => {
+  const { doc, voiceControls } = buildApp({ desktop: false, phone: true });
+  const area = region(doc, 'message-area');
+  doc.body.appendChild(area);
+  doc.body.appendChild(el(doc, 'div', { id: 'voice-active-indicator' }));
+  Object.assign(window.app, {
+    currentChannel: 'lobi', voice: { inVoice: true, currentChannel: 'lobi' }, _isVoiceOnlyChannel: () => true
+  });
+  const layout = new HabitatLayout();
+  layout.start();
+  assert.equal(doc.querySelector('[data-habitat-call-stage]')?.parentNode, area, 'the room opens its stage as the layout comes up');
+  assert.equal(voiceControls.parentNode, area, 'with the buttons under it, not left in the drawer');
+  layout.stop();
 });
 
 test('on a desktop the call buttons stay docked in the sidebar footer', () => {
@@ -920,7 +1011,14 @@ test('the voice bar opens the connection details and drops the hash from a voice
   app.call(false);
   assert.ok(panel.hidden, 'the details close with the call');
   assert.ok(!voiceBar.hasAttribute('data-habitat-signal'));
+  // The layout leaving in the middle of a call hands the bar back as Haven drew it.
+  voiceBar.appendChild(status);
+  voiceBar.appendChild(name);
+  app.call(true);
+  assert.equal(status.getAttribute('role'), 'button');
   layout.stop();
+  assert.deepEqual([...status.attributes.keys()], ['class']);
+  assert.deepEqual([...name.attributes.keys()], ['class']);
   assert.equal(doc.querySelector('[data-habitat-connection]'), null);
   assert.equal(FakeMutationObserver.live.size, 0);
 });
@@ -970,16 +1068,18 @@ test('the layout keeps to public regions and named buttons, and ships no remote 
   // These exceptions mirror forced display in the upstream mobile toolbar
   // or replace a control that remains reachable from our own trigger.
   const forced = HabitatLayout.CSS.match(/[^{}]*\{[^}]*!important[^}]*\}/g) || [];
-  assert.equal(forced.length, 7);
+  assert.equal(forced.length, 8);
   assert.match(forced[0], /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)/);
   // Haven writes the size of its camera and stream panels, and whether they
-  // show, straight onto the elements; the call stage has to outrank that.
-  assert.match(forced[1], /\[data-habitat-call-stage\] > :is\(#webcam-container, #screen-share-container\)\[style\*="display: flex"\]\s*\{\s*display: contents !important/);
-  assert.match(forced[2], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\)\s*\{\s*max-width: none !important/);
-  assert.match(forced[3], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\) > video\s*\{[^}]*max-height: none !important/);
-  assert.match(forced[4], /\[data-habitat-room-members\]:not\(\[hidden\]\) \+ #mobile-users-btn/);
-  assert.match(forced[5], /#header-actions-box\[style\*="display: flex"\]/);
-  assert.match(forced[6], /#copy-code-btn\[style\*="inline-flex"\]/);
+  // and the voice roster show at all, straight onto the elements; the call
+  // stage has to outrank that, and the fixed height of a popped-out tile.
+  assert.match(forced[1], /\[data-habitat-call-stage\] > :is\(\[data-habitat-stage\], #webcam-container, #screen-share-container\)\s*\{\s*display: contents !important/);
+  assert.match(forced[2], /\[data-habitat-call-stage\] :is\(\.webcam-popped-out, \.stream-popped-out\)\s*\{\s*height: auto !important/);
+  assert.match(forced[3], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\)\s*\{\s*max-width: none !important/);
+  assert.match(forced[4], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\) > video\s*\{[^}]*max-height: none !important/);
+  assert.match(forced[5], /\[data-habitat-room-members\]:not\(\[hidden\]\) \+ #mobile-users-btn/);
+  assert.match(forced[6], /#header-actions-box\[style\*="display: flex"\]/);
+  assert.match(forced[7], /#copy-code-btn\[style\*="inline-flex"\]/);
   for (const name of ['navigation-sidebar', 'account', 'sidebar-footer', 'sidebar-actions', 'channels',
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);

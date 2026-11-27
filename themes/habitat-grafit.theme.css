@@ -1663,7 +1663,35 @@ html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-i
 [data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: .9375rem; }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .625rem .625rem auto; }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge { position: absolute; inset: .625rem auto auto .625rem; }
-[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge + .voice-stream-badge { inset-inline-start: 2.25rem; }
+/* The live mark keeps the top corner to itself; "watching" sits below it. */
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge.watching { inset: auto auto .625rem .625rem; }
+/* The buttons a picture shows on hover: one row of dark glass squares in the
+   top right, in place of Haven's small marks in four corners. */
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn) {
+  inset: .5rem auto auto auto; display: grid; place-items: center; width: 1.875rem; height: 1.875rem; padding: 0;
+  border-radius: .5rem; color: #fff; background: rgba(8, 9, 12, .72); font-size: .875rem; line-height: 1;
+  backdrop-filter: blur(.375rem); transition: opacity var(--hb-fast) var(--hb-ease), background-color var(--hb-fast) var(--hb-ease);
+}
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn):hover {
+  background: rgba(40, 44, 50, .92);
+}
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > .stream-close-btn { right: .5rem; }
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > .stream-minimize-btn { right: 2.625rem; }
+[data-habitat-call-stage] .screen-share-tile > .stream-fullscreen-btn { right: 4.75rem; }
+[data-habitat-call-stage] .screen-share-tile > .stream-popout-btn { right: 6.875rem; }
+[data-habitat-call-stage] .webcam-tile > .stream-fullscreen-btn { right: 2.625rem; }
+[data-habitat-call-stage] .webcam-tile > .stream-popout-btn { right: 4.75rem; }
+/* In the row under a shared screen there is no room for four buttons; a
+   click enlarges the tile, and they are there. */
+[data-habitat-call-stage][data-habitat-focus] :is(.webcam-tile, .screen-share-tile):not([data-habitat-focused]) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn, .stream-audio-controls) {
+  display: none;
+}
+[data-habitat-call-stage] .webcam-tile > .stream-minimize-btn { display: none; }
+/* The audio note gives the top right corner to those buttons. */
+[data-habitat-call-stage] .screen-share-tile > :is(.stream-audio-badge, .stream-no-audio-badge) {
+  inset: .5rem auto auto .5rem; padding: .1875rem .5rem; border-radius: .375rem; background: rgba(8, 9, 12, .68);
+}
+[data-habitat-stage-spread] { backdrop-filter: blur(.375rem); transition: background-color var(--hb-fast) var(--hb-ease), color var(--hb-fast) var(--hb-ease); }
 [data-habitat-call-stage] .voice-user-menu-btn { position: absolute; inset: .375rem .375rem auto auto; opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease); }
 [data-habitat-call-stage] :is(.voice-user-item:hover, .voice-user-item:focus-within) .voice-user-menu-btn { opacity: 1; }
 /* The name plate on a picture: dark glass, so it reads on any camera or screen. */

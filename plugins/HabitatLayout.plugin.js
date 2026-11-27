@@ -176,7 +176,7 @@ class HabitatLayout {
       this._buildChannelTools();
       this._buildMemberPreview();
       this._buildConversationIntro();
-      this._buildCallStage();
+      this._buildCallStage(mode);
       this._buildVoicePeople();
       this._buildConnectionInfo();
       this._watchVoice();
@@ -541,7 +541,7 @@ class HabitatLayout {
   // row beneath. Haven's own tiles are placed, never rebuilt: their buttons,
   // menus and handlers keep working. The roster's placeholder also keeps the
   // drawer close button in reach on a phone.
-  _buildCallStage() {
+  _buildCallStage(mode) {
     const indicator = document.getElementById('voice-active-indicator');
     const area = this._region('message-area');
     const roster = this._region('voice-roster');
@@ -567,6 +567,13 @@ class HabitatLayout {
     let focusKey = null;   // the tile the member chose to enlarge
     let autoFocus = true;  // a new screen share takes the large spot until the member puts it back
     let shareCount = 0;
+    let spread = false;    // every shared screen in the large spot at once, when the member asks for it
+    const spreadLabel = this._text('sideBySide');
+    const spreadButton = this._make('button', {
+      type: 'button', 'data-habitat-stage-spread': '', 'aria-pressed': 'false',
+      'aria-label': spreadLabel, title: spreadLabel, hidden: ''
+    }, stage);
+    spreadButton.appendChild(this._icon('M3 5h8v14H3zM13 5h8v14h-8z'));
 
     const drawAvatars = () => {
       if (!users) return;
@@ -596,7 +603,7 @@ class HabitatLayout {
       if (on) part.setAttribute(name, ''); else part.removeAttribute(name);
     };
     const unmark = (part) => {
-      part.style.removeProperty('grid-area');
+      for (const name of ['grid-area', 'left', 'top', 'width', 'height']) part.style.removeProperty(name);
       for (const name of marks) part.removeAttribute(name);
       if (part.matches('.voice-user-item')) part.removeAttribute('title');
       if (part.getAttribute('style') === '') part.removeAttribute('style');
@@ -605,18 +612,21 @@ class HabitatLayout {
     // owner the roster has not listed yet.
     const slots = () => {
       const list = [];
+      // A picture popped out into its own window leaves a short placeholder
+      // behind: it keeps a place in the row, never the large spot.
+      const away = tile => tile.matches('.stream-popped-out, .webcam-popped-out');
       for (const tile of stage.querySelectorAll('.screen-share-tile')) {
-        if (tile.getAttribute('data-hidden') !== 'true') list.push({ key: tile.id, share: true, parts: [tile] });
+        if (tile.getAttribute('data-hidden') !== 'true') list.push({ key: tile.id, share: true, away: away(tile), parts: [tile] });
       }
       const paired = new Set();
       for (const row of users ? users.querySelectorAll('.voice-user-item') : []) {
         const id = row.getAttribute('data-user-id');
-        const camera = [...stage.querySelectorAll('.webcam-tile')].find(tile => tile.id === `webcam-tile-${id}`);
+        const camera = [...stage.querySelectorAll('.webcam-tile')].find(tile => tile.id === `webcam-tile-${id}` && !away(tile));
         if (camera) paired.add(camera);
         list.push({ key: `person-${id}`, row, camera, parts: camera ? [camera, row] : [row] });
       }
       for (const tile of stage.querySelectorAll('.webcam-tile')) {
-        if (!paired.has(tile)) list.push({ key: tile.id, parts: [tile] });
+        if (!paired.has(tile)) list.push({ key: tile.id, away: away(tile), parts: [tile] });
       }
       return list;
     };
@@ -627,32 +637,45 @@ class HabitatLayout {
       const shares = all.filter(slot => slot.share);
       if (shares.length > shareCount) autoFocus = true;
       shareCount = shares.length;
-      let focus = all.find(slot => slot.key === focusKey) || null;
+      // One screen is large by default. A second one waits in the row with
+      // the people until the member picks it, or asks for both side by side.
+      const screens = shares.filter(slot => !slot.away);
+      if (screens.length < 2) spread = false;
+      spreadButton.hidden = screens.length < 2;
+      spreadButton.setAttribute('aria-pressed', String(spread));
+      let focus = all.find(slot => slot.key === focusKey && !slot.away) || null;
       if (!focus) focusKey = null;
-      if (!focus && autoFocus) focus = shares[0] || null;
-      if (all.length < 2) focus = null;
-      const rest = focus ? all.filter(slot => slot !== focus) : all;
+      if (!focus && autoFocus) focus = screens[0] || null;
+      let large = spread ? screens : focus ? [focus] : [];
+      // Alone, there is nothing to enlarge, and a click made then must not
+      // send that tile to the large spot when the next person arrives.
+      if (all.length < 2) { large = []; focusKey = null; }
+      const rest = all.filter(slot => !large.includes(slot));
       const look = getComputedStyle(stage);
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       const gap = parseFloat(look.columnGap) || 0;
       const width = stage.clientWidth - (parseFloat(look.paddingLeft) || 0) - (parseFloat(look.paddingRight) || 0);
       const height = stage.clientHeight - (parseFloat(look.paddingTop) || 0) - (parseFloat(look.paddingBottom) || 0);
       const strip = Math.max(4.5 * rem, Math.min(8.5 * rem, height * 0.2));
-      const grid = focus
+      const grid = large.length
         ? HabitatLayout.stageGrid(rest.length, width, strip, gap, 1)
         : HabitatLayout.stageGrid(rest.length, width, height, gap);
       stage.style.setProperty('--hb-stage-cols', String(grid.cols * 2));
       stage.style.setProperty('--hb-tile-w', `${(grid.width / rem).toFixed(3)}rem`);
       stage.style.setProperty('--hb-tile-h', `${(grid.height / rem).toFixed(3)}rem`);
-      flag(stage, 'data-habitat-focus', !!focus);
+      flag(stage, 'data-habitat-focus', large.length > 0);
       // Too small for a name under the face: the face alone, the name on hover.
       const dense = grid.height < 5 * rem;
       flag(stage, 'data-habitat-dense', dense);
       const now = new Set();
-      const put = (slot, cell) => {
+      const put = (slot, cell, box = {}) => {
         for (const part of slot.parts) {
           now.add(part);
           if (cell) part.style.setProperty('grid-area', cell); else part.style.removeProperty('grid-area');
+          for (const side of ['left', 'top', 'width', 'height']) {
+            if (side in box) part.style.setProperty(side, `${(box[side] / rem).toFixed(3)}rem`);
+            else part.style.removeProperty(side);
+          }
           flag(part, 'data-habitat-focused', !cell);
           flag(part, 'data-habitat-on-camera', part === slot.row && !!slot.camera);
           flag(part, 'data-habitat-paired', part === slot.camera);
@@ -668,7 +691,17 @@ class HabitatLayout {
         const start = (index % grid.cols) * 2 + 1 + (grid.cols - inLine);
         put(slot, `${line + 1} / ${start} / span 1 / span 2`);
       });
-      if (focus) put(focus, null);
+      // The large spot is everything above the row, shared out between the
+      // tiles in it. A screen is shown whole inside its share, never cropped.
+      const room = height - (rest.length ? grid.height + gap : 0);
+      const fit = HabitatLayout.stageGrid(large.length, width, room, gap);
+      const cellWidth = (width - gap * (fit.cols - 1)) / fit.cols;
+      const cellHeight = (room - gap * (fit.rows - 1)) / fit.rows;
+      large.forEach((slot, index) => put(slot, null, {
+        left: (parseFloat(look.paddingLeft) || 0) + (index % fit.cols) * (cellWidth + gap),
+        top: (parseFloat(look.paddingTop) || 0) + Math.floor(index / fit.cols) * (cellHeight + gap),
+        width: cellWidth, height: cellHeight
+      }));
       for (const part of placed) if (!now.has(part)) unmark(part);
       placed = now;
     };
@@ -696,7 +729,7 @@ class HabitatLayout {
     let docked = [];
     const dockBar = (on) => {
       const controls = this._region('voice-controls');
-      if (on && this._mode === 'compact' && controls && controls.parentNode !== area) {
+      if (on && mode === 'compact' && controls && controls.parentNode !== area) {
         const settings = this._region('voice-settings');
         const inline = Object.keys(barStyle).map(name =>
           [name, controls.style.getPropertyValue(name), controls.style.getPropertyPriority(name)]);
@@ -726,19 +759,31 @@ class HabitatLayout {
         area.insertBefore(stage, area.firstChild);
         carry(roster, stage, null);
         roster.setAttribute('data-habitat-stage', '');
+        // Haven's own enlarge and minimise states belong to its panels; left on,
+        // they hide every tile but one inside the stage.
+        window.app?._exitStreamFocus?.();
         for (const box of media) {
-          // Haven's own enlarge and minimise states belong to its panels.
+          for (const tile of box.querySelectorAll('.webcam-focused')) window.app?._toggleWebcamFocus?.(tile);
           for (const tile of box.querySelectorAll('.webcam-minimized')) tile.querySelector('.stream-minimize-btn')?.click();
           homes.set(box, box.nextSibling);
           carry(box, stage, null);
         }
-        this._stageObserver = new MutationObserver(arrange);
-        this._stageObserver.observe(stage, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hidden'] });
+        // Tiles coming and going, and a picture Haven hides or pops out into
+        // its own window (a class on the tile), change who gets which cell.
+        // The roster's own class changes, one per spoken word, do not.
+        this._stageObserver = new MutationObserver((records) => {
+          const relevant = !records?.length || records.some(record => record.type === 'childList'
+            || record.target?.matches?.('.webcam-tile, .screen-share-tile'));
+          if (relevant) arrange();
+        });
+        this._stageObserver.observe(stage, {
+          childList: true, subtree: true, attributes: true, attributeFilter: ['data-hidden', 'class']
+        });
         if (typeof ResizeObserver === 'function') {
           this._stageSize = new ResizeObserver(arrange);
           this._stageSize.observe(stage);
         }
-        focusKey = null; autoFocus = true; shareCount = 0;
+        focusKey = null; autoFocus = true; shareCount = 0; spread = false;
         dockBar(true);
         arrange();
       } else {
@@ -773,8 +818,15 @@ class HabitatLayout {
       const slot = slots().find(item => item.parts.includes(tile));
       if (!slot) return;
       const focused = tile.hasAttribute('data-habitat-focused');
-      focusKey = focused ? null : slot.key;
-      if (focused) autoFocus = false;
+      // From side by side, a click keeps the one that was clicked.
+      focusKey = focused && !spread ? null : slot.key;
+      if (focused && !spread) autoFocus = false;
+      spread = false;
+      arrange();
+    });
+    this._on(spreadButton, 'click', () => {
+      spread = !spread;
+      if (spread) focusKey = null;
       arrange();
     });
     // Haven's double-click enlarges a tile inside its own panel, which the
@@ -782,11 +834,24 @@ class HabitatLayout {
     this._on(stage, 'dblclick', (event) => {
       if (event.target.closest?.('.screen-share-tile, .webcam-tile') && !document.fullscreenElement) event.stopPropagation();
     }, true);
+    // A camera or a shared screen opens the stage by itself, so Haven's two
+    // stacked panels are never the first thing a call shows. Closing the stage
+    // by hand is respected until the call ends.
+    let closedByHand = false;
+    const followMedia = () => {
+      if (button.hidden || closedByHand || roster.hasAttribute('data-habitat-stage')) return;
+      if (media.some(box => box.querySelector('.webcam-tile, .screen-share-tile'))) setOpen(true);
+    };
+    if (media.length) {
+      this._mediaObserver = new MutationObserver(followMedia);
+      for (const box of media) this._mediaObserver.observe(box, { childList: true, subtree: true });
+    }
     // Haven shows the indicator only on the channel the call is in, so the
     // button, and with it the stage, never outlives a move to another channel.
     let stageRoom = null;
     const sync = () => {
       button.hidden = indicator.style.display === 'none';
+      if (button.hidden) closedByHand = false;
       const app = window.app;
       const connectedHere = !button.hidden && app?.voice?.inVoice && app.voice.currentChannel === app.currentChannel;
       const room = connectedHere && app._isVoiceOnlyChannel?.(app.currentChannel) ? app.currentChannel : null;
@@ -794,10 +859,14 @@ class HabitatLayout {
       else if (button.hidden || (!room && stageRoom)) setOpen(false);
       flag(stage, 'data-habitat-voice-room', !!room);
       stageRoom = room;
+      followMedia();
       arrange();
     };
     this._closeStage = () => { setOpen(false); stage.removeAttribute('data-habitat-voice-room'); };
-    this._on(button, 'click', () => setOpen(!roster.hasAttribute('data-habitat-stage')));
+    this._on(button, 'click', () => {
+      closedByHand = roster.hasAttribute('data-habitat-stage');
+      setOpen(!closedByHand);
+    });
     this._indicatorObserver = new MutationObserver(sync);
     this._indicatorObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
     const title = document.getElementById('channel-header-name');
@@ -866,6 +935,10 @@ class HabitatLayout {
         const userId = parseInt(row.getAttribute('data-user-id'), 10);
         if (Number.isNaN(userId) || row.getAttribute('data-is-bot') === 'true') return;
         event.stopPropagation();
+        // A hover preview leaves these set, and the card that follows a click
+        // would be thrown away as a preview nobody is hovering any more.
+        app._isHoverPopup = false;
+        app._hoverTarget = null;
         app._profilePopupAnchor = row;
         app.socket.emit('get-user-profile', { userId });
       });
@@ -986,6 +1059,7 @@ class HabitatLayout {
       drawing = true;
       let call;
       try { call = await read(); } finally { drawing = false; }
+      if (!timer) return;  // the call ended, or the layout left, while the reading was out
       const ping = parseInt(document.getElementById('status-ping')?.textContent, 10);
       const worst = Math.max(Number.isFinite(ping) ? ping : 0, call.rtt || 0);
       const loss = call.loss || 0;
@@ -1054,6 +1128,9 @@ class HabitatLayout {
         timer = null;
         before = new Map();
         bar.removeAttribute('data-habitat-signal');
+        const status = bar.querySelector('.voice-bar-status');
+        for (const name of ['role', 'tabindex', 'title', 'aria-expanded']) status?.removeAttribute(name);
+        bar.querySelector('.voice-bar-channel')?.removeAttribute('data-habitat-voice-title');
         panel.hidden = true;
       }
     };
@@ -1261,6 +1338,7 @@ class HabitatLayout {
   _restoreDesktop() {
     this._mode = null;
     this._indicatorObserver?.disconnect();
+    this._mediaObserver?.disconnect();
     this._closeStage?.();
     this._closeStage = null;
     this._selectList = null;
@@ -1336,7 +1414,8 @@ HabitatLayout.TEXT = Object.freeze({
     good: 'Connection is good', fair: 'Connection is unsteady', poor: 'Connection is poor',
     people: 'Connected to', alone: 'No one else here yet', serverPing: 'Server ping', voicePing: 'Voice delay',
     loss: 'Packet loss', jitter: 'Jitter', route: 'Route', server: 'Server',
-    direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay'
+    direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay',
+    sideBySide: 'Show every shared screen together'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
@@ -1348,7 +1427,8 @@ HabitatLayout.TEXT = Object.freeze({
     good: 'Bağlantı iyi', fair: 'Bağlantı dalgalı', poor: 'Bağlantı zayıf',
     people: 'Bağlı kişiler', alone: 'Henüz başka kimse yok', serverPing: 'Sunucu gecikmesi', voicePing: 'Ses gecikmesi',
     loss: 'Paket kaybı', jitter: 'Seğirme', route: 'Yol', server: 'Sunucu',
-    direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı'
+    direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı',
+    sideBySide: 'Paylaşılan ekranları birlikte göster'
   })
 });
 
@@ -1720,9 +1800,9 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
   padding: .5rem .75rem calc(.5rem + env(safe-area-inset-bottom, 0px));
   border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; background: var(--bg-tertiary);
 }
-[data-habitat-call-stage] > [data-habitat-stage],
 [data-habitat-call-stage] :is(.panel, #voice-users, #webcam-grid, #screen-share-grid) { display: contents; }
-[data-habitat-call-stage] > :is(#webcam-container, #screen-share-container)[style*="display: flex"] { display: contents !important; }
+[data-habitat-call-stage] > :is([data-habitat-stage], #webcam-container, #screen-share-container) { display: contents !important; }
+[data-habitat-call-stage] :is(.webcam-popped-out, .stream-popped-out) { height: auto !important; }
 [data-habitat-call-stage] :is(.webcam-header, .screen-share-header, .panel-title, .webcam-tile .stream-minimize-btn) { display: none; }
 [data-habitat-call-stage] .voice-panel-header { position: absolute; inset: .375rem var(--hb-stage-pad) auto auto; z-index: 3; margin: 0; padding: 0; }
 [data-habitat-call-stage] #voice-users > :not(.voice-user-item) { grid-column: 1 / -1; margin: 0; text-align: center; }
@@ -1735,10 +1815,14 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
   width: 100%; height: 100%; max-height: none !important; object-fit: cover;
 }
 [data-habitat-call-stage] .screen-share-tile > video { object-fit: contain; }
-[data-habitat-call-stage] [data-habitat-focused] {
-  position: absolute; z-index: 1;
-  inset: var(--hb-stage-top) var(--hb-stage-pad) calc(var(--hb-stage-pad) + var(--hb-tile-h, 0rem) + var(--hb-stage-gap)) var(--hb-stage-pad);
+[data-habitat-call-stage] [data-habitat-focused] { position: absolute; z-index: 1; }
+[data-habitat-stage-spread] {
+  position: absolute; inset: calc(var(--hb-stage-top) + .5rem) auto auto 50%; z-index: 3; translate: -50%;
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0;
+  border: 0; border-radius: .5rem; color: #fff; background: rgba(8, 9, 12, .68); cursor: pointer;
 }
+[data-habitat-stage-spread][hidden] { display: none; }
+[data-habitat-stage-spread][aria-pressed="true"] { color: var(--accent-text); background: var(--accent); }
 [data-habitat-call-stage] .voice-user-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .375rem;
   padding: .75rem; background: var(--bg-active);
