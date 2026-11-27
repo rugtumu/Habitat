@@ -1169,7 +1169,12 @@ _createMessageEl(msg, prevMsg) {
   const moreMenuHtml = overflowActions.length
     ? `<div class="msg-toolbar-more"><button class="msg-toolbar-more-btn" type="button" aria-label="${t('users.more_actions')}">${iMore}</button><div class="msg-toolbar-overflow">${overflowToolbarBtns}</div></div>`
     : '';
-  const toolbarHtml = `<div class="msg-toolbar"><div class="msg-toolbar-group">${coreToolbarBtns}</div>${moreMenuHtml}</div>`;
+  // Habitat fork: a second Delete that only shows while Shift is held (see
+  // _bindMessageActions), for when the member's own bar keeps it under More.
+  const shiftDeleteHtml = canDelete && !visibleActions.some(a => a.key === 'delete')
+    ? `<button class="msg-shift-delete" data-action="delete" title="${t('msg_toolbar.delete')}">${iDelete}</button>`
+    : '';
+  const toolbarHtml = `<div class="msg-toolbar"><div class="msg-toolbar-group">${coreToolbarBtns}${shiftDeleteHtml}</div>${moreMenuHtml}</div>`;
   const replyHtml = msg.replyContext ? this._renderReplyBanner(msg.replyContext) : '';
 
   if (isCompact) {

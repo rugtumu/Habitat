@@ -291,6 +291,14 @@ _bindMessageClicks() {
 },
 
 _bindMessageActions() {
+  // Habitat fork: holding Shift marks the page, and the stylesheet then shows
+  // Delete on a hovered message's bar even when it is filed under More.
+  const shiftHeld = (on) => document.documentElement.classList.toggle('shift-held', on);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Shift') shiftHeld(true); });
+  document.addEventListener('keyup', (e) => { if (e.key === 'Shift') shiftHeld(false); });
+  // A Shift released in another window never reaches this page.
+  window.addEventListener('blur', () => shiftHeld(false));
+
   // Double-clicking a message row is a shortcut for the reply toolbar action.
   // Keep the delegated handler on the list so it also covers compact rows and
   // messages rendered after history updates.
@@ -385,7 +393,9 @@ _bindMessageActions() {
     } else if (action === 'delete') {
       // A protected message cannot be deleted by anyone; the server says the same.
       if (msgEl.dataset.archived === '1') return this._showToast?.(t('app.messages.protected_no_delete'), 'error');
-      if (await this._showConfirmModal(t('confirm.delete_message'), '', { danger: true, confirmLabel: t('msg_toolbar.delete') })) {
+      // Habitat fork: a click made with Shift held deletes at once. Holding the
+      // key is the deliberate step, as in the chat apps members come from.
+      if (e.shiftKey || await this._showConfirmModal(t('confirm.delete_message'), '', { danger: true, confirmLabel: t('msg_toolbar.delete') })) {
         this.socket.emit('delete-message', { messageId: msgId, attachments: this._getMessageAttachments?.(msgId) });
       }
     } else if (action === 'pin') {

@@ -885,6 +885,16 @@
   color: var(--text-primary);
 }
 
+/* Habitat fork: Delete appears on the bar, in the danger colour, while Shift
+   is held (html.shift-held is set in app-message-actions.js). */
+.msg-toolbar button.msg-shift-delete { display: none; }
+html.shift-held .msg-toolbar button.msg-shift-delete { display: flex; }
+html.shift-held .msg-toolbar button[data-action="delete"],
+html.shift-held .msg-toolbar button[data-action="delete"]:hover { color: var(--danger); }
+html.shift-held .msg-toolbar button[data-action="delete"]:hover {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
 .msg-toolbar button svg,
 .thread-msg-toolbar button svg {
   width: 0.875rem;
