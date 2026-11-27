@@ -49,15 +49,15 @@ class FakeMutationObserver {
 FakeMutationObserver.live = new Set();
 
 function parseCompound(selector) {
-  const out = { tag: null, id: null, attrs: [] };
+  const out = { tag: null, id: null, classes: [], attrs: [] };
   let rest = selector.trim();
   const tag = rest.match(/^[a-zA-Z][\w-]*/);
   if (tag) { out.tag = tag[0].toLowerCase(); rest = rest.slice(tag[0].length); }
-  const part = /^(?:#([\w-]+)|\[([\w-]+)(?:="([^"]*)")?\])/;
+  const part = /^(?:#([\w-]+)|\.([\w-]+)|\[([\w-]+)(?:="([^"]*)")?\])/;
   while (rest) {
     const hit = rest.match(part);
     if (!hit) throw new Error(`Unsupported selector in test DOM: ${selector}`);
-    if (hit[1]) out.id = hit[1]; else out.attrs.push([hit[2], hit[3]]);
+    if (hit[1]) out.id = hit[1]; else if (hit[2]) out.classes.push(hit[2]); else out.attrs.push([hit[3], hit[4]]);
     rest = rest.slice(hit[0].length);
   }
   return out;
@@ -74,11 +74,18 @@ class FakeElement extends FakeTarget {
     this.style = new FakeStyle();
     this.textContent = '';
     this.value = '';
+    this.clientWidth = 0;
+    this.clientHeight = 0;
   }
   get parentElement() { return this.parentNode; }
   get nextSibling() {
     if (!this.parentNode) return null;
     return this.parentNode.children[this.parentNode.children.indexOf(this) + 1] || null;
+  }
+  get id() { return this.getAttribute('id') || ''; }
+  // data-user-id reads as dataset.userId, as in a browser.
+  get dataset() {
+    return new Proxy({}, { get: (_, key) => this.attributes.get(`data-${String(key).replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`) });
   }
   get hidden() { return this.attributes.has('hidden'); }
   set hidden(value) { if (value) this.attributes.set('hidden', ''); else this.attributes.delete('hidden'); }
@@ -112,6 +119,8 @@ class FakeElement extends FakeTarget {
       const want = parseCompound(single);
       if (want.tag && want.tag !== this.tagName) return false;
       if (want.id && want.id !== this.getAttribute('id')) return false;
+      const classes = (this.getAttribute('class') || '').split(/\s+/);
+      if (!want.classes.every((name) => classes.includes(name))) return false;
       return want.attrs.every(([name, value]) => this.hasAttribute(name)
         && (value === undefined || this.getAttribute(name) === value));
     });
@@ -127,8 +136,24 @@ class FakeElement extends FakeTarget {
     const found = new Set();
     for (const single of selector.split(',').map((s) => s.trim())) {
       const scoped = single.match(/^:scope\s*>\s*(.+)$/);
-      const pool = scoped ? this.children : this.descendants();
-      for (const node of pool) if (node.matches(scoped ? scoped[1] : single)) found.add(node);
+      if (scoped) {
+        for (const node of this.children) if (node.matches(scoped[1])) found.add(node);
+        continue;
+      }
+      // "a b": b anywhere under a. Spaces inside [title="..."] are not combinators.
+      const steps = single.split(/\s+(?![^[]*\])/);
+      const last = steps.pop();
+      for (const node of this.descendants()) {
+        if (!node.matches(last)) continue;
+        let anchor = node.parentNode;
+        const inside = [...steps].reverse().every((step) => {
+          while (anchor && !anchor.matches?.(step)) anchor = anchor.parentNode;
+          const hit = !!anchor;
+          anchor = anchor?.parentNode;
+          return hit;
+        });
+        if (inside) found.add(node);
+      }
     }
     return [...found];
   }
@@ -247,6 +272,8 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   };
   globalThis.HavenApi = api;
   globalThis.MutationObserver = FakeMutationObserver;
+  // Nothing is laid out here; a test that measures the call stage supplies its own.
+  globalThis.getComputedStyle = () => ({});
   const call = (on) => {
     voiceBar.style.display = on ? 'flex' : 'none';
     if (on && !voiceBar.children.length) voiceBar.appendChild(el(doc, 'div', { id: 'voice-bar-top' }));
@@ -271,6 +298,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 test.afterEach(() => {
   delete globalThis.document;
+  delete globalThis.getComputedStyle;
   delete globalThis.window;
   delete globalThis.HavenApi;
   delete globalThis.MutationObserver;
@@ -630,17 +658,165 @@ test('the call view returns the live roster and the drawer close button on leave
   indicator.style.display = 'flex';
   FakeMutationObserver.notify(indicator);
   toggle.fire('click');
-  assert.equal(roster.parentNode, area);
+  const stage = doc.querySelector('[data-habitat-call-stage]');
+  assert.equal(stage.parentNode, area);
+  assert.equal(roster.parentNode, stage);
   assert.ok(context.contains(close));
   indicator.style.display = 'none';
   FakeMutationObserver.notify(indicator);
   assert.equal(roster.parentNode, context);
   assert.equal(close.parentNode, roster);
+  assert.equal(doc.querySelector('[data-habitat-call-stage]'), null, 'the empty stage leaves the page');
   indicator.style.display = 'flex';
   FakeMutationObserver.notify(indicator);
   toggle.fire('click');
   layout.stop();
   assert.equal(snapshot(doc.body), before);
+});
+
+// A call with a roster, Haven's camera and stream panels, and a stage of a known size.
+function buildCall({ people = 2, width = 1000, height = 600, desktop = true } = {}) {
+  const app = buildApp({ desktop, phone: !desktop });
+  const { doc } = app;
+  const tile = (id, name) => el(doc, 'div', { id, class: name }, [el(doc, 'video')]);
+  const cameras = el(doc, 'div', { id: 'webcam-grid' });
+  const shares = el(doc, 'div', { id: 'screen-share-grid' });
+  const webcams = region(doc, 'webcams', [cameras]);
+  const streams = region(doc, 'screen-shares', [shares]);
+  const messages = region(doc, 'message-list');
+  const area = region(doc, 'message-area', [webcams, streams, messages]);
+  const indicator = el(doc, 'div', { id: 'voice-active-indicator' });
+  const users = el(doc, 'div', { id: 'voice-users' });
+  const person = (id) => el(doc, 'div', { class: 'user-item voice-user-item', 'data-user-id': String(id) },
+    [el(doc, 'span', { class: 'user-item-name' })]);
+  for (let id = 1; id <= people; id++) users.appendChild(person(id));
+  const roster = doc.querySelector('[data-haven-region="voice-roster"]');
+  roster.appendChild(users);
+  doc.body.appendChild(area);
+  doc.body.appendChild(indicator);
+  globalThis.getComputedStyle = () => ({ columnGap: '10px', paddingLeft: '0px', paddingRight: '0px', paddingTop: '0px', paddingBottom: '0px', fontSize: '16px' });
+  const before = snapshot(doc.body);
+  const layout = new HabitatLayout();
+  layout.start();
+  doc.querySelector('[data-habitat-call-view]').fire('click');
+  const stage = doc.querySelector('[data-habitat-call-stage]');
+  stage.clientWidth = width;
+  stage.clientHeight = height;
+  const settle = () => FakeMutationObserver.notify(stage);
+  settle();
+  const cell = (node) => node.style.getPropertyValue('grid-area');
+  return { ...app, layout, area, stage, users, cameras, shares, webcams, streams, person, tile, settle, cell, before };
+}
+
+test('the stage grid picks the largest tiles that fit everyone on one screen', () => {
+  const grid = (count, width, height) => HabitatLayout.stageGrid(count, width, height, 10);
+  assert.deepEqual([grid(1, 1000, 600).cols, grid(1, 1000, 600).rows], [1, 1]);
+  assert.deepEqual([grid(2, 1200, 500).cols, grid(2, 1200, 500).rows], [2, 1], 'two people on a wide screen sit side by side');
+  assert.deepEqual([grid(2, 360, 700).cols, grid(2, 360, 700).rows], [1, 2], 'and one above the other on a phone');
+  for (const [count, width, height] of [[1, 360, 640], [5, 360, 640], [9, 1000, 600], [16, 1000, 600], [25, 360, 640]]) {
+    const fit = grid(count, width, height);
+    assert.ok(fit.cols * fit.rows >= count, `${count} tiles have a cell each`);
+    assert.ok(fit.cols * fit.width + (fit.cols - 1) * 10 <= width + 0.01, `${count} tiles fit the width`);
+    assert.ok(fit.rows * fit.height + (fit.rows - 1) * 10 <= height + 0.01, `${count} tiles fit the height`);
+    const ratio = fit.width / fit.height;
+    assert.ok(ratio >= 4 / 3 - 0.01 && ratio <= 16 / 9 + 0.01, `${count} tiles keep a picture shape`);
+  }
+  assert.equal(HabitatLayout.stageGrid(6, 1000, 120, 10, 1).rows, 1, 'the strip under a shared screen stays one row');
+});
+
+test('the call stage gives every person one cell and centres a short last row', () => {
+  const { stage, users, cell, layout } = buildCall({ people: 5, width: 1200 });
+  assert.equal(stage.style.getPropertyValue('--hb-stage-cols'), '6', 'three people a row, two half columns each');
+  const rows = users.querySelectorAll('.voice-user-item');
+  assert.deepEqual(rows.map(cell), [
+    '1 / 1 / span 1 / span 2', '1 / 3 / span 1 / span 2', '1 / 5 / span 1 / span 2',
+    '2 / 2 / span 1 / span 2', '2 / 4 / span 1 / span 2'
+  ]);
+  assert.ok(!stage.hasAttribute('data-habitat-focus'));
+  layout.stop();
+});
+
+test('a camera fills its owner\'s tile, and a screen share takes the large spot until it is put back', () => {
+  const { doc, stage, area, users, cameras, shares, webcams, streams, tile, settle, cell, layout, before } = buildCall({ people: 3 });
+  assert.equal(webcams.parentNode, stage, 'Haven\'s panels dissolve into the stage');
+  assert.equal(streams.parentNode, stage);
+  const [first, second] = users.querySelectorAll('.voice-user-item');
+  const camera = tile('webcam-tile-2', 'webcam-tile');
+  cameras.appendChild(camera);
+  settle();
+  assert.equal(cell(camera), cell(second), 'the picture and the person share a cell');
+  assert.ok(second.hasAttribute('data-habitat-on-camera'));
+  assert.ok(camera.hasAttribute('data-habitat-paired'));
+  assert.ok(!first.hasAttribute('data-habitat-on-camera'));
+
+  const share = tile('screen-tile-1', 'screen-share-tile');
+  shares.appendChild(share);
+  settle();
+  assert.ok(stage.hasAttribute('data-habitat-focus'));
+  assert.ok(share.hasAttribute('data-habitat-focused'));
+  assert.equal(cell(share), '', 'the large tile is not in the strip');
+  assert.equal(stage.style.getPropertyValue('--hb-stage-cols'), '6', 'three people in one row beneath');
+  assert.equal(cell(camera), '1 / 3 / span 1 / span 2');
+
+  // A share the viewer closed is hidden by Haven, not removed.
+  share.setAttribute('data-hidden', 'true');
+  settle();
+  assert.ok(!stage.hasAttribute('data-habitat-focus'));
+  share.removeAttribute('data-hidden');
+  settle();
+  assert.ok(share.hasAttribute('data-habitat-focused'));
+
+  // A click on the large tile returns to the grid, and it stays there.
+  stage.fire('click', { target: share });
+  assert.ok(!stage.hasAttribute('data-habitat-focus'));
+  assert.equal(cell(share), '1 / 1 / span 1 / span 2');
+  settle();
+  assert.ok(!stage.hasAttribute('data-habitat-focus'), 'the member\'s choice outlasts a redraw');
+  // A click on a person enlarges them; a click on a button inside a tile does not.
+  stage.fire('click', { target: first });
+  assert.ok(first.hasAttribute('data-habitat-focused'));
+  const menu = el(doc, 'button');
+  second.appendChild(menu);
+  stage.fire('click', { target: menu });
+  assert.ok(first.hasAttribute('data-habitat-focused'));
+  assert.ok(stage.fire('dblclick', { target: camera }).stopped, 'Haven\'s own enlarge stays out of the stage');
+  assert.ok(stage.captured.has('dblclick'));
+
+  // Leaving: Haven's tiles go, then the layout hands everything back.
+  menu.remove();
+  camera.remove();
+  share.remove();
+  layout.stop();
+  assert.equal(webcams.parentNode, area);
+  assert.equal(streams.parentNode, area);
+  assert.equal(snapshot(doc.body), before);
+  for (const row of users.querySelectorAll('.voice-user-item')) assert.equal(cell(row), '');
+});
+
+test('on a phone the call buttons sit under the stage, and go back to the drawer with it', () => {
+  const { doc, area, stage, context, voiceControls, layout, before } = buildCall({ desktop: false });
+  const settings = doc.querySelector('[data-haven-region="voice-settings"]');
+  assert.equal(voiceControls.parentNode, area);
+  assert.equal(stage.nextSibling, settings, 'the settings panel opens right above the buttons');
+  assert.equal(settings.nextSibling, voiceControls);
+  assert.ok(voiceControls.hasAttribute('data-habitat-call-bar'));
+  assert.equal(voiceControls.style.getPropertyValue('position'), 'static');
+  assert.equal(voiceControls.style.getPropertyPriority('position'), 'important', 'Haven positions the bar inline');
+  doc.querySelector('[data-habitat-call-view]').fire('click');
+  assert.equal(voiceControls.parentNode, context);
+  assert.equal(settings.parentNode, context);
+  assert.equal(voiceControls.style.getPropertyValue('position'), 'absolute');
+  assert.equal(voiceControls.style.getPropertyValue('top'), '');
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
+});
+
+test('on a desktop the call buttons stay docked in the sidebar footer', () => {
+  const { area, footer, voiceControls, layout } = buildCall();
+  assert.equal(voiceControls.parentNode, footer);
+  assert.ok(!voiceControls.hasAttribute('data-habitat-call-bar'));
+  assert.ok(!area.contains(voiceControls));
+  layout.stop();
 });
 
 test('the channel disclosure preserves its original buttons and their visibility', () => {
@@ -688,11 +864,16 @@ test('the layout keeps to public regions and named buttons, and ships no remote 
   // These exceptions mirror forced display in the upstream mobile toolbar
   // or replace a control that remains reachable from our own trigger.
   const forced = HabitatLayout.CSS.match(/[^{}]*\{[^}]*!important[^}]*\}/g) || [];
-  assert.equal(forced.length, 4);
+  assert.equal(forced.length, 7);
   assert.match(forced[0], /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)/);
-  assert.match(forced[1], /\[data-habitat-room-members\]:not\(\[hidden\]\) \+ #mobile-users-btn/);
-  assert.match(forced[2], /#header-actions-box\[style\*="display: flex"\]/);
-  assert.match(forced[3], /#copy-code-btn\[style\*="inline-flex"\]/);
+  // Haven writes the size of its camera and stream panels, and whether they
+  // show, straight onto the elements; the call stage has to outrank that.
+  assert.match(forced[1], /\[data-habitat-call-stage\] > :is\(#webcam-container, #screen-share-container\)\[style\*="display: flex"\]\s*\{\s*display: contents !important/);
+  assert.match(forced[2], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\)\s*\{\s*max-width: none !important/);
+  assert.match(forced[3], /\[data-habitat-call-stage\] :is\(\.webcam-tile, \.screen-share-tile\) > video\s*\{[^}]*max-height: none !important/);
+  assert.match(forced[4], /\[data-habitat-room-members\]:not\(\[hidden\]\) \+ #mobile-users-btn/);
+  assert.match(forced[5], /#header-actions-box\[style\*="display: flex"\]/);
+  assert.match(forced[6], /#copy-code-btn\[style\*="inline-flex"\]/);
   for (const name of ['navigation-sidebar', 'account', 'sidebar-footer', 'sidebar-actions', 'channels',
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);

@@ -496,8 +496,13 @@ class HabitatLayout {
         this._lastConversation = channel;
         this._selectList?.(dm ? 'messages' : 'channels');
       }
-      mark.textContent = dm ? '@' : '#';
-      title.textContent = name;
+      // A voice room is not a text channel: its title carries a speaker, not a hash.
+      const voiceRoom = !dm && !!window.app?._isVoiceOnlyChannel?.(channel);
+      if (voiceRoom) header.setAttribute('data-habitat-voice-title', name.replace(/^#\s*/, ''));
+      else header.removeAttribute('data-habitat-voice-title');
+      mark.textContent = dm ? '@' : voiceRoom ? '' : '#';
+      intro.setAttribute('data-habitat-intro', voiceRoom ? 'voice' : '');
+      title.textContent = voiceRoom ? name.replace(/^#\s*/, '') : name;
       hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
       syncHistory();
     };
@@ -509,8 +514,31 @@ class HabitatLayout {
     sync();
   }
 
-  // The roster itself supplies live names, speaking state and member actions.
-  // Its placeholder also keeps the drawer close button in reach on a phone.
+  // The largest tile that lets `count` tiles share a box. A tile stays
+  // between 4:3 and 16:9, so one person on a wide screen is not stretched
+  // and nine people on a phone still fit without scrolling.
+  static stageGrid(count, width, height, gap, rows = 0) {
+    let best = { cols: 1, rows: Math.max(1, count), width: 0, height: 0 };
+    for (let cols = 1; cols <= Math.max(1, count); cols++) {
+      const lines = rows || Math.ceil(count / cols);
+      if (rows && cols * rows < count) continue;
+      let w = (width - gap * (cols - 1)) / cols;
+      let h = (height - gap * (lines - 1)) / lines;
+      if (w <= 0 || h <= 0) continue;
+      if (w / h > 16 / 9) w = h * 16 / 9;
+      else if (w / h < 4 / 3) h = w * 3 / 4;
+      if (w > best.width) best = { cols, rows: lines, width: w, height: h };
+    }
+    return best;
+  }
+
+  // One grid holds everyone in the call. Haven keeps people, cameras and
+  // screen shares in three separate boxes that stack and scroll; here the
+  // boxes dissolve and every tile is given a cell, so a camera fills its
+  // owner's tile and a screen share takes the large spot with the rest in a
+  // row beneath. Haven's own tiles are placed, never rebuilt: their buttons,
+  // menus and handlers keep working. The roster's placeholder also keeps the
+  // drawer close button in reach on a phone.
   _buildCallStage() {
     const indicator = document.getElementById('voice-active-indicator');
     const area = this._region('message-area');
@@ -529,41 +557,231 @@ class HabitatLayout {
     const closeParent = close?.parentNode;
     const closeNext = close?.nextSibling;
     const users = document.getElementById('voice-users');
+    const stage = this._make('div', { 'data-habitat-call-stage': '' });
+    const media = [this._region('webcams'), this._region('screen-shares')].filter(box => box?.parentNode === area);
+    const homes = new Map();
+    const marks = ['data-habitat-focused', 'data-habitat-on-camera', 'data-habitat-paired'];
+    let placed = new Set();
+    let focusKey = null;   // the tile the member chose to enlarge
+    let autoFocus = true;  // a new screen share takes the large spot until the member puts it back
+    let shareCount = 0;
+
     const drawAvatars = () => {
+      if (!users) return;
       const members = new Map();
       for (const member of document.querySelectorAll('#online-users .user-item[data-user-id]')) {
         members.set(member.dataset.userId, member);
       }
       for (const row of users.querySelectorAll('.voice-user-item')) {
-        if (row.querySelector('[data-habitat-call-avatar]')) continue;
         const member = members.get(row.dataset.userId);
         const photo = member?.querySelector('img.user-item-avatar');
-        const face = this._make('span', { 'data-habitat-call-avatar': '', 'aria-hidden': 'true' }, row);
-        if (photo) this._make('img', { src: photo.src, alt: '' }, face);
+        const frame = member?.querySelector('.pfp-border');
+        // The member list can arrive after the call does: a face drawn without
+        // the picture or frame it now has is drawn again.
+        const drawn = `${photo?.src || ''}|${frame?.getAttribute('data-border') || ''}`;
+        const old = row.querySelector('[data-habitat-call-avatar]');
+        if (old?.getAttribute('data-habitat-call-avatar') === drawn) continue;
+        old?.remove();
+        const face = this._make('span', { 'data-habitat-call-avatar': drawn, 'aria-hidden': 'true' }, row);
+        if (photo) this._make('img', { src: photo.src, alt: '', 'data-habitat-call-photo': '' }, face);
         else face.textContent = Array.from(row.querySelector('.user-item-name')?.textContent || '?')[0];
+        // The member's own picture frame comes along, as drawn in the member list.
+        if (frame) face.appendChild(frame.cloneNode(true));
         row.insertBefore(face, row.firstChild);
+      }
+    };
+    const flag = (part, name, on) => {
+      if (on) part.setAttribute(name, ''); else part.removeAttribute(name);
+    };
+    const unmark = (part) => {
+      part.style.removeProperty('grid-area');
+      for (const name of marks) part.removeAttribute(name);
+      if (part.matches('.voice-user-item')) part.removeAttribute('title');
+      if (part.getAttribute('style') === '') part.removeAttribute('style');
+    };
+    // Shares first, then each person with their camera, then a camera whose
+    // owner the roster has not listed yet.
+    const slots = () => {
+      const list = [];
+      for (const tile of stage.querySelectorAll('.screen-share-tile')) {
+        if (tile.getAttribute('data-hidden') !== 'true') list.push({ key: tile.id, share: true, parts: [tile] });
+      }
+      const paired = new Set();
+      for (const row of users ? users.querySelectorAll('.voice-user-item') : []) {
+        const id = row.getAttribute('data-user-id');
+        const camera = [...stage.querySelectorAll('.webcam-tile')].find(tile => tile.id === `webcam-tile-${id}`);
+        if (camera) paired.add(camera);
+        list.push({ key: `person-${id}`, row, camera, parts: camera ? [camera, row] : [row] });
+      }
+      for (const tile of stage.querySelectorAll('.webcam-tile')) {
+        if (!paired.has(tile)) list.push({ key: tile.id, parts: [tile] });
+      }
+      return list;
+    };
+    const arrange = () => {
+      if (stage.parentNode !== area) return;
+      drawAvatars();
+      const all = slots();
+      const shares = all.filter(slot => slot.share);
+      if (shares.length > shareCount) autoFocus = true;
+      shareCount = shares.length;
+      let focus = all.find(slot => slot.key === focusKey) || null;
+      if (!focus) focusKey = null;
+      if (!focus && autoFocus) focus = shares[0] || null;
+      if (all.length < 2) focus = null;
+      const rest = focus ? all.filter(slot => slot !== focus) : all;
+      const look = getComputedStyle(stage);
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const gap = parseFloat(look.columnGap) || 0;
+      const width = stage.clientWidth - (parseFloat(look.paddingLeft) || 0) - (parseFloat(look.paddingRight) || 0);
+      const height = stage.clientHeight - (parseFloat(look.paddingTop) || 0) - (parseFloat(look.paddingBottom) || 0);
+      const strip = Math.max(4.5 * rem, Math.min(8.5 * rem, height * 0.2));
+      const grid = focus
+        ? HabitatLayout.stageGrid(rest.length, width, strip, gap, 1)
+        : HabitatLayout.stageGrid(rest.length, width, height, gap);
+      stage.style.setProperty('--hb-stage-cols', String(grid.cols * 2));
+      stage.style.setProperty('--hb-tile-w', `${(grid.width / rem).toFixed(3)}rem`);
+      stage.style.setProperty('--hb-tile-h', `${(grid.height / rem).toFixed(3)}rem`);
+      flag(stage, 'data-habitat-focus', !!focus);
+      // Too small for a name under the face: the face alone, the name on hover.
+      const dense = grid.height < 5 * rem;
+      flag(stage, 'data-habitat-dense', dense);
+      const now = new Set();
+      const put = (slot, cell) => {
+        for (const part of slot.parts) {
+          now.add(part);
+          if (cell) part.style.setProperty('grid-area', cell); else part.style.removeProperty('grid-area');
+          flag(part, 'data-habitat-focused', !cell);
+          flag(part, 'data-habitat-on-camera', part === slot.row && !!slot.camera);
+          flag(part, 'data-habitat-paired', part === slot.camera);
+        }
+        if (!slot.row) return;
+        const name = dense && cell ? slot.row.querySelector('.user-item-name')?.textContent.trim() : '';
+        if (name) slot.row.setAttribute('title', name); else slot.row.removeAttribute('title');
+      };
+      rest.forEach((slot, index) => {
+        const line = Math.floor(index / grid.cols);
+        const inLine = Math.min(grid.cols, rest.length - line * grid.cols);
+        // A short last row is centred: every tile spans two half-width columns.
+        const start = (index % grid.cols) * 2 + 1 + (grid.cols - inLine);
+        put(slot, `${line + 1} / ${start} / span 1 / span 2`);
+      });
+      if (focus) put(focus, null);
+      for (const part of placed) if (!now.has(part)) unmark(part);
+      placed = now;
+    };
+    // Moving a playing video the plain way pauses it in some browsers.
+    const carry = (node, parent, before) => {
+      if (typeof parent.moveBefore === 'function' && node.isConnected && parent.isConnected) {
+        try { parent.moveBefore(node, before); return; } catch { /* not movable in place: the plain move below works everywhere */ }
+      }
+      parent.insertBefore(node, before);
+    };
+    const resume = () => {
+      for (const box of media) {
+        for (const video of box.querySelectorAll('video')) {
+          if (video.srcObject && video.paused) video.play?.().catch(() => { /* the next click starts it, as in Haven */ });
+        }
+      }
+    };
+    // On a phone or tablet Haven keeps the camera, share and leave buttons in
+    // the members drawer. While the stage is open they sit under it instead,
+    // with their settings panel, so none of them is a drawer away.
+    const barStyle = {
+      position: 'static', top: 'auto', right: 'auto', bottom: 'auto', left: 'auto',
+      width: 'auto', 'max-width': 'none', transform: 'none', 'z-index': 'auto', resize: 'none'
+    };
+    let docked = [];
+    const dockBar = (on) => {
+      const controls = this._region('voice-controls');
+      if (on && this._mode === 'compact' && controls && controls.parentNode !== area) {
+        const settings = this._region('voice-settings');
+        const inline = Object.keys(barStyle).map(name =>
+          [name, controls.style.getPropertyValue(name), controls.style.getPropertyPriority(name)]);
+        for (const piece of [settings, controls]) {
+          if (!piece) continue;
+          docked.push([piece, piece.parentNode, piece.nextSibling, piece === controls ? inline : []]);
+          area.insertBefore(piece, stage.nextSibling);
+        }
+        if (settings) area.insertBefore(settings, controls);
+        for (const [name, value] of Object.entries(barStyle)) controls.style.setProperty(name, value, 'important');
+        controls.setAttribute('data-habitat-call-bar', '');
+      } else if (!on) {
+        for (const [piece, parent, next, inline] of docked.reverse()) {
+          for (const [name, value, priority] of inline) {
+            if (value) piece.style.setProperty(name, value, priority); else piece.style.removeProperty(name);
+          }
+          piece.removeAttribute('data-habitat-call-bar');
+          parent.insertBefore(piece, next?.parentNode === parent ? next : null);
+        }
+        docked = [];
       }
     };
     const setOpen = (open) => {
       if (open === roster.hasAttribute('data-habitat-stage')) return;
       if (open) {
         if (close) anchor.appendChild(close);
-        area.insertBefore(roster, area.firstChild);
+        area.insertBefore(stage, area.firstChild);
+        carry(roster, stage, null);
         roster.setAttribute('data-habitat-stage', '');
-        if (users) {
-          drawAvatars();
-          this._stageObserver = new MutationObserver(drawAvatars);
-          this._stageObserver.observe(users, { childList: true });
+        for (const box of media) {
+          // Haven's own enlarge and minimise states belong to its panels.
+          for (const tile of box.querySelectorAll('.webcam-minimized')) tile.querySelector('.stream-minimize-btn')?.click();
+          homes.set(box, box.nextSibling);
+          carry(box, stage, null);
         }
+        this._stageObserver = new MutationObserver(arrange);
+        this._stageObserver.observe(stage, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-hidden'] });
+        if (typeof ResizeObserver === 'function') {
+          this._stageSize = new ResizeObserver(arrange);
+          this._stageSize.observe(stage);
+        }
+        focusKey = null; autoFocus = true; shareCount = 0;
+        dockBar(true);
+        arrange();
       } else {
         this._stageObserver?.disconnect();
+        this._stageSize?.disconnect();
+        dockBar(false);
+        for (const part of placed) unmark(part);
+        placed = new Set();
         for (const face of roster.querySelectorAll('[data-habitat-call-avatar]')) face.remove();
-        anchor.parentNode.insertBefore(roster, anchor.nextSibling);
+        for (const box of [...media].reverse()) {
+          const next = homes.get(box);
+          carry(box, area, next?.parentNode === area ? next : null);
+        }
+        homes.clear();
+        carry(roster, anchor.parentNode, anchor.nextSibling);
         if (closeParent) closeParent.insertBefore(close, closeNext?.parentNode === closeParent ? closeNext : null);
         roster.removeAttribute('data-habitat-stage');
+        stage.remove();
+        stage.removeAttribute('data-habitat-focus');
+        stage.removeAttribute('data-habitat-dense');
+        stage.removeAttribute('style');
       }
+      resume();
       button.setAttribute('aria-pressed', String(open));
     };
+    // A click on a tile enlarges it; a click on the large tile puts it back.
+    // Controls inside a tile, and a tile shown fullscreen, keep their own clicks.
+    this._on(stage, 'click', (event) => {
+      const tile = event.target.closest?.('.screen-share-tile, .webcam-tile, .voice-user-item');
+      if (!tile || document.fullscreenElement) return;
+      if (event.target.closest('button, input, a, label, .user-item-name, .voice-stream-badge, .stream-audio-controls, .fullscreen-call-toolbar')) return;
+      const slot = slots().find(item => item.parts.includes(tile));
+      if (!slot) return;
+      const focused = tile.hasAttribute('data-habitat-focused');
+      focusKey = focused ? null : slot.key;
+      if (focused) autoFocus = false;
+      arrange();
+    });
+    // Haven's double-click enlarges a tile inside its own panel, which the
+    // stage has dissolved; the single click above does that job here.
+    this._on(stage, 'dblclick', (event) => {
+      if (event.target.closest?.('.screen-share-tile, .webcam-tile') && !document.fullscreenElement) event.stopPropagation();
+    }, true);
+    // Haven shows the indicator only on the channel the call is in, so the
+    // button, and with it the stage, never outlives a move to another channel.
     let stageRoom = null;
     const sync = () => {
       button.hidden = indicator.style.display === 'none';
@@ -572,11 +790,11 @@ class HabitatLayout {
       const room = connectedHere && app._isVoiceOnlyChannel?.(app.currentChannel) ? app.currentChannel : null;
       if (room && room !== stageRoom) setOpen(true);
       else if (button.hidden || (!room && stageRoom)) setOpen(false);
-      if (room) roster.setAttribute('data-habitat-voice-room', '');
-      else roster.removeAttribute('data-habitat-voice-room');
+      flag(stage, 'data-habitat-voice-room', !!room);
       stageRoom = room;
+      arrange();
     };
-    this._closeStage = () => { setOpen(false); roster.removeAttribute('data-habitat-voice-room'); };
+    this._closeStage = () => { setOpen(false); stage.removeAttribute('data-habitat-voice-room'); };
     this._on(button, 'click', () => setOpen(!roster.hasAttribute('data-habitat-stage')));
     this._indicatorObserver = new MutationObserver(sync);
     this._indicatorObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
@@ -845,6 +1063,7 @@ class HabitatLayout {
     for (const face of document.querySelectorAll('[data-habitat-dm-avatar]')) face.remove();
     this._historyObserver?.disconnect();
     this._nameObserver?.disconnect();
+    document.getElementById('channel-header-name')?.removeAttribute('data-habitat-voice-title');
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
     document.documentElement.removeAttribute('data-habitat-in-voice');
@@ -1258,23 +1477,65 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 [data-habitat-call-view][aria-pressed="true"] { background: var(--bg-active); color: var(--accent); }
 [data-habitat-roster-home]:not(:empty) { position: relative; min-height: 2.5rem; }
 [data-habitat-roster-home]:not(:empty) #mobile-right-close { margin-inline-start: auto; }
-[data-haven-region="message-area"] > [data-habitat-stage] {
-  position: relative; flex: none; max-height: 42dvh; overflow: auto;
-  padding: .75rem; background: var(--bg-tertiary); border-bottom: 1px solid var(--border);
+[data-habitat-call-stage] {
+  --hb-stage-gap: .5rem; --hb-stage-pad: .75rem; --hb-stage-top: var(--hb-stage-pad);
+  position: relative; flex: none; height: clamp(11rem, 42dvh, 30rem); min-height: 0; overflow: hidden;
+  display: grid; gap: var(--hb-stage-gap); place-content: center;
+  grid-template-columns: repeat(var(--hb-stage-cols, 2), calc((var(--hb-tile-w, 16rem) - var(--hb-stage-gap)) / 2));
+  grid-auto-rows: var(--hb-tile-h, 9rem);
+  padding: var(--hb-stage-top) var(--hb-stage-pad) var(--hb-stage-pad);
+  background: var(--bg-tertiary); border-bottom: 1px solid var(--border);
 }
-[data-habitat-stage] .panel { margin: 0; padding: 0; border: 0; background: transparent; }
-[data-habitat-stage] #voice-users { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: .5rem; }
-[data-habitat-stage] #voice-users .voice-user-item {
-  display: flex; flex-direction: column; justify-content: center; gap: .375rem;
-  min-height: 7.5rem; padding: .75rem; border-radius: .75rem; background: var(--bg-active);
+/* A phone shows its own mute and deafen buttons in the roster header; they
+   get a row of their own so they never sit on someone's picture. */
+html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice-header-actions > :not([style*="none"])) { --hb-stage-top: 2.75rem; }
+[data-habitat-call-stage][data-habitat-focus] { height: clamp(14rem, 60dvh, 44rem); align-content: end; }
+[data-habitat-call-bar] {
+  flex: none; justify-content: center; gap: .5rem; overflow-x: auto;
+  padding: .5rem .75rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+  border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; background: var(--bg-tertiary);
 }
-[data-habitat-stage] .voice-user-item.talking { outline: 2px solid var(--success); outline-offset: -2px; }
-[data-habitat-stage] .voice-status-icons { margin: 0; }
-[data-habitat-stage] .voice-user-item .user-dot { position: absolute; inset: .625rem auto auto .625rem; }
-[data-habitat-stage] .voice-user-item { position: relative; }
+[data-habitat-call-stage] > [data-habitat-stage],
+[data-habitat-call-stage] :is(.panel, #voice-users, #webcam-grid, #screen-share-grid) { display: contents; }
+[data-habitat-call-stage] > :is(#webcam-container, #screen-share-container)[style*="display: flex"] { display: contents !important; }
+[data-habitat-call-stage] :is(.webcam-header, .screen-share-header, .panel-title, .webcam-tile .stream-minimize-btn) { display: none; }
+[data-habitat-call-stage] .voice-panel-header { position: absolute; inset: .375rem var(--hb-stage-pad) auto auto; z-index: 3; margin: 0; padding: 0; }
+[data-habitat-call-stage] #voice-users > :not(.voice-user-item) { grid-column: 1 / -1; margin: 0; text-align: center; }
+[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile) {
+  position: relative; box-sizing: border-box; width: auto; height: auto; min-width: 0; min-height: 0; margin: 0;
+  overflow: hidden; border-radius: .75rem; cursor: pointer;
+}
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { max-width: none !important; background: #0b0c0f; box-shadow: none; }
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > video {
+  width: 100%; height: 100%; max-height: none !important; object-fit: cover;
+}
+[data-habitat-call-stage] .screen-share-tile > video { object-fit: contain; }
+[data-habitat-call-stage] [data-habitat-focused] {
+  position: absolute; z-index: 1;
+  inset: var(--hb-stage-top) var(--hb-stage-pad) calc(var(--hb-stage-pad) + var(--hb-tile-h, 0rem) + var(--hb-stage-gap)) var(--hb-stage-pad);
+}
+[data-habitat-call-stage] .voice-user-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .375rem;
+  padding: .75rem; background: var(--bg-active);
+}
+[data-habitat-call-stage] .voice-user-item.talking { outline: 2px solid var(--success); outline-offset: -2px; }
+[data-habitat-call-stage] .voice-status-icons { margin: 0; }
+[data-habitat-call-stage] .voice-user-item .user-dot { position: absolute; inset: .625rem auto auto .625rem; }
+/* On camera the person's row becomes a see-through layer over their picture:
+   the name, mute state and menu stay the real ones, the picture stays clickable. */
+[data-habitat-call-stage] .voice-user-item[data-habitat-on-camera] {
+  z-index: 2; flex-direction: row; align-items: flex-end; justify-content: flex-start;
+  padding: .5rem; background: transparent; pointer-events: none;
+}
+[data-habitat-call-stage] [data-habitat-on-camera] > * { pointer-events: auto; }
+[data-habitat-call-stage][data-habitat-dense] :is(.voice-user-item, .webcam-tile, .screen-share-tile):not([data-habitat-focused])
+  :is(.user-item-name, .webcam-tile-label, .screen-share-tile-label, .voice-user-menu-btn, .voice-stream-badge.watching) { display: none; }
+[data-habitat-call-stage][data-habitat-dense] .voice-user-item:not([data-habitat-focused]) { padding: .25rem; }
+[data-habitat-call-stage] [data-habitat-on-camera] :is([data-habitat-call-avatar], .user-dot, .voice-stream-badge.webcam),
+[data-habitat-call-stage] .webcam-tile[data-habitat-paired] > .webcam-tile-label { display: none; }
 [data-habitat-call-avatar] {
   display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%;
-  overflow: hidden; color: var(--accent-text); background: var(--accent); font: 700 1.25rem/1 var(--font-main);
+  position: relative; color: var(--accent-text); background: var(--accent); font: 700 1.25rem/1 var(--font-main);
 }
 [data-habitat-rooms]:not(:empty) + [data-habitat-no-rooms],
 [data-habitat-rooms][hidden] + [data-habitat-no-rooms],
@@ -1282,8 +1543,8 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 .channel-voice-user.talking [data-habitat-speaking] {
   display: inline; position: absolute; width: .0625rem; height: .0625rem; overflow: hidden; clip-path: inset(50%);
 }
-[data-habitat-call-avatar] img { width: 100%; height: 100%; object-fit: cover; }
-[data-habitat-stage] .user-item-name { font-weight: 650; }
+[data-habitat-call-avatar] > [data-habitat-call-photo] { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+[data-habitat-call-stage] .user-item-name { flex: none; max-width: 100%; font-weight: 650; }
 body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-controls="dm-pane"] { display: none; }
 [data-habitat-inbox] { margin-block-end: .375rem; }
 [data-habitat-inbox][aria-pressed="true"] {
@@ -1412,9 +1673,11 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
   html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #voice-join-mobile { display: none; }
   html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #right-sidebar-voice:has(#voice-users > .muted-text:only-child) { display: none; }
 }
+/* A voice room has nothing to search, and on a phone its name needs the
+   room, so the search button is only brought back for text channels. */
 @media (max-width: 768px) {
   html[data-habitat-layout] #header-actions-box[style*="display: flex"] { display: flex !important; padding: 0; gap: 0; }
-  html[data-habitat-layout] #header-actions-box #search-toggle-btn,
+  html[data-habitat-layout]:not(:has(#channel-header-name[data-habitat-voice-title])) #header-actions-box #search-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #pinned-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #copy-code-btn[style*="inline-flex"] { display: inline-flex !important; }
   [data-habitat-channel-tools] summary, html[data-habitat-layout] #search-toggle-btn {

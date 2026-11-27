@@ -1,8 +1,8 @@
 /**
  * @name        Habitat Grafit
- * @description Midnight chat surfaces, iris highlights and Habitat’s dusk skyline.
+ * @description Graphite chat surfaces, jade highlights and Habitat’s night skyline.
  * @author      Habitat
- * @version     1.2
+ * @version     1.3
  * @icon        ⬢
  * @haven-theme-api 1
  */
@@ -65,54 +65,54 @@
 
 :root {
   /* Habitat's own, not part of the public token set */
-  --hb-rail:       #16171e;
-  --hb-raise:      #343640;
-  --hb-profile-banner: #6565a4;
-  --hb-sky:        #504a85;
-  --hb-horizon:    #bb91ba;
+  --hb-rail:       #14171a;
+  --hb-raise:      #31373b;
+  --hb-profile-banner: #3f7a6f;
+  --hb-sky:        #245a57;
+  --hb-horizon:    #8dbfa8;
   --hb-moon:       #ffe1ba;
-  --hb-far-ridge:  #676398;
-  --hb-near-ridge: #383851;
-  --hb-ink-night:  #28283e;
+  --hb-far-ridge:  #3c8176;
+  --hb-near-ridge: #224643;
+  --hb-ink-night:  #152d2d;
   --hb-ease:       cubic-bezier(.2, .8, .2, 1);
   --hb-fast:       .12s;
   --hb-base:       .18s;
 
   /* ── Backgrounds ───────────────────────────────── */
-  --bg-primary:    #26272f;
-  --bg-secondary:  #202128;
-  --bg-tertiary:   #16171e;
-  --bg-hover:      #343640;
-  --bg-active:     #3d3f50;
-  --bg-input:      #343640;
-  --bg-card:       #191a22;
+  --bg-primary:    #24282b;
+  --bg-secondary:  #1d2023;
+  --bg-tertiary:   #14171a;
+  --bg-hover:      #31373b;
+  --bg-active:     #3a4246;
+  --bg-input:      #31373b;
+  --bg-card:       #181b1e;
 
   /* ── Accent ────────────────────────────────────── */
-  --accent:        #aaa7ff;
-  --accent-hover:  #c2bfff;
-  --accent-glow:   rgba(151, 145, 255, .20);
-  --accent-text:   #1b1841;
+  --accent:        #64b99f;
+  --accent-hover:  #80cbb3;
+  --accent-glow:   rgba(100, 185, 159, .18);
+  --accent-text:   #06231b;
 
   /* ── Text ──────────────────────────────────────── */
-  --text-primary:  #f1f1f6;
-  --text-secondary:#c4c5cf;
-  --text-muted:    #a8a9ba;
-  --text-link:     #aebdff;
+  --text-primary:  #eff2f1;
+  --text-secondary:#c1c8c6;
+  --text-muted:    #9da8a5;
+  --text-link:     #86d2b8;
 
   /* ── Borders ───────────────────────────────────── */
-  --border:        #30313c;
-  --border-light:  #4c4e60;
+  --border:        #2e3438;
+  --border-light:  #4a5357;
 
   /* ── Status ────────────────────────────────────── */
-  --success:       #6cc3a3;
-  --success-text:  #06231b;
+  --success:       #5fd08f;
+  --success-text:  #052414;
   --danger:        #f0736a;
   --danger-text:   #3a0b08;
   --warning:       #e9b949;
   --warning-text:  #2a1d00;
-  --led-on:        #6cc3a3;
+  --led-on:        #5fd08f;
   --led-off:       #4a4f57;
-  --led-glow:      rgba(108, 195, 163, .22);
+  --led-glow:      rgba(95, 208, 143, .22);
 
   /* ── Typography ────────────────────────────────── */
   --font-main:     Figtree, "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -206,10 +206,10 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 /* ── Login and registration ──────────────────────── */
 [data-haven-page="auth"] {
-  --bg-primary:   #16171e;
-  --bg-secondary: #16171e;
+  --bg-primary:   #14171a;
+  --bg-secondary: #14171a;
   background:
-    radial-gradient(48rem 24rem at 50% -6%, rgba(108, 195, 163, .09), transparent 70%),
+    radial-gradient(48rem 24rem at 50% -6%, rgba(100, 185, 159, .09), transparent 70%),
     var(--bg-primary);
 }
 
@@ -474,7 +474,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   #user-bar-face[data-habitat-avatar-id]:not(:has(img)),
   [data-habitat-avatar-id] .dm-pip-avatar-face:has(.dm-pip-avatar-initial),
   [data-habitat-face]:not(:has(img)),
-  [data-user-id] [data-habitat-call-avatar]:not(:has(img))
+  [data-user-id] [data-habitat-call-avatar]:not(:has(> img))
 ) {
   background-color: var(--hb-face-bg, var(--accent)) !important;
   background-image: var(--hb-face);
@@ -484,6 +484,23 @@ html[data-haven-theme-api="1"] :focus-visible {
   font-size: 0;
 }
 [data-haven-page="app"] [data-habitat-avatar-id] .dm-pip-avatar-initial { font-size: 0; }
+
+/* Older square faces still reach these renderers. Haven's shape picker only
+   supplies rules for the five shapes it offers today. */
+[data-haven-page="app"] .avatar-square:where(.message-avatar, .thread-msg-avatar, .user-item-avatar,
+  .profile-popup-avatar, .border-crop-avatar, #avatar-upload-preview, [data-habitat-face]) {
+  border-radius: 0;
+}
+
+/* A shifted frame can use almost the whole gap on a phone. Borrow a little
+   of the feed's left padding so grouped follow-ups still align with the name. */
+[data-haven-region="message-list"] .message-row > .pfp-host {
+  margin-inline: -.1875rem .1875rem;
+}
+[data-haven-region="member-list"] .user-avatar-wrapper:has(> .pfp-border) {
+  margin-inline-end: .25rem;
+}
+
 [data-haven-page="app"] [data-haven-region="member-list"] .user-group-label {
   display: flex;
   align-items: center;
@@ -498,9 +515,8 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 /* ── Profile card ────────────────────────────────
-   A solid card instead of glass. A member's own profile theme paints the
-   card itself (.has-profile-theme), so the surface rules stand aside for it;
-   the type, badge and button rules apply either way. */
+   A member's own profile theme supplies the card and badge surfaces and
+   chooses the ink that stays readable over the gradient. */
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) {
   background: var(--bg-card);
   backdrop-filter: none;
@@ -513,7 +529,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   box-shadow: 0 1rem 3rem rgba(0, 0, 0, .55);
 }
 
-[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner {
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner:not(.has-banner-image) {
   background-color: var(--hb-profile-banner);
 }
 
@@ -521,8 +537,21 @@ html[data-haven-theme-api="1"] :focus-visible {
   border-color: var(--bg-card);
 }
 
-[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-avatar:not([class*="avatar-hexagon"]):not([class*="avatar-diamond"]):not([class*="avatar-shield"]) {
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-avatar:is(.avatar-circle, .avatar-rounded, .avatar-squircle):not(:has(~ .pfp-border)) {
   box-shadow: 0 0 0 .3125rem var(--bg-card);
+}
+
+/* The status cutout belongs to the member's card. Center a larger mask on
+   the frame so the cutout stays over the dot and the frame can overhang. */
+[data-haven-page="app"] .has-profile-theme .profile-popup-avatar-wrapper > .pfp-border {
+  --dot-center: calc(75% - var(--status-dot-inset) - var(--status-dot-size) / 2);
+  mask-size: 200% 200%;
+  mask-position: center;
+  mask-clip: no-clip;
+  mask-repeat: no-repeat;
+}
+[data-haven-page="app"] .profile-popup-avatar-wrapper:has(> .pfp-border) {
+  margin-block-end: .75rem;
 }
 
 [data-haven-page="app"] .profile-popup-displayname {
@@ -544,6 +573,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .profile-popup-body {
   display: flex;
   flex-direction: column;
+  overflow-wrap: anywhere;
 }
 
 [data-haven-page="app"] .profile-popup-body > * { order: 3; }
@@ -563,7 +593,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   display: none;
 }
 
-[data-haven-page="app"] .profile-badge {
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-badge {
   padding: 0;
   border: 0;
   border-radius: .25rem;
@@ -576,8 +606,8 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 [data-haven-page="app"] .profile-badge.is-open {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: .125rem solid var(--text-primary);
+  outline-offset: .125rem;
 }
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-badge-detail {
@@ -821,6 +851,35 @@ html[data-haven-theme-api="1"] :focus-visible {
     grid-column: 2;
     grid-row: 2 / span 200;
   }
+}
+
+/* The frame thumbnail shows the source artwork. Only the avatar thumbnail
+   should crop a picture to the member's shape. */
+#border-upload-preview,
+#border-upload-preview > img {
+  border-radius: 0;
+}
+#border-upload-preview > img { object-fit: contain; }
+
+/* Touch buttons and translated labels can use more than one line of controls. */
+#rename-modal .avatar-upload-row,
+#border-crop-modal .border-crop-modes {
+  flex-wrap: wrap;
+}
+#rename-modal .avatar-settings small.muted-text {
+  opacity: 1 !important; /* The inline hint opacity dims an already muted text colour. */
+}
+
+/* History drops below the tools when the modal is narrow. The handles travel
+   outside the square, including when the avatar and border share this editor. */
+#border-crop-modal .border-crop-body { flex-wrap: wrap; }
+#border-crop-modal .border-crop-main { flex: 1 1 19rem; }
+#border-crop-modal .border-crop-side { flex: 1 1 8.5rem; }
+#border-crop-modal .border-crop-stage { padding: 2.5rem; }
+#border-crop-modal .border-crop-preview {
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 /* The folded message tools menu takes its width from its longest label, which
@@ -1148,7 +1207,7 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
 [data-haven-page="app"] .quick-switcher-item.selected { background: var(--bg-active); color: var(--text-primary); }
 /* The bands follow the actual member colour. Uploaded pictures supply their own cover. */
 [data-haven-page="app"] :is(.profile-popup:not(.has-profile-theme) .profile-popup-banner,
-  .edit-profile-banner-preview:not(.has-profile-theme .edit-profile-banner-preview)):not(.has-banner-image) {
+  .edit-profile-avatar:not(:has(.profile-theme-preview.has-profile-theme:not(.theme-off))) .edit-profile-banner-preview):not(.has-banner-image) {
   --cover: var(--profile-banner, var(--hb-profile-banner));
   background-image:
     repeating-radial-gradient(ellipse at 85% 175%, transparent 0 1.625rem,
@@ -1166,6 +1225,8 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 50%;
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner:not(.has-banner-image) .profile-popup-close {
   background: color-mix(in srgb, var(--hb-rail) 75%, transparent);
   color: var(--text-primary);
 }
@@ -1480,29 +1541,102 @@ html[data-habitat-layout] #channel-list .channel-voice-user.talking::after {
 }
 html[data-habitat-layout] #channel-list .channel-voice-user .cvu-mic { animation: none; }
 
-/* An empty voice room gives its space to the call. Rooms with old messages
-   or active screen shares keep Haven's split view so those stay reachable. */
-#message-area:has(> [data-habitat-stage][data-habitat-voice-room]) > [data-habitat-intro] {
+/* The title of a voice room: Haven writes "# name" for every channel, so the
+   written text is kept for screen readers and the drawn one swaps the hash. */
+html[data-habitat-layout] #channel-header-name[data-habitat-voice-title] {
+  display: inline-flex; align-items: center; gap: .4375rem; font-size: 0;
+}
+html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::before {
+  content: ''; width: 1.25rem; height: 1.25rem; flex: none;
+  background: var(--text-muted); mask: var(--hb-icon-voice) center / contain no-repeat;
+}
+html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::after {
+  content: attr(data-habitat-voice-title); min-width: 0; overflow: hidden; font-size: 1.0625rem; text-overflow: ellipsis;
+}
+/* The same speaker opens an empty voice room. */
+[data-haven-page="app"] [data-habitat-intro="voice"] > span::before {
+  content: ''; width: 1.75rem; height: 1.75rem;
+  background: currentColor; mask: var(--hb-icon-voice) center / contain no-repeat;
+}
+/* Someone sharing their screen: a small red LIVE mark with the viewer count,
+   wherever the roster shows it. */
+html[data-habitat-layout] .voice-stream-badge.live {
+  display: inline-flex; align-items: center; gap: .25rem; padding: .0625rem .375rem; border-radius: .375rem;
+  color: var(--danger-text); background: var(--danger); font: 700 .6875rem/1.4 var(--font-main);
+}
+html[data-habitat-layout] .voice-stream-badge.live .haven-glyph { width: .5rem; height: .5rem; font-size: .5rem; }
+/* The call buttons under the stage on a phone or tablet: thumb-sized, the way
+   out in red at the end. */
+html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn {
+  width: 2.75rem; height: 2.75rem; flex: none; border-radius: 50%;
+  transition: background-color var(--hb-fast) var(--hb-ease), scale var(--hb-fast) var(--hb-ease);
+}
+html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn:active { scale: .94; }
+/* Notices drop in under the channel header instead of over its buttons. */
+html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-inset-top, 0px)); }
+
+/* A voice room with no old messages gives all its space to the call. A room
+   that has them, or a text channel with a call, keeps the chat underneath. */
+#message-area:has(> [data-habitat-call-stage][data-habitat-voice-room]) > [data-habitat-intro] {
   display: none;
 }
-[data-haven-region="message-area"]:not(:has(#messages > :not(#msg-more-btn), #webcam-grid video, #screen-share-grid video)) > [data-habitat-stage][data-habitat-voice-room] {
-  flex: 1 1 auto; max-height: none; display: grid; align-items: safe center; padding: clamp(.875rem, 3vw, 2.5rem);
+[data-haven-region="message-area"]:not(:has(#messages > :not(#msg-more-btn))) > [data-habitat-call-stage][data-habitat-voice-room] {
+  flex: 1 1 auto; height: auto;
 }
-[data-haven-region="message-area"]:has(> [data-habitat-stage][data-habitat-voice-room]) > #messages:not(:has(> :not(#msg-more-btn))) {
+[data-haven-region="message-area"]:has(> [data-habitat-call-stage][data-habitat-voice-room]) > #messages:not(:has(> :not(#msg-more-btn))) {
   flex: 0 1 auto; min-height: 0; padding-block: 0;
 }
-[data-habitat-stage][data-habitat-voice-room] #voice-users {
-  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: .75rem;
+[data-habitat-call-stage] {
+  --hb-stage-gap: .625rem; --hb-stage-pad: .875rem;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 5%, var(--bg-tertiary)), var(--bg-tertiary) 70%);
 }
-[data-habitat-stage][data-habitat-voice-room] #voice-users .voice-user-item {
-  min-height: clamp(8rem, 22vh, 14rem); border: .0625rem solid var(--border-light);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--hb-face-bg, var(--accent)) 12%, var(--bg-secondary)), var(--bg-secondary));
+[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile) {
+  border-radius: .875rem;
+  box-shadow: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 7%, transparent);
+  transition: box-shadow var(--hb-base) var(--hb-ease);
 }
-[data-habitat-stage][data-habitat-voice-room] [data-habitat-call-avatar] { width: 4rem; height: 4rem; }
-[data-habitat-stage][data-habitat-voice-room] .talking [data-habitat-call-avatar] { outline: .1875rem solid var(--success); outline-offset: .125rem; }
-[data-habitat-stage][data-habitat-voice-room] .voice-status-icons { position: absolute; inset: .75rem auto auto .75rem; }
-[data-habitat-stage][data-habitat-voice-room] .voice-user-item .user-dot.voice { display: none; }
-[data-habitat-stage][data-habitat-voice-room] .user-item-name { flex: none; max-width: 100%; color: var(--text-primary); font-size: 1rem; }
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--hb-face-bg, var(--accent)) 14%, var(--bg-secondary)), var(--bg-secondary) 75%);
+}
+[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile):hover {
+  box-shadow: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+[data-habitat-call-stage] .voice-user-item.talking,
+[data-habitat-call-stage] .voice-user-item.talking:hover {
+  outline: 0; box-shadow: inset 0 0 0 .125rem var(--success), 0 0 0 .1875rem color-mix(in srgb, var(--success) 22%, transparent);
+}
+[data-habitat-call-stage] [data-habitat-call-avatar] {
+  width: clamp(2.5rem, calc(var(--hb-tile-h, 9rem) * .36), 6rem); height: clamp(2.5rem, calc(var(--hb-tile-h, 9rem) * .36), 6rem);
+  font-size: clamp(1rem, calc(var(--hb-tile-h, 9rem) * .15), 2.25rem);
+}
+[data-habitat-call-stage][data-habitat-dense] .voice-user-item:not([data-habitat-focused]) [data-habitat-call-avatar] {
+  width: clamp(1.5rem, calc(var(--hb-tile-h, 4rem) * .62), 3rem); height: clamp(1.5rem, calc(var(--hb-tile-h, 4rem) * .62), 3rem); font-size: .875rem;
+}
+[data-habitat-call-stage] .voice-user-item[data-habitat-focused] [data-habitat-call-avatar] { width: 6rem; height: 6rem; font-size: 2.25rem; }
+[data-habitat-call-stage] .voice-user-item .user-dot.voice { display: none; }
+[data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: .9375rem; }
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .625rem .625rem auto; }
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge { position: absolute; inset: .625rem auto auto .625rem; }
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge + .voice-stream-badge { inset-inline-start: 2.25rem; }
+[data-habitat-call-stage] .voice-user-menu-btn { position: absolute; inset: .375rem .375rem auto auto; opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease); }
+[data-habitat-call-stage] :is(.voice-user-item:hover, .voice-user-item:focus-within) .voice-user-menu-btn { opacity: 1; }
+/* The name plate on a picture: dark glass, so it reads on any camera or screen. */
+[data-habitat-call-stage] [data-habitat-on-camera] .user-item-name,
+[data-habitat-call-stage] :is(.webcam-tile-label, .screen-share-tile-label) {
+  inset: auto auto .5rem .5rem; width: auto; max-width: calc(100% - 1rem); padding: .1875rem .5rem; border-radius: .375rem;
+  overflow: hidden; color: #fff; background: rgba(8, 9, 12, .68); font: 600 .8125rem/1.3 var(--font-main);
+  text-align: start; text-overflow: ellipsis; white-space: nowrap; backdrop-filter: blur(.375rem);
+}
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons {
+  margin-inline-start: .375rem; padding: .1875rem .375rem; border-radius: .375rem; background: rgba(8, 9, 12, .68);
+}
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons:empty { display: none; }
+/* Haven redraws the people rows whenever someone speaks, so only the
+   pictures, which stay put, fade in. */
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { animation: hb-fade var(--hb-base) var(--hb-ease) both; }
+@media (max-width: 768px) {
+  [data-habitat-call-stage] { --hb-stage-gap: .375rem; --hb-stage-pad: .5rem; }
+}
 
 /* ═══ Part 3: Habitat icons ════════════════════════════════════════════ */
 

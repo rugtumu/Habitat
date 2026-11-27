@@ -81,7 +81,8 @@ test('Habitat Grafit is a compatible palette theme with readable accent ink', ()
   const pairs = [
     ['--accent-text', '--accent'], ['--danger-text', '--danger'], ['--warning-text', '--warning'],
     ['--text-primary', '--bg-primary'], ['--text-secondary', '--bg-secondary'],
-    ['--text-muted', '--bg-primary'], ['--text-muted', '--bg-secondary'], ['--text-link', '--bg-primary']
+    ['--text-muted', '--bg-primary'], ['--text-muted', '--bg-secondary'], ['--text-link', '--bg-primary'],
+    ['--text-muted', '--bg-card'], ['--text-primary', '--bg-input'], ['--text-muted', '--bg-input']
   ];
   for (const [fg, bg] of pairs) {
     const ratio = contrast(token(fg), token(bg));

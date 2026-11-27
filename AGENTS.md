@@ -27,7 +27,7 @@ the page. The desktop welcome popup still follows the member's preference.
 |---|---|
 | Theme: tokens, polish, motion, phone fixes | `themes/habitat-grafit.theme.css` |
 | Icon and badge drawings (source) | `scripts/habitat-icons.js` |
-| Layout: sidebar, menus, add channel dialog, call buttons | `plugins/HabitatLayout.plugin.js` |
+| Layout: sidebar, menus, add channel dialog, call buttons, call stage | `plugins/HabitatLayout.plugin.js` |
 | Emoji to icon swap (upstream plugin, lightly extended) | `plugins/HavenGlyphs.plugin.js` |
 | Fonts and their licenses | `themes/habitat-fonts/` |
 | VPS setup and how to switch the look on | `docs/examples/habitat-caddy-coturn/README.md` |
@@ -50,6 +50,13 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   Nothing may be hidden unless it stays reachable somewhere else.
 - It has two shapes: `desktop` (901px and wider) and `compact` (below).
   Check both, and 375px wide, after any change.
+- The call stage (`[data-habitat-call-stage]`, built in `_buildCallStage`)
+  holds Haven's voice roster, camera panel and stream panel as they are. The
+  panels dissolve with `display: contents` and each of Haven's own tiles is
+  given a grid cell; tiles are never rebuilt or re-parented one by one, so
+  their buttons and handlers keep working. `HabitatLayout.stageGrid` picks the
+  tile size. Haven writes sizes and `display` inline on those panels, which is
+  why the stage carries three `!important` rules; the layout test lists them.
 
 ## Running and testing
 
@@ -84,10 +91,13 @@ server's owner; the steps, checks and rollback are in
 ## Open work
 
 1. **Voice.** The Voice room template sets voice on and text and media off.
-   Habitat groups these rooms in the sidebar and opens the call grid on join.
-   Speaking, mute and room changes have been checked with two browser accounts
-   and generated microphone audio. Camera, screen sharing and physical devices
-   still need a real call.
+   Habitat groups these rooms in the sidebar and opens the call stage on join.
+   Speaking, mute, room changes, a camera and a screen share have been checked
+   with two browser accounts and generated audio and video (canvas streams in
+   place of real devices). Real cameras, real screen capture, more than two
+   live participants and phones still need a real call. On a phone the camera,
+   share and leave buttons are in the drawer; a control bar on the stage itself
+   would be the next step.
 2. **Light theme.** Habitat Grafit is dark only.
 3. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.
