@@ -169,7 +169,8 @@ function createPostgresPosting(io, db, readPositions, channelMembers) {
       for (const peer of io.sockets.sockets.values()) {
         if (peer.user.id === user.id || peer.user.id === targetId) peer.join(room);
         if (!isSelfDm && peer.user.id === targetId) {
-          peer.emit('dm-opened', dmPayload(channel, { id: user.id, username: user.displayName }, false));
+          // Habitat fork: let the recipient update their inbox without leaving their room.
+          peer.emit('dm-opened', dmPayload(channel, { id: user.id, username: user.displayName }, false), true);
         }
       }
     }

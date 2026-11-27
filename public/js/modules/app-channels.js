@@ -48,6 +48,13 @@ _updateComposerVisibility(channel) {
   if (_dividers[2]) _dividers[2].style.display = _textOff ? 'none' : '';
 },
 
+// Habitat fork: the inbox opens conversations in the main pane by default.
+// A member's explicit choice still governs single-click and double-click.
+_dmOpensInMain() {
+  const choice = localStorage.getItem('haven_dm_fullscreen_default');
+  return choice === null ? document.documentElement.hasAttribute('data-habitat-layout') : choice === 'true';
+},
+
 async switchChannel(code) {
   if (this.currentChannel === code) return;
 
@@ -1137,7 +1144,7 @@ _renderChannels() {
         // Users can flip this in Settings → Chat: when "Open DMs in
         // fullscreen on single click" is on, single-click switches to the
         // full DM and double-click opens the PiP. (#5295)
-        if (localStorage.getItem('haven_dm_fullscreen_default') === 'true') {
+        if (this._dmOpensInMain()) {
           this._closeDMPiP?.();
           this.switchChannel(ch.code);
         } else {
@@ -1148,7 +1155,7 @@ _renderChannels() {
         this._closeMobilePanels?.();
       });
       el.addEventListener('dblclick', () => {
-        if (localStorage.getItem('haven_dm_fullscreen_default') === 'true') {
+        if (this._dmOpensInMain()) {
           this._openDMPiP?.(ch.code);
         } else {
           // Double-click switches to the full DM pane (legacy behavior).

@@ -78,6 +78,9 @@ _setupComposerButtons() {
 _bindSettings() {
   // ── Settings popout modal ────────────────────────────
   const openSettingsModal = () => {
+    // Habitat fork: layout changes can change the default after settings are bound.
+    const dmMode = document.getElementById('dm-fullscreen-default');
+    if (dmMode) dmMode.checked = this._dmOpensInMain();
     this._renderComposerButtons?.();
     this._snapshotAdminSettings();
     document.getElementById('settings-modal').style.display = 'flex';

@@ -218,7 +218,8 @@ _listenFeatureEvents() {
   });
 
   // ── DM opened ───────────────────────────────────
-  this.socket.on('dm-opened', (data) => {
+  // Habitat fork: the peer notification carries a second argument so it can update the inbox quietly.
+  this.socket.on('dm-opened', (data, incoming = false) => {
     if (!this.channels.find(c => c.code === data.code)) {
       this.channels.push(data);
       this._renderChannels();
@@ -227,6 +228,8 @@ _listenFeatureEvents() {
     if (data.is_dm && data.dm_target) {
       this._fetchDMPartnerKey(data);
     }
+    const habitat = document.documentElement.hasAttribute('data-habitat-layout');
+    if (habitat && incoming) return;
     // Auto-expand DM section when a DM opens
     const dmList = document.getElementById('dm-list');
     if (dmList && dmList.style.display === 'none') {
@@ -235,10 +238,14 @@ _listenFeatureEvents() {
       if (arrow) arrow.classList.remove('collapsed');
       localStorage.setItem('haven_dm_collapsed', false);
     }
-    // Open the new/existing DM as a PiP overlay rather than switching the
-    // active channel. Single-click on the sidebar entry, the "Message [User]"
-    // button, and right-click → DM all funnel through here.
-    this._openDMPiP?.(data.code);
+    // Habitat fork: opening a profile conversation is an explicit navigation.
+    if (habitat && this._dmOpensInMain()) {
+      this._closeDMPiP?.();
+      this.switchChannel(data.code);
+      this._closeMobilePanels?.();
+    } else {
+      this._openDMPiP?.(data.code);
+    }
     // Scroll the DM channel into view in the sidebar
     const dmEl = document.querySelector(`.channel-item[data-code="${data.code}"]`);
     if (dmEl) dmEl.scrollIntoView({ behavior: this._scrollBehavior(), block: 'nearest' });

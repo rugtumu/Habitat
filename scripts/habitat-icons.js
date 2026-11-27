@@ -161,6 +161,32 @@ const BADGES = {
   trophy: ['f09a55', '3a1a00', 'M8 4.5h8v5a4 4 0 0 1-8 0zM8 6H5v1.5a3 3 0 0 0 3 3M16 6h3v1.5a3 3 0 0 1-3 3M12 13.5V17M8.5 19.5h7']
 };
 
+// Each face has its own silhouette so small avatars remain distinct without colour.
+const FACES = [
+  ['M7 17 9 7l6 5a13 13 0 0 1 6 0l6-5 2 10v5c0 6-5 9-11 9S7 28 7 22Z', 'round'],
+  ['M7 20c0-5 4-9 9-10l-2-5 7 3-1 3c5 1 9 4 9 9v4c0 5-5 7-11 7S7 29 7 24Z', 'visor'],
+  ['M7 21c0-4 1-6 3-8L9 6c5 0 7 3 8 6h2c1-4 4-6 8-6l-1 8c2 2 3 5 3 8 0 6-4 9-11 9S7 28 7 21Z', 'wide'],
+  ['M5 20c0-6 6-12 13-12s13 6 13 12l-3 2v6l-5-2-5 4-5-4-5 2v-6Z', 'round'],
+  ['M5 15 11 8l7 3 7-3 6 7-3 11-10 5-10-5Z', 'wide'],
+  ['M7 15a7 7 0 0 1 7-7h8a7 7 0 0 1 7 7v2h3v7h-3v2a4 4 0 0 1-4 4H11a4 4 0 0 1-4-4v-2H4v-7h3Z', 'visor'],
+  ['M5 26c0-7 3-12 7-16l4 3 4-7c8 5 11 12 11 20-7 5-19 5-26 0Z', 'round'],
+  ['M7 22c0-5 2-8 5-10L9 5l7 4 3-5 3 7c5 2 8 6 8 11 0 5-5 9-12 9S7 28 7 22Z', 'wide'],
+  ['M6 25v-9l5-7 7 2 7-2 5 7v9l-6 5-6-2-6 2Z', 'visor'],
+  ['M5 19c1-7 6-12 13-12s12 5 13 12l-4 2v6l-9 4-9-4v-6Z', 'round']
+];
+const FACE_COLORS = ['#b9a4f4','#72d5b0','#f3ba77','#88bafa','#eaa4b9',
+  '#74cbd4','#e6d07d','#a3b0ff','#e8a68b','#a6cf91'];
+
+function faceSvg([head, eyes]) {
+  const features = eyes === 'visor'
+    ? "<rect x='10' y='17' width='16' height='6' rx='3' fill='#f6f5ff'/><circle cx='21' cy='20' r='1.8' fill='#282839'/>"
+    : eyes === 'wide'
+      ? "<path d='M10 17q4-2 6 2-4 4-6-2m10 2q2-4 6-2-2 6-6 2' fill='#f6f5ff'/>"
+      : "<g fill='#f6f5ff'><ellipse cx='13' cy='19' rx='2' ry='2.6'/><ellipse cx='23' cy='19' rx='2' ry='2.6'/></g>";
+  return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'>"
+    + `<path d='${head}' fill='#282839'/>${features}</svg>`;
+}
+
 function badgeSvg(name) {
   const spec = BADGES[name];
   if (!spec) throw new Error(`Unknown Habitat badge: ${name}`);
@@ -218,6 +244,10 @@ function block() {
   for (const name of Object.keys(BADGES)) {
     lines.push(`img.badge-icon[src$="/img/badges/${name}.svg"] { content: var(--hb-badge-${name}); }`);
   }
+  FACES.forEach((face, digit) => {
+    lines.push(`:where([data-user-id$="${digit}"], [data-habitat-avatar-id$="${digit}"]) { --hb-face: ${encode(faceSvg(face))}; }`);
+    lines.push(`:where([data-user-id^="${digit}"], [data-habitat-avatar-id^="${digit}"]) { --hb-face-bg: ${FACE_COLORS[digit]}; }`);
+  });
   lines.push(END);
   return lines.join('\n');
 }

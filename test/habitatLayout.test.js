@@ -207,6 +207,7 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     el(doc, 'div', { id: 'settings-panel' }, [button('open-settings-btn', 'Settings')])
   ], 'aside');
   doc.body.appendChild(el(doc, 'div', { id: 'app' }, [navigation, region(doc, 'main'), context]));
+  doc.getElementById('app').appendChild(button('status-bar-toggle', 'Toggle status bar'));
   // The member's own "fold the message box buttons" setting, when the test wants one.
   if (foldSetting !== null) {
     const setting = el(doc, 'input', { id: 'compact-composer', type: 'checkbox' });
@@ -316,7 +317,7 @@ test('nothing leaves the sidebar without staying reachable', () => {
 
   const menu = app.header.querySelector('[data-habitat-menu]');
   assert.ok(menu.hidden, 'the menu starts closed');
-  for (const id of ['theme-popup-toggle', 'activities-btn', 'donors-btn', 'rename-btn', 'logout-btn']) {
+  for (const id of ['theme-popup-toggle', 'activities-btn', 'donors-btn', 'rename-btn', 'logout-btn', 'status-bar-toggle']) {
     assert.ok(menu.contains(app.doc.getElementById(id)), `${id} is in the server menu`);
   }
   const body = app.doc.querySelector('[data-habitat-dialog-body]');
@@ -659,15 +660,39 @@ test('the channel disclosure preserves its original buttons and their visibility
   assert.equal(snapshot(box), before);
 });
 
+test('a room heading follows the start of history without adding a row to the feed', () => {
+  const { doc } = buildApp();
+  doc.body.classList = { contains: () => false };
+  const title = el(doc, 'h3', { id: 'channel-header-name' });
+  title.textContent = '# oyun';
+  const first = el(doc, 'div', { 'data-msg-id': '1' });
+  const feed = region(doc, 'message-list', [first]);
+  doc.body.appendChild(title);
+  doc.body.appendChild(feed);
+  const layout = new HabitatLayout();
+  layout.start();
+  assert.equal(feed.getAttribute('data-habitat-history-title'), '');
+  window.app._noMoreHistory = true;
+  FakeMutationObserver.notify(feed);
+  assert.equal(feed.getAttribute('data-habitat-history-title'), '# oyun');
+  assert.deepEqual(feed.children, [first]);
+  window.app._noMoreHistory = false;
+  FakeMutationObserver.notify(feed);
+  assert.equal(feed.getAttribute('data-habitat-history-title'), '');
+  layout.stop();
+  assert.ok(!feed.hasAttribute('data-habitat-history-title'));
+});
+
 test('the layout keeps to public regions and named buttons, and ships no remote resources', () => {
   assert.doesNotMatch(source, /https?:\/\/(?!www\.w3\.org\/2000\/svg)/i);
-  // Forced display is limited to the duplicated call controls and the tools
-  // the upstream phone stylesheet forcibly hides even inside our disclosure.
+  // These exceptions mirror forced display in the upstream mobile toolbar
+  // or replace a control that remains reachable from our own trigger.
   const forced = HabitatLayout.CSS.match(/[^{}]*\{[^}]*!important[^}]*\}/g) || [];
-  assert.equal(forced.length, 3);
+  assert.equal(forced.length, 4);
   assert.match(forced[0], /\[data-habitat-in-voice\] \[data-habitat-tools\] > :is\(#voice-mute-btn, #voice-deafen-btn\)/);
-  assert.match(forced[1], /#header-actions-box\[style\*="display: flex"\]/);
-  assert.match(forced[2], /#copy-code-btn\[style\*="inline-flex"\]/);
+  assert.match(forced[1], /\[data-habitat-room-members\]:not\(\[hidden\]\) \+ #mobile-users-btn/);
+  assert.match(forced[2], /#header-actions-box\[style\*="display: flex"\]/);
+  assert.match(forced[3], /#copy-code-btn\[style\*="inline-flex"\]/);
   for (const name of ['navigation-sidebar', 'account', 'sidebar-footer', 'sidebar-actions', 'channels',
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);

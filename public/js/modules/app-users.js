@@ -885,6 +885,8 @@ _showProfilePopup(profile) {
 
   const popup = document.createElement('div');
   popup.id = 'profile-popup';
+  // Habitat fork: the default avatar follows the account across views and renames.
+  popup.dataset.habitatAvatarId = profile.id;
   popup.className = 'profile-popup';
   popup.innerHTML = `
     <div class="profile-popup-banner">

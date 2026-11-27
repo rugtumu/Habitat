@@ -553,7 +553,8 @@ _setupNotifications() {
   // DM single-click default: open fullscreen DM instead of PiP. (#5295)
   const dmFsToggle = document.getElementById('dm-fullscreen-default');
   if (dmFsToggle) {
-    dmFsToggle.checked = localStorage.getItem('haven_dm_fullscreen_default') === 'true';
+    // Habitat fork: show the effective click behaviour, including the active layout default.
+    dmFsToggle.checked = this._dmOpensInMain();
     dmFsToggle.addEventListener('change', () => {
       localStorage.setItem('haven_dm_fullscreen_default', String(dmFsToggle.checked));
     });

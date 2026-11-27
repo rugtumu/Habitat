@@ -26,7 +26,14 @@ test('typing in a DM from the pop-out', async () => {
   const B = await h.connect(bob.token);
   const C = await h.connect(carol.token);
 
-  const dm = await new Promise((res) => { A.once('dm-opened', (d) => res(d.code)); A.emit('start-dm', { targetUserId: bob.id }); });
+  const own = new Promise(resolve => A.once('dm-opened', (dm, incoming) => resolve({ dm, incoming })));
+  const peer = new Promise(resolve => B.once('dm-opened', (dm, incoming) => resolve({ dm, incoming })));
+  A.emit('start-dm', { targetUserId: bob.id });
+  const [requested, invited] = await Promise.all([own, peer]);
+  const dm = requested.dm.code;
+  assert.strictEqual(invited.dm.code, dm);
+  assert.ok(!requested.incoming);
+  assert.strictEqual(invited.incoming, true);
   // Each side joins its DM rooms with the channel list.
   for (const s of [A, B, C]) { s.emit('get-channels'); }
   await wait(500);

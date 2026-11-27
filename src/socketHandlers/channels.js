@@ -1948,7 +1948,8 @@ module.exports = function register(socket, ctx) {
         for (const [, s] of io.of('/').sockets) {
           if (s.user && s.user.id === targetId) {
             s.join(`channel:${code}`);
-            s.emit('dm-opened', { id: channelId, code, name: 'DM', is_dm: 1, dm_target: { id: socket.user.id, username: socket.user.displayName } });
+            // Habitat fork: let the recipient update their inbox without leaving their room.
+            s.emit('dm-opened', { id: channelId, code, name: 'DM', is_dm: 1, dm_target: { id: socket.user.id, username: socket.user.displayName } }, true);
           }
         }
       }

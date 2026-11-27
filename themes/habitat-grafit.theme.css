@@ -1,8 +1,8 @@
 /**
  * @name        Habitat Grafit
- * @description Neutral graphite workspace with the jade accent from the Habitat logo, familiar chat-app proportions and the Habitat icon set.
+ * @description Midnight chat surfaces, iris highlights and Habitat’s dusk skyline.
  * @author      Habitat
- * @version     1.0
+ * @version     1.2
  * @icon        ⬢
  * @haven-theme-api 1
  */
@@ -65,38 +65,43 @@
 
 :root {
   /* Habitat's own, not part of the public token set */
-  --hb-rail:       #1e1f22;
-  --hb-raise:      #383a40;
-  --hb-profile-banner: #425c55;
-  --hb-cut:        0.3125rem;
+  --hb-rail:       #16171e;
+  --hb-raise:      #343640;
+  --hb-profile-banner: #6565a4;
+  --hb-sky:        #504a85;
+  --hb-horizon:    #bb91ba;
+  --hb-moon:       #ffe1ba;
+  --hb-far-ridge:  #676398;
+  --hb-near-ridge: #383851;
+  --hb-ink-night:  #28283e;
   --hb-ease:       cubic-bezier(.2, .8, .2, 1);
   --hb-fast:       .12s;
   --hb-base:       .18s;
 
   /* ── Backgrounds ───────────────────────────────── */
-  --bg-primary:    #313338;
-  --bg-secondary:  #2b2d31;
-  --bg-tertiary:   #1e1f22;
-  --bg-hover:      #383a40;
-  --bg-active:     #41434a;
-  --bg-input:      #383a40;
-  --bg-card:       #303136;
+  --bg-primary:    #26272f;
+  --bg-secondary:  #202128;
+  --bg-tertiary:   #16171e;
+  --bg-hover:      #343640;
+  --bg-active:     #3d3f50;
+  --bg-input:      #343640;
+  --bg-card:       #191a22;
 
   /* ── Accent ────────────────────────────────────── */
-  --accent:        #6cc3a3;
-  --accent-hover:  #84d0b4;
-  --accent-glow:   rgba(108, 195, 163, .18);
-  --accent-text:   #06231b;
+  --accent:        #aaa7ff;
+  --accent-hover:  #c2bfff;
+  --accent-glow:   rgba(151, 145, 255, .20);
+  --accent-text:   #1b1841;
 
   /* ── Text ──────────────────────────────────────── */
-  --text-primary:  #e8eaed;
-  --text-secondary:#b0b6bd;
-  --text-muted:    #a6aab3;
-  --text-link:     #8ad3b8;
+  --text-primary:  #f1f1f6;
+  --text-secondary:#c4c5cf;
+  --text-muted:    #a8a9ba;
+  --text-link:     #aebdff;
 
   /* ── Borders ───────────────────────────────────── */
-  --border:        #35373c;
-  --border-light:  #4b4e56;
+  --border:        #30313c;
+  --border-light:  #4c4e60;
 
   /* ── Status ────────────────────────────────────── */
   --success:       #6cc3a3;
@@ -201,8 +206,8 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 /* ── Login and registration ──────────────────────── */
 [data-haven-page="auth"] {
-  --bg-primary:   #1e1f22;
-  --bg-secondary: #1e1f22;
+  --bg-primary:   #16171e;
+  --bg-secondary: #16171e;
   background:
     radial-gradient(48rem 24rem at 50% -6%, rgba(108, 195, 163, .09), transparent 70%),
     var(--bg-primary);
@@ -293,13 +298,13 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-muted);
 }
 
-/* The Habitat cut corner on counters. */
+/* Unread counts stay distinct from room type and mention icons. */
 [data-haven-page="app"] .channel-badge {
   background: var(--danger);
   color: var(--danger-text);
-  border-radius: 0;
-  font-weight: 700;
-  clip-path: polygon(0 0, calc(100% - var(--hb-cut)) 0, 100% var(--hb-cut), 100% 100%, 0 100%);
+  border-radius: 1rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Header tools sit on the header itself, not in a second box. */
@@ -331,12 +336,42 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-muted);
 }
 
+[data-haven-page="app"] .reply-banner {
+  max-width: 100%;
+  width: fit-content;
+  padding: .125rem .375rem .125rem 0;
+  background: transparent;
+}
+[data-haven-page="app"] .reply-banner:hover { background: var(--bg-hover); }
+[data-haven-page="app"] .reply-line {
+  width: .875rem;
+  height: .625rem;
+  clip-path: polygon(0 0, 100% 0, 100% 19%, 14% 19%, 14% 100%, 0 100%);
+}
+[data-haven-page="app"] .reaction-badge {
+  min-height: 1.625rem;
+  background: var(--bg-hover);
+  border-radius: .5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+[data-haven-page="app"] .reaction-badge:is(.own, :hover) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-primary));
+}
+[data-haven-page="app"] :is(.mention:not(.mention-everyone), .channel-link) {
+  background: color-mix(in srgb, var(--role-color, var(--accent)) 15%, var(--bg-primary));
+}
+[data-haven-page="app"] .mention.mention-self {
+  background: color-mix(in srgb, var(--role-color, var(--accent)) 28%, var(--bg-primary));
+}
+
 [data-haven-page="app"] .new-messages-divider {
   color: var(--accent);
   border-color: var(--accent);
 }
 
-/* Buttons that carry the accent need the dark ink on jade. */
+/* Dark ink keeps labels legible on the light accent. */
 [data-haven-page="app"] .btn-accent,
 [data-haven-page="auth"] .btn-accent {
   background: var(--accent);
@@ -430,6 +465,38 @@ html[data-haven-theme-api="1"] :focus-visible {
   opacity: .28;
 }
 
+/* The account ID supplies the same face wherever a member appears. Keep
+   images, profile borders and the separate presence dot in their own layers. */
+[data-haven-page="app"] :is(
+  .message[data-user-id]:not([data-persona-id], .webhook-message, .imported-message) div.message-avatar,
+  .user-item[data-user-id] div.user-item-avatar,
+  [data-habitat-avatar-id] .profile-popup-avatar-fallback,
+  #user-bar-face[data-habitat-avatar-id]:not(:has(img)),
+  [data-habitat-avatar-id] .dm-pip-avatar-face:has(.dm-pip-avatar-initial),
+  [data-habitat-face]:not(:has(img)),
+  [data-user-id] [data-habitat-call-avatar]:not(:has(img))
+) {
+  background-color: var(--hb-face-bg, var(--accent)) !important;
+  background-image: var(--hb-face);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  font-size: 0;
+}
+[data-haven-page="app"] [data-habitat-avatar-id] .dm-pip-avatar-initial { font-size: 0; }
+[data-haven-page="app"] [data-haven-region="member-list"] .user-group-label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-block-start: .75rem;
+}
+[data-haven-page="app"] [data-haven-region="member-list"] .user-group-label::after {
+  content: '';
+  height: .0625rem;
+  flex: 1;
+  background: var(--border-light);
+}
+
 /* ── Profile card ────────────────────────────────
    A solid card instead of glass. A member's own profile theme paints the
    card itself (.has-profile-theme), so the surface rules stand aside for it;
@@ -447,7 +514,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner {
-  background-color: var(--bg-active);
+  background-color: var(--hb-profile-banner);
 }
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-status-dot {
@@ -460,9 +527,9 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 [data-haven-page="app"] .profile-popup-displayname {
   font-family: var(--font-heading);
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -.01em;
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: -.025em;
 }
 
 [data-haven-page="app"] .profile-popup-section-label {
@@ -522,7 +589,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-role {
   border-color: var(--border-light);
-  border-radius: var(--radius-sm);
+  border-radius: 1rem;
   background: var(--bg-active);
 }
 
@@ -969,12 +1036,12 @@ html[data-habitat-layout-desktop="1"] {
    Haven's density and accessibility settings still size the avatar gutter. */
 [data-haven-page="app"] .message-user-sep {
   border-top: 0;
-  margin-block-start: .625rem;
+  margin-block-start: .375rem;
 }
-html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: 1rem; font-weight: 700; }
+html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: 1.0625rem; font-weight: 700; }
 html:not([data-density="compact"]) [data-haven-page="app"] .message-time { font-size: .75rem; }
 html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content, .thread-msg-content) {
-  font-size: 1rem;
+  font-size: 1.0625rem;
   line-height: 1.45;
 }
 [data-haven-page="app"] .msg-toolbar {
@@ -983,13 +1050,66 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
   border-radius: .5rem;
 }
 [data-haven-page="app"] .channel-item {
-  min-height: 2.125rem; padding-inline: .625rem;
-  color: var(--text-secondary); font-size: .9375rem; font-weight: 550;
+  min-height: 2.375rem;
+  padding-inline: .625rem;
+  gap: .625rem;
+  font-weight: 540;
 }
 [data-haven-page="app"] .channel-item.active {
   background: var(--bg-active); color: var(--text-primary); font-weight: 680;
 }
-[data-haven-page="app"] .user-item { min-height: 2.375rem; padding-inline: .5rem; }
+[data-haven-page="app"] .channel-name { font-size: 1rem; }
+[data-haven-page="app"] .channel-hash {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.375rem;
+  font: 500 1.375rem/1 var(--font-main);
+}
+[data-haven-page="app"] .channel-item.active .channel-hash { color: var(--accent); }
+[data-haven-page="app"] .channel-item:has(> .channel-badge) .channel-name {
+  color: var(--text-primary);
+  font-weight: 720;
+}
+[data-haven-page="app"] .dm-item .channel-hash {
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 50%;
+  background: var(--bg-active);
+  color: var(--text-link);
+  font-size: 1.0625rem;
+}
+[data-haven-page="app"] .category-label:not(.cat-pill) {
+  opacity: 1 !important; /* The classic renderer puts half opacity directly on the heading. */
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+[data-haven-page="app"] .category-label .cat-name { font-size: .8125rem; }
+[data-haven-page="app"] [data-haven-region="member-list"] .panel-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+[data-haven-page="app"] [data-haven-region="member-list"] .user-item {
+  min-height: 2.75rem;
+  padding-inline: .5rem;
+  gap: .625rem;
+}
+[data-haven-page="app"] [data-haven-region="member-list"] :is(.user-avatar-wrapper, .user-item-avatar, .user-item-avatar-img) {
+  width: 2rem;
+  height: 2rem;
+  font-size: .875rem;
+}
+[data-haven-page="app"] [data-haven-region="member-list"] .user-item[data-user-id] div.user-item-avatar { font-size: 0; }
+[data-haven-page="app"] [data-haven-region="member-list"] .user-item-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+[data-haven-page="app"] .user-search-input { min-height: 2.125rem; }
+[data-haven-page="app"] .user-group-label {
+  font-size: .75rem;
+  letter-spacing: .01em;
+  text-transform: none;
+}
 [data-haven-page="app"] .user-search-input {
   border-radius: .5rem; border-color: var(--border); background: var(--bg-tertiary);
 }
@@ -998,7 +1118,7 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
 }
 [data-haven-page="app"] [data-haven-region="account"] { border-radius: inherit; }
 [data-haven-page="app"] .channel-info h3 {
-  margin: 0; font: 700 1.0625rem/1.25 var(--font-main); letter-spacing: -.015em;
+  margin: 0; font: 750 1.1875rem/1.25 var(--font-heading); letter-spacing: -.015em;
 }
 [data-haven-page="app"] [data-haven-region="channel-header"] .header-actions-box {
   border: 0; padding-block: 0;
@@ -1026,12 +1146,41 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
   background-color: var(--bg-input); border-radius: .625rem; color: var(--text-primary);
 }
 [data-haven-page="app"] .quick-switcher-item.selected { background: var(--bg-active); color: var(--text-primary); }
-[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner {
-  background-color: var(--hb-profile-banner);
+/* The bands follow the actual member colour. Uploaded pictures supply their own cover. */
+[data-haven-page="app"] :is(.profile-popup:not(.has-profile-theme) .profile-popup-banner,
+  .edit-profile-banner-preview:not(.has-profile-theme .edit-profile-banner-preview)):not(.has-banner-image) {
+  --cover: var(--profile-banner, var(--hb-profile-banner));
+  background-image:
+    repeating-radial-gradient(ellipse at 85% 175%, transparent 0 1.625rem,
+      color-mix(in srgb, var(--text-primary) 20%, transparent) 1.65rem 1.72rem, transparent 1.75rem 2rem),
+    linear-gradient(115deg, color-mix(in srgb, var(--cover) 48%, var(--hb-ink-night)), var(--cover));
 }
-[data-haven-page="app"] .profile-popup-displayname { font-weight: 750; }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-body {
-  margin: .25rem .5rem .5rem; border-radius: .625rem; background-color: var(--bg-secondary);
+  margin: .625rem;
+  padding: .875rem;
+  border: .0625rem solid var(--border);
+  border-radius: .75rem;
+  background-color: var(--bg-secondary);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-close {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--hb-rail) 75%, transparent);
+  color: var(--text-primary);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner:not(.has-banner-image) {
+  min-height: 5rem;
+}
+[data-haven-page="app"] .profile-popup-names { gap: .1875rem; }
+[data-haven-page="app"] :is(.profile-popup-bio, .profile-popup-action-btn) { font-size: .9375rem; }
+[data-haven-page="app"] .profile-popup-username { font-size: .875rem; }
+[data-haven-page="app"] .profile-popup-join-date { font-size: .875rem; }
+[data-haven-page="app"] .profile-popup-bio { line-height: 1.5; }
+[data-haven-page="app"] .profile-popup {
+  max-width: calc(100vw - 1rem);
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
 }
 [data-haven-page="app"] :is(.panel.voice-panel, .voice-settings-panel) { background-color: var(--bg-secondary); }
 [data-haven-page="app"] .modal:not(.has-profile-theme) {
@@ -1123,12 +1272,161 @@ html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content,
   content: '';
   margin-block-start: auto;
 }
+/* Keep the title in the scrollable history so it leaves with the first messages. */
+[data-haven-page="app"] #messages[data-habitat-history-title]:not([data-habitat-history-title=""], .forum-view, .forum-gallery, .forum-feed):has(> .message)::before {
+  content: attr(data-habitat-history-title);
+  flex: none;
+  margin-inline: .5rem;
+  margin-block-end: .75rem;
+  padding: 3.5rem 0 .875rem;
+  border-bottom: .0625rem solid var(--border-light);
+  background-image: var(--hb-room-mark);
+  background-repeat: no-repeat;
+  background-position: left .125rem;
+  background-size: 2.875rem 2.875rem;
+  font: 780 clamp(1.625rem, 3vw, 2.25rem)/1.12 var(--font-heading);
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+[data-haven-page="app"] {
+  /* The small room mark echoes the skyline above the channel list. */
+  --hb-room-mark:
+    radial-gradient(circle closest-side, transparent 97%, var(--bg-primary) 100%),
+    radial-gradient(ellipse at 15% 108%, var(--hb-near-ridge) 0 42%, transparent 43%),
+    radial-gradient(ellipse at 96% 107%, var(--hb-far-ridge) 0 46%, transparent 47%),
+    radial-gradient(circle at 66% 30%, var(--hb-moon) 0 11%, transparent 12%),
+    linear-gradient(150deg, var(--hb-sky), var(--hb-horizon));
+}
+[data-haven-page="app"] [data-habitat-intro] > span {
+  color: var(--text-primary);
+  background-color: var(--hb-sky);
+  font: 750 2rem/1 var(--font-heading);
+}
+html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
+  isolation: isolate;
+  height: 6.5rem;
+  min-height: 6.5rem;
+  align-items: flex-end;
+  padding-block-end: .625rem;
+  background:
+    radial-gradient(circle at 75% 30%, var(--hb-moon) 0 .625rem, transparent .68rem),
+    radial-gradient(circle at 24% 18%, var(--hb-moon) 0 .055rem, transparent .085rem),
+    radial-gradient(circle at 48% 34%, var(--hb-moon) 0 .05rem, transparent .085rem),
+    radial-gradient(circle at 89% 17%, var(--hb-moon) 0 .05rem, transparent .08rem),
+    linear-gradient(155deg, var(--hb-ink-night), var(--hb-sky) 48%, var(--hb-horizon));
+}
+[data-haven-page="app"] [data-habitat-header]::before,
+[data-haven-page="app"] [data-habitat-header] > .brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+[data-haven-page="app"] [data-habitat-header]::before {
+  background: var(--hb-far-ridge);
+  clip-path: polygon(0 63%, 17% 42%, 27% 53%, 39% 36%, 56% 60%, 69% 48%, 79% 56%, 94% 30%, 100% 40%, 100% 100%, 0 100%);
+}
+[data-haven-page="app"] [data-habitat-header] > .brand::before {
+  background: linear-gradient(to bottom, var(--hb-near-ridge), var(--hb-ink-night));
+  clip-path: polygon(0 48%, 14% 57%, 29% 50%, 48% 72%, 63% 66%, 78% 76%, 92% 52%, 100% 57%, 100% 100%, 0 100%);
+}
+[data-haven-page="app"] [data-habitat-header] .brand { min-height: 2rem; }
+[data-haven-page="app"] [data-habitat-header]:has([data-habitat-menu-button][aria-expanded="true"]) {
+  z-index: 60;
+}
+[data-haven-page="app"] [data-habitat-header] .brand-text {
+  color: var(--text-primary);
+  font: 750 1.25rem/1.2 var(--font-heading);
+}
+[data-haven-page="app"] [data-habitat-lists] {
+  padding: .1875rem;
+  background: var(--hb-rail);
+  border-radius: .625rem;
+}
+[data-haven-page="app"] [data-habitat-lists] button[aria-pressed="true"] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+@media (max-width: 900px) {
+  [data-haven-page="app"] .channel-item { min-height: 2.75rem; }
+  html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
+    height: 5rem;
+    min-height: 5rem;
+  }
+}
+@media (max-width: 480px) {
+  /* The desktop positioner anchors cards next to the clicked member. A phone
+     sheet leaves the close button and profile actions at predictable edges. */
+  [data-haven-page="app"] .profile-popup:not(.profile-popup-hover) {
+    inset: auto 0 0 !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 2rem);
+    padding-bottom: env(safe-area-inset-bottom, 0rem);
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+  [data-haven-page="app"] .profile-popup-action-btn { min-height: 2.75rem; }
+  [data-haven-page="app"] [data-haven-region="composer"] {
+    gap: .375rem;
+    align-items: center;
+    padding-bottom: max(.625rem, env(safe-area-inset-bottom));
+  }
+  [data-haven-page="app"] [data-haven-region="composer"] > :is(.btn-composer-plus, .btn-send) {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: 50%;
+  }
+  [data-haven-page="app"] [data-haven-region="composer"] > .btn-composer-plus {
+    color: var(--text-secondary);
+    background: var(--bg-input);
+  }
+  [data-haven-page="app"] [data-haven-region="composer"] > textarea { min-height: 2.5rem; }
+  [data-haven-page="app"] .msg-dots-btn {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  [data-haven-page="app"] .msg-dots-btn:active { background: var(--bg-active); }
+}
 [data-haven-page="app"] .voice-panel-btn:not(.active, .muted, .sharing, .voice-panel-leave) {
   background-color: var(--bg-active); border-color: transparent; border-radius: .5rem;
 }
 [data-haven-page="app"] .voice-panel-leave { border-radius: .5rem; }
 [data-haven-page="app"] .pinned-panel, [data-haven-page="app"] .search-panel {
   background-color: var(--bg-secondary); border-color: var(--border-light);
+}
+
+/* User settings have a page of their own. The native expand control can
+   still widen the reading column, and the same close and save handlers run. */
+html[data-habitat-layout] #settings-modal {
+  padding: 0;
+  background: var(--bg-secondary);
+  backdrop-filter: none;
+}
+html[data-habitat-layout] #settings-modal .modal-settings {
+  width: min(72rem, 100%);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  resize: none;
+}
+html[data-habitat-layout] #settings-modal .modal-maximized {
+  width: 100% !important;
+  height: 100dvh !important;
+  max-width: 100% !important;
+  max-height: 100dvh !important;
+}
+@media (min-width: 901px) {
+  html[data-habitat-layout] #settings-modal .settings-nav { padding-block: 1.25rem; }
+  html[data-habitat-layout] #settings-modal .settings-body { padding-inline: clamp(1rem, 4vw, 3.5rem); }
 }
 
 /* ═══ Part 3: Habitat icons ════════════════════════════════════════════ */
@@ -1394,4 +1692,24 @@ img.badge-icon[src$="/img/badges/star.svg"] { content: var(--hb-badge-star); }
 img.badge-icon[src$="/img/badges/shield.svg"] { content: var(--hb-badge-shield); }
 img.badge-icon[src$="/img/badges/heart.svg"] { content: var(--hb-badge-heart); }
 img.badge-icon[src$="/img/badges/trophy.svg"] { content: var(--hb-badge-trophy); }
+:where([data-user-id$="0"], [data-habitat-avatar-id$="0"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M7 17 9 7l6 5a13 13 0 0 1 6 0l6-5 2 10v5c0 6-5 9-11 9S7 28 7 22Z' fill='%23282839'/%3E%3Cg fill='%23f6f5ff'%3E%3Cellipse cx='13' cy='19' rx='2' ry='2.6'/%3E%3Cellipse cx='23' cy='19' rx='2' ry='2.6'/%3E%3C/g%3E%3C/svg%3E"); }
+:where([data-user-id^="0"], [data-habitat-avatar-id^="0"]) { --hb-face-bg: #b9a4f4; }
+:where([data-user-id$="1"], [data-habitat-avatar-id$="1"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M7 20c0-5 4-9 9-10l-2-5 7 3-1 3c5 1 9 4 9 9v4c0 5-5 7-11 7S7 29 7 24Z' fill='%23282839'/%3E%3Crect x='10' y='17' width='16' height='6' rx='3' fill='%23f6f5ff'/%3E%3Ccircle cx='21' cy='20' r='1.8' fill='%23282839'/%3E%3C/svg%3E"); }
+:where([data-user-id^="1"], [data-habitat-avatar-id^="1"]) { --hb-face-bg: #72d5b0; }
+:where([data-user-id$="2"], [data-habitat-avatar-id$="2"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M7 21c0-4 1-6 3-8L9 6c5 0 7 3 8 6h2c1-4 4-6 8-6l-1 8c2 2 3 5 3 8 0 6-4 9-11 9S7 28 7 21Z' fill='%23282839'/%3E%3Cpath d='M10 17q4-2 6 2-4 4-6-2m10 2q2-4 6-2-2 6-6 2' fill='%23f6f5ff'/%3E%3C/svg%3E"); }
+:where([data-user-id^="2"], [data-habitat-avatar-id^="2"]) { --hb-face-bg: #f3ba77; }
+:where([data-user-id$="3"], [data-habitat-avatar-id$="3"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M5 20c0-6 6-12 13-12s13 6 13 12l-3 2v6l-5-2-5 4-5-4-5 2v-6Z' fill='%23282839'/%3E%3Cg fill='%23f6f5ff'%3E%3Cellipse cx='13' cy='19' rx='2' ry='2.6'/%3E%3Cellipse cx='23' cy='19' rx='2' ry='2.6'/%3E%3C/g%3E%3C/svg%3E"); }
+:where([data-user-id^="3"], [data-habitat-avatar-id^="3"]) { --hb-face-bg: #88bafa; }
+:where([data-user-id$="4"], [data-habitat-avatar-id$="4"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M5 15 11 8l7 3 7-3 6 7-3 11-10 5-10-5Z' fill='%23282839'/%3E%3Cpath d='M10 17q4-2 6 2-4 4-6-2m10 2q2-4 6-2-2 6-6 2' fill='%23f6f5ff'/%3E%3C/svg%3E"); }
+:where([data-user-id^="4"], [data-habitat-avatar-id^="4"]) { --hb-face-bg: #eaa4b9; }
+:where([data-user-id$="5"], [data-habitat-avatar-id$="5"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M7 15a7 7 0 0 1 7-7h8a7 7 0 0 1 7 7v2h3v7h-3v2a4 4 0 0 1-4 4H11a4 4 0 0 1-4-4v-2H4v-7h3Z' fill='%23282839'/%3E%3Crect x='10' y='17' width='16' height='6' rx='3' fill='%23f6f5ff'/%3E%3Ccircle cx='21' cy='20' r='1.8' fill='%23282839'/%3E%3C/svg%3E"); }
+:where([data-user-id^="5"], [data-habitat-avatar-id^="5"]) { --hb-face-bg: #74cbd4; }
+:where([data-user-id$="6"], [data-habitat-avatar-id$="6"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M5 26c0-7 3-12 7-16l4 3 4-7c8 5 11 12 11 20-7 5-19 5-26 0Z' fill='%23282839'/%3E%3Cg fill='%23f6f5ff'%3E%3Cellipse cx='13' cy='19' rx='2' ry='2.6'/%3E%3Cellipse cx='23' cy='19' rx='2' ry='2.6'/%3E%3C/g%3E%3C/svg%3E"); }
+:where([data-user-id^="6"], [data-habitat-avatar-id^="6"]) { --hb-face-bg: #e6d07d; }
+:where([data-user-id$="7"], [data-habitat-avatar-id$="7"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M7 22c0-5 2-8 5-10L9 5l7 4 3-5 3 7c5 2 8 6 8 11 0 5-5 9-12 9S7 28 7 22Z' fill='%23282839'/%3E%3Cpath d='M10 17q4-2 6 2-4 4-6-2m10 2q2-4 6-2-2 6-6 2' fill='%23f6f5ff'/%3E%3C/svg%3E"); }
+:where([data-user-id^="7"], [data-habitat-avatar-id^="7"]) { --hb-face-bg: #a3b0ff; }
+:where([data-user-id$="8"], [data-habitat-avatar-id$="8"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M6 25v-9l5-7 7 2 7-2 5 7v9l-6 5-6-2-6 2Z' fill='%23282839'/%3E%3Crect x='10' y='17' width='16' height='6' rx='3' fill='%23f6f5ff'/%3E%3Ccircle cx='21' cy='20' r='1.8' fill='%23282839'/%3E%3C/svg%3E"); }
+:where([data-user-id^="8"], [data-habitat-avatar-id^="8"]) { --hb-face-bg: #e8a68b; }
+:where([data-user-id$="9"], [data-habitat-avatar-id$="9"]) { --hb-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M5 19c1-7 6-12 13-12s12 5 13 12l-4 2v6l-9 4-9-4v-6Z' fill='%23282839'/%3E%3Cg fill='%23f6f5ff'%3E%3Cellipse cx='13' cy='19' rx='2' ry='2.6'/%3E%3Cellipse cx='23' cy='19' rx='2' ry='2.6'/%3E%3C/g%3E%3C/svg%3E"); }
+:where([data-user-id^="9"], [data-habitat-avatar-id^="9"]) { --hb-face-bg: #a6cf91; }
 /* HABITAT-ICONS:END */

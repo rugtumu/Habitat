@@ -15,6 +15,8 @@ _renderUserBarAvatar() {
   const face = document.getElementById('user-bar-face');
   if (!face || !this.user || !this.user.username) return;
   face.className = 'user-bar-face avatar-' + (this.user.avatarShape || 'circle');
+  // Habitat fork: the default avatar follows the account across views and renames.
+  face.dataset.habitatAvatarId = this.user.id;
   const initial = this.user.username.charAt(0).toUpperCase();
   const color = this._getUserColor(this.user.username);
   const showInitial = () => {

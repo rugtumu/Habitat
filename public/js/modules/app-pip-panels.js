@@ -575,6 +575,9 @@ _refreshDMPipHeader(ch, partnerName) {
     // The shape goes on the picture, not the wrap: the hexagon and diamond
     // are cut with clip-path, which would cut the status dot off too.
     avatarWrap.className = 'dm-pip-avatar-wrap';
+    // Habitat fork: the default avatar follows the account across views and renames.
+    if (!ch.is_group && partnerId) avatarWrap.dataset.habitatAvatarId = partnerId;
+    else delete avatarWrap.dataset.habitatAvatarId;
     avatarWrap.style.backgroundColor = '';
     // Determine status: 'online' / 'away' / 'dnd' / 'invisible' / 'offline'
     // (matches the sidebar `.user-status-dot` modifier classes: empty

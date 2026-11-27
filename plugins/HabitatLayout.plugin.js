@@ -2,7 +2,7 @@
  * @name Habitat Layout
  * @description The layout people already know from other chat apps: your account, mute, deafen and settings sit bottom-left with the call controls above them, joining and creating a channel open from a + button instead of filling the sidebar, and the rest of the sidebar tools fold into the server name menu. On a phone the message box tools fold into one + button. Reversible, picked in Settings, Layout.
  * @author Habitat
- * @version 1.0.0
+ * @version 1.2.0
  */
 
 // Habitat fork: this layout only moves complete public regions and a few
@@ -173,6 +173,7 @@ class HabitatLayout {
       this._buildAddPanel(channels);
       this._buildNavigation();
       this._buildChannelTools();
+      this._buildMemberPreview();
       this._buildConversationIntro();
       this._buildCallStage();
       this._watchVoice();
@@ -209,6 +210,7 @@ class HabitatLayout {
       inbox.appendChild(this._icon('M4 4h16v12H9l-5 4zM8 8h8M8 12h5'));
       rail.insertBefore(inbox, home);
     }
+    const openInbox = this._buildInbox(dms);
     const buttons = {};
     const select = (name) => {
       inbox?.setAttribute('aria-pressed', String(name === 'messages'));
@@ -222,10 +224,13 @@ class HabitatLayout {
       const button = this._make('button', { type: 'button', 'aria-controls': region.id }, choices);
       button.textContent = region.querySelector('.section-label-text')?.textContent || this._text(key);
       buttons[key] = button;
-      this._on(button, 'click', () => select(key));
+      this._on(button, 'click', () => {
+        select(key);
+        if (key === 'messages') openInbox();
+      });
     }
     if (inbox) {
-      this._on(inbox, 'click', () => select('messages'));
+      this._on(inbox, 'click', () => { select('messages'); openInbox(); });
       this._on(home, 'click', () => select('channels'));
     }
     this._selectList = select;
@@ -238,8 +243,149 @@ class HabitatLayout {
       sync();
     }
     this._make('p', { 'data-habitat-dm-empty': '' }, split).textContent = this._text('noDM');
+    this._watchDmAvatars();
     this._setAttr(split, 'data-habitat-list', '');
     select(this._list || (document.body.classList.contains('viewing-dm') ? 'messages' : 'channels'));
+  }
+
+  _watchDmAvatars() {
+    const list = document.getElementById('dm-list');
+    if (!list) return;
+    const paint = () => {
+      const partners = new Map((window.app?.channels || [])
+        .filter(channel => channel.is_dm && !channel.is_group && channel.dm_target)
+        .map(channel => [channel.code, channel.dm_target]));
+      for (const row of list.querySelectorAll('.dm-item')) {
+        const partner = partners.get(row.dataset.code);
+        if (!partner || row.querySelector('[data-habitat-dm-avatar]')) continue;
+        const name = row.querySelector('.channel-name')?.textContent.trim() || partner.username;
+        // A newly opened DM can arrive with only the partner's ID and name.
+        const member = partner.avatar === undefined
+          ? window.app._memberById?.(partner.id) : null;
+        const face = this._memberFace(member || partner, name);
+        face.setAttribute('data-habitat-dm-avatar', '');
+        row.prepend(face);
+      }
+    };
+    // Haven replaces the list's children when a name, pin or tag changes.
+    this._dmAvatarObserver = new MutationObserver(paint);
+    this._dmAvatarObserver.observe(list, { childList: true });
+    paint();
+  }
+
+  _memberFace(person, name) {
+    const face = document.createElement('span');
+    face.setAttribute('data-habitat-face', '');
+    face.setAttribute('data-habitat-avatar-id', person.id);
+    face.setAttribute('aria-hidden', 'true');
+    if (['rounded', 'squircle', 'hex', 'diamond', 'square'].includes(person.avatarShape)) {
+      face.classList.add('avatar-' + person.avatarShape);
+    }
+    face.textContent = Array.from(name || '?')[0].toLocaleUpperCase();
+    face.style.setProperty('--habitat-avatar-color', window.app._getUserColor(person.username || name || ''));
+    if (person.avatar?.startsWith('/uploads/')) {
+      const image = document.createElement('img');
+      image.alt = '';
+      image.loading = 'lazy';
+      image.dataset.animate = person.animateProfile === 'disabled' ? 'disabled' : 'trigger';
+      image.addEventListener('error', () => image.remove(), { once: true });
+      image.src = person.avatar;
+      face.appendChild(image);
+    }
+    return face;
+  }
+
+  // Read the existing sidebar order, names and unread badges. Browsing the
+  // inbox never enters a conversation until the reader picks a recipient.
+  _buildInbox(dms) {
+    const dialog = this._make('dialog', { 'data-habitat-inbox-page': '', 'aria-labelledby': 'habitat-inbox-title' });
+    document.body.appendChild(dialog);
+    const top = this._make('header', {}, dialog);
+    const title = this._make('h2', { id: 'habitat-inbox-title' }, top);
+    const close = this._make('button', { type: 'button', 'aria-label': this._text('close') }, top);
+    close.appendChild(this._icon('M6 6l12 12M18 6 6 18'));
+    const input = this._make('input', { type: 'search', 'aria-label': this._text('find'), placeholder: this._text('find') }, dialog);
+    const results = this._make('div', { 'data-habitat-conversations': '' }, dialog);
+    const empty = this._make('p', {}, dialog);
+    const render = () => {
+      if (!dialog.open) return;
+      const term = input.value.trim().toLocaleLowerCase();
+      const activeCode = document.activeElement?.dataset.habitatDmCode;
+      const rows = document.createDocumentFragment();
+      for (const native of dms.querySelectorAll('.dm-item')) {
+        const name = native.querySelector('.channel-name')?.textContent || '';
+        if (!name.toLocaleLowerCase().includes(term)) continue;
+        const row = this._make('button', { type: 'button', 'data-habitat-dm-code': native.dataset.code }, rows);
+        const face = native.querySelector('[data-habitat-dm-avatar], .channel-hash');
+        if (face) row.appendChild(face.cloneNode(true));
+        this._make('span', {}, row).textContent = name;
+        const badge = native.querySelector('.channel-badge');
+        if (badge) row.appendChild(badge.cloneNode(true));
+      }
+      empty.hidden = Boolean(rows.childElementCount);
+      empty.textContent = term ? window.t('header.search_no_results') : this._text('noDM');
+      results.replaceChildren(rows);
+      if (activeCode) (results.querySelector(`[data-habitat-dm-code="${CSS.escape(activeCode)}"]`) || input).focus();
+    };
+    this._inboxObserver = new MutationObserver(render);
+    this._inboxObserver.observe(dms, { childList: true, subtree: true, characterData: true });
+    this._on(input, 'input', render);
+    this._on(close, 'click', () => dialog.close());
+    this._on(results, 'click', event => {
+      const code = event.target.closest('button')?.dataset.habitatDmCode;
+      if (!window.app?.channels.some(ch => ch.is_dm && ch.code === code)) return;
+      dialog.close();
+      window.app._closeDMPiP?.();
+      window.app.switchChannel(code);
+      window.app._closeMobilePanels?.();
+    });
+    return () => {
+      if (window.app?.user?.isGuest) return;
+      title.textContent = dms.querySelector('.section-label-text')?.textContent || this._text('messages');
+      input.value = '';
+      dialog.showModal();
+      render();
+      input.focus();
+    };
+  }
+
+  _buildMemberPreview() {
+    const mobile = document.getElementById('mobile-users-btn');
+    const toggle = document.getElementById('sidebar-toggle-btn');
+    const roster = document.getElementById('online-users');
+    const name = document.getElementById('channel-header-name');
+    if (!mobile || !toggle || !roster || !name) return;
+    const button = this._make('button', { type: 'button', 'data-habitat-room-members': '', 'aria-controls': 'right-sidebar' });
+    mobile.before(button);
+    const faces = this._make('span', { 'data-habitat-stack': '', 'aria-hidden': 'true' }, button);
+    const count = this._make('span', {}, button);
+    const sync = () => {
+      const app = window.app;
+      const people = app?._onlineByChannel?.get(app.currentChannel) || [];
+      button.hidden = !people.length || document.body.classList.contains('viewing-dm');
+      if (button.hidden) return;
+      const first = people.filter(person => person.online !== false).slice(0, 3);
+      faces.replaceChildren(...(first.length ? first : people.slice(0, 3)).map(person => this._memberFace(person, person.username)));
+      count.textContent = String(people.length);
+      const label = window.t('settings.nav.members') + ' · ' + people.length;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+    };
+    const sidebar = document.getElementById('right-sidebar');
+    const body = document.getElementById('app-body');
+    const syncExpanded = () => button.setAttribute('aria-expanded', String(this._media.matches
+      ? !sidebar.classList.contains('collapsed')
+      : body.classList.contains('mobile-right-open')));
+    if (sidebar && body) {
+      this._drawerObserver = new MutationObserver(syncExpanded);
+      this._drawerObserver.observe(this._media.matches ? sidebar : body, { attributes: true, attributeFilter: ['class'] });
+      syncExpanded();
+    }
+    this._memberObserver = new MutationObserver(sync);
+    this._memberObserver.observe(roster, { childList: true });
+    this._memberObserver.observe(name, { childList: true, characterData: true, subtree: true });
+    this._on(button, 'click', () => (this._media.matches ? toggle : mobile).click());
+    sync();
   }
 
   // The original buttons keep their handlers and permission-dependent visibility.
@@ -280,6 +426,14 @@ class HabitatLayout {
     const mark = this._make('span', { 'aria-hidden': 'true' }, intro);
     const title = this._make('h2', {}, intro);
     const hint = this._make('p', {}, intro);
+    // A generated heading scrolls with the first page without becoming a
+    // message. Haven relies on its real first child to paginate and trim.
+    const historyTitle = 'data-habitat-history-title';
+    this._setAttr(messages, historyTitle, '');
+    const syncHistory = () => {
+      const name = window.app?._noMoreHistory ? header.textContent.trim() : '';
+      if (messages.getAttribute(historyTitle) !== name) messages.setAttribute(historyTitle, name);
+    };
     const sync = () => {
       const name = header.textContent.trim();
       const dm = document.body.classList.contains('viewing-dm');
@@ -291,7 +445,11 @@ class HabitatLayout {
       mark.textContent = dm ? '@' : '#';
       title.textContent = name;
       hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
+      syncHistory();
     };
+    this._historyObserver = new MutationObserver(syncHistory);
+    this._historyObserver.observe(messages, { childList: true });
+    this._on(messages, 'scrollend', syncHistory);
     this._nameObserver = new MutationObserver(sync);
     this._nameObserver.observe(header, { childList: true, characterData: true, subtree: true });
     sync();
@@ -444,6 +602,9 @@ class HabitatLayout {
     header.appendChild(menu);
 
     this._move(actions, menu, null);
+    // The floating debug tab otherwise covers Send on narrow screens.
+    const statusTab = document.getElementById('status-bar-toggle');
+    if (statusTab) this._move(statusTab, menu, null);
     for (const id of ['rename-btn', 'logout-btn']) {
       const item = document.getElementById(id);
       if (item && account.contains(item)) this._move(item, menu, null);
@@ -611,6 +772,12 @@ class HabitatLayout {
     this._closeStage = null;
     this._selectList = null;
     this._badgeObserver?.disconnect();
+    this._dmAvatarObserver?.disconnect();
+    this._inboxObserver?.disconnect();
+    this._memberObserver?.disconnect();
+    this._drawerObserver?.disconnect();
+    for (const face of document.querySelectorAll('[data-habitat-dm-avatar]')) face.remove();
+    this._historyObserver?.disconnect();
     this._nameObserver?.disconnect();
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
@@ -846,6 +1013,10 @@ html[data-habitat-layout] [data-habitat-menu] button::after {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+html[data-habitat-layout] [data-habitat-menu] .status-bar-toggle-tab {
+  position: static; opacity: 1;
+}
+html[data-habitat-layout]:not([data-hide-statusbar]) [data-habitat-menu] .status-bar-toggle-tab { display: none; }
 html[data-habitat-layout] [data-habitat-menu] button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -1029,6 +1200,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 }
 [data-habitat-call-avatar] img { width: 100%; height: 100%; object-fit: cover; }
 [data-habitat-stage] .user-item-name { font-weight: 650; }
+body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-controls="dm-pane"] { display: none; }
 [data-habitat-inbox] { margin-block-end: .375rem; }
 [data-habitat-inbox][aria-pressed="true"] {
   background: var(--accent); color: var(--accent-text); border-radius: 1rem;
@@ -1056,7 +1228,50 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   background: var(--bg-tertiary);
   text-align: start;
 }
+[data-habitat-inbox-page] {
+  box-sizing: border-box; width: min(36rem, 94vw); max-height: 86dvh;
+  margin: auto; padding: 1.5rem; border: .0625rem solid var(--border-light);
+  border-radius: 1rem; background: var(--bg-secondary); color: var(--text-primary);
+}
+[data-habitat-inbox-page][open] { display: flex; flex-direction: column; gap: 1rem; }
+[data-habitat-inbox-page]::backdrop { background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent); }
+[data-habitat-inbox-page] header { display: flex; align-items: center; justify-content: space-between; }
+[data-habitat-inbox-page] h2 { margin: 0; font: 750 1.65rem/1.2 var(--font-heading); }
+[data-habitat-inbox-page] header button, [data-habitat-room-members] {
+  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+  border: 0; padding: .375rem; border-radius: .5rem; color: var(--text-secondary); background: var(--bg-hover);
+}
+[data-habitat-inbox-page] input {
+  width: 100%; min-height: 2.5rem; border: .0625rem solid var(--border-light);
+  border-radius: .5rem; background: var(--bg-input); color: var(--text-primary); padding-inline: .75rem; font: inherit;
+}
+[data-habitat-conversations] { overflow-y: auto; min-height: 0; }
+[data-habitat-conversations] button {
+  display: flex; align-items: center; gap: .75rem; width: 100%; min-height: 3rem;
+  padding: .5rem; border: 0; border-radius: .5rem; background: transparent; color: var(--text-primary); font: 600 1rem var(--font-main); text-align: start;
+}
+[data-habitat-conversations] button:hover, [data-habitat-conversations] button:focus-visible { background: var(--bg-active); }
+[data-habitat-conversations] button > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+[data-habitat-conversations] .channel-badge { margin-inline-start: auto; }
+[data-habitat-room-members] { flex: none; font: 650 .875rem/1 var(--font-main); cursor: pointer; }
+[data-habitat-room-members][hidden] { display: none; }
+/* Haven forces its mobile button visible even when the roster already has a trigger. */
+[data-habitat-room-members]:not([hidden]) + #mobile-users-btn { display: none !important; }
+[data-habitat-stack] { display: inline-flex; padding-inline-start: .25rem; }
+[data-habitat-stack] [data-habitat-face] { width: 1.5rem; height: 1.5rem; margin-inline-start: -.25rem; box-shadow: 0 0 0 .125rem var(--bg-hover); }
+@media (max-width: 480px) {
+  [data-habitat-stack] [data-habitat-face]:not(:first-child) { display: none; }
+  [data-habitat-inbox-page] { width: 100%; height: 100dvh; max-width: 100%; max-height: 100dvh; border-radius: 0; padding: 1rem; }
+}
 [data-habitat-lists] { display: flex; gap: .25rem; }
+[data-habitat-face] {
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: 1.875rem; height: 1.875rem; overflow: hidden; border-radius: 50%;
+  background: color-mix(in srgb, var(--habitat-avatar-color) 45%, var(--bg-tertiary));
+  color: var(--text-primary); font: 700 .9375rem/1 var(--font-main);
+}
+[data-habitat-face] img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.dm-item > [data-habitat-dm-avatar] + .channel-hash { display: none; }
 [data-habitat-lists] button {
   flex: 1; min-width: 0; min-height: 2.125rem;
   padding: .25rem; border: 0; border-radius: var(--radius-sm);

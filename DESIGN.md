@@ -4,12 +4,12 @@ The web client follows Discord’s server, channel, conversation and member navi
 
 [Discord navigation reference](https://support.discord.com/hc/en-us/articles/360045138571-Beginner-s-Guide-to-Discord)
 
-Use graphite panels to distinguish the rail (#1e1f22), navigation (#2b2d31) and conversation (#313338). Selected rows use #41434a. Habitat jade (#6cc3a3) identifies primary actions and connection state. Preserve the server banner and members’ profile colours. Elevation and borders distinguish a menu from its parent surface.
+The rail (#16171e), navigation (#202128) and conversation (#26272f) step from dark to light. Iris (#aaa7ff) marks primary actions and the selected room. Jade (#6cc3a3) signals presence. The sidebar skyline and the smaller channel mark share a dusk palette. Preserve the server banner and members’ profile colours. Elevation and borders distinguish a menu from its parent surface.
 
 [Secondary reference for dark control surfaces](https://styles.refero.design/style/3b6a17f0-3bdf-418c-a95e-0b89e5a8b2f8)
 
-Use the bundled Figtree family for conversation and controls, and Bricolage Grotesque for introductions and titles. Keep follow-up messages aligned with the first message in a group. Reserve the large channel mark and channel name for an empty conversation. The server menu, composer and call dock use Habitat’s existing icon set. Keep animation brief and respect reduced motion.
+Use the bundled Figtree family for conversation and controls, and Bricolage Grotesque for introductions and titles. Keep follow-up messages aligned with the first message in a group. The channel title marks the beginning of the loaded history and scrolls away with it. Room and member names use 1rem, with larger type for profile names. A member’s own banner colour supplies the bands on their profile cover. The server menu, composer and call dock use Habitat’s existing icon set. Keep animation brief and respect reduced motion.
 
-The inbox icon on the server rail opens private messages. During a call, the grid control moves the live voice roster above the conversation. The same member actions stay available in both positions.
+The rail inbox and Messages button open a searchable directory of direct conversations. Choosing a recipient opens the full chat. The room header shows members from the active channel and opens the existing roster. Account IDs select the artwork for members without profile photos across chat, the roster, profiles and direct conversations. During a call, the grid control moves the live voice roster above the conversation. The same member actions stay available in both positions.
 
-At 901px and above the account and call controls share the left footer. On phones the channel title, search and channel actions share the header. Settings use a category column on desktop and the native category picker on narrow screens.
+At 901px and above the account and call controls share the left footer. On phones the channel title, search and channel actions share the header. Account settings open on a separate page with a category column on desktop and the native category picker on narrow screens.
