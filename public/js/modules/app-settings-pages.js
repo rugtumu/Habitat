@@ -1,25 +1,22 @@
 // Habitat fork: group related sections so members can reach them from one settings page.
+// Five member pages and four admin pages. The order of sections on a page is
+// their order in app.html; this map only says which page shows them. The
+// account sections sit on the last page so that opening Settings does not ask
+// the server for sessions, two-factor state and recovery codes every time.
 const SETTINGS_PAGES = {
   user: [
-    ['look', '🎨', 'settings.pages.look', 'Appearance', ['section-layout', 'section-toolbar-icons', 'section-banner-display']],
-    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-chat-behavior', 'section-image-display', 'section-embed-size', 'section-reaction-size']],
+    // The two desktop sections are hidden in a browser and simply do not show.
+    ['look', '🎨', 'settings.pages.interface', 'Interface & accessibility', ['section-language', 'section-layout', 'section-zoom', 'section-role-display', 'section-toolbar-icons', 'section-banner-display', 'section-toggle-style', 'section-plugins', 'section-desktop-shortcuts', 'section-desktop-app', 'section-debug']],
+    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-reaction-size', 'section-image-display', 'section-embed-size', 'section-chat-behavior', 'section-score-badges']],
     ['voice', '🎧', 'settings.pages.voice', 'Voice & video', ['section-call-settings']],
-    ['alerts', '🔔', 'settings.pages.alerts', 'Notifications', ['section-sounds', 'section-push', 'section-whats-new']],
-    ['profile', '🎮', 'settings.pages.profile', 'Profile & activity', ['section-activity', 'section-role-display', 'section-score-badges']],
-    ['security', '🔒', 'settings.pages.security', 'Account & security', ['section-password', 'section-e2e-passphrase', 'section-2fa', 'section-recovery', 'section-sessions', 'section-delete-account']],
-    ['language', '🗣️', 'settings.pages.language', 'Language', ['section-language']],
-    ['access', '♿', 'settings.pages.access', 'Accessibility', ['section-zoom', 'section-toggle-style']],
-    // Only in Haven Desktop: both sections are hidden in a browser, and a page with nothing in it is not listed.
-    ['desktop', '🖥️', 'settings.pages.desktop', 'Shortcuts & desktop app', ['section-desktop-shortcuts', 'section-desktop-app']],
-    ['advanced', '🧩', 'settings.pages.advanced', 'Plugins & advanced', ['section-plugins', 'section-debug']]
+    ['alerts', '🔔', 'settings.pages.alerts', 'Notifications', ['section-whats-new', 'section-sounds', 'section-push']],
+    ['profile', '👤', 'settings.pages.account', 'Profile & account', ['section-activity', 'section-password', 'section-e2e-passphrase', 'section-sessions', 'section-2fa', 'section-recovery', 'section-delete-account']]
   ],
   admin: [
-    ['server', '🏠', 'settings.pages.server', 'Server', ['section-branding', 'section-channel-types', 'section-custom-tos', 'section-presence', 'section-update', 'section-extension-updates']],
-    ['people', '👥', 'settings.pages.people', 'People & roles', ['section-members', 'section-roles', 'section-badges', 'section-guests', 'section-whitelist', 'section-invite']],
-    ['safety', '🛡️', 'settings.pages.safety', 'Safety', ['section-moderation', 'section-automod', 'section-security', 'section-modmode', 'section-audit-log']],
-    ['content', '😎', 'settings.pages.content', 'Content', ['section-emojis', 'section-stickers', 'section-gifs', 'section-sounds-admin', 'section-tags-admin', 'section-uploads', 'section-cleanup']],
-    ['network', '📡', 'settings.pages.network', 'Network & scale', ['section-connectivity', 'section-large-server', 'section-tunnel']],
-    ['tools', '🤖', 'settings.pages.tools', 'Bots & data', ['section-bots', 'section-ferry', 'section-import', 'section-backup', 'section-template']]
+    ['server', '🏠', 'settings.pages.server_channels', 'Server & channels', ['section-branding', 'section-channel-types', 'section-presence', 'section-custom-tos', 'section-modmode']],
+    ['people', '👥', 'settings.pages.people_safety', 'People & safety', ['section-members', 'section-roles', 'section-badges', 'section-moderation', 'section-security', 'section-automod', 'section-whitelist', 'section-invite', 'section-guests', 'section-audit-log']],
+    ['content', '😎', 'settings.pages.content_integrations', 'Content & integrations', ['section-emojis', 'section-stickers', 'section-gifs', 'section-sounds-admin', 'section-uploads', 'section-tags-admin', 'section-bots', 'section-ferry', 'section-import']],
+    ['network', '🛠️', 'settings.pages.operations', 'Operations', ['section-update', 'section-extension-updates', 'section-connectivity', 'section-large-server', 'section-tunnel', 'section-backup', 'section-template', 'section-cleanup']]
   ]
 };
 export default {

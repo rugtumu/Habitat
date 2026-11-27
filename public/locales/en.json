@@ -1715,6 +1715,12 @@
       "content": "Content",
       "network": "Network & scale",
       "tools": "Bots & data",
+      "interface": "Interface & accessibility",
+      "account": "Profile & account",
+      "server_channels": "Server & channels",
+      "people_safety": "People & safety",
+      "content_integrations": "Content & integrations",
+      "operations": "Operations",
       "more": "More",
       "more_info": "More info"
     },
