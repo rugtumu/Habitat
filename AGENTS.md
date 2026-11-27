@@ -19,7 +19,7 @@ JavaScript with no build step). Upstream moves fast, so the fork stays small.
 
 The channel header omits the Android and desktop app download buttons. The
 welcome queue skips the Android promotion because its modal is absent from
-the page. The desktop welcome popup still follows the member's preference.
+the page. Habitat omits the desktop promotion from the page and welcome queue.
 
 ## Where things are
 

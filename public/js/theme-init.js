@@ -162,6 +162,39 @@
   }
   if (_safeMode) document.documentElement.setAttribute('data-haven-safe-mode', '1');
 
+  // Habitat fork: the login page shares this script, but only the app starts layout plugins.
+  if (document.currentScript?.hasAttribute('data-habitat-app')) {
+    window.habitatPluginQuery = new URL(document.currentScript.src).search;
+    if (!_safeMode && !_resetPending) {
+      try {
+        var enabled = JSON.parse(localStorage.getItem('haven_enabled_plugins') || '[]');
+        var data = JSON.parse(localStorage.getItem('haven_plugin_data') || '{}');
+        // The picker leaves old plugins enabled with layoutOn set to '0'. If several
+        // layouts are on, preserve the loader's original ownership order.
+        var layouts = Array.isArray(enabled) ? enabled.filter(function(file) {
+          return typeof file === 'string' && file.endsWith('Layout.plugin.js')
+            && data[file.replace('.plugin.js', '')]?.layoutOn !== '0';
+        }) : [];
+        if (layouts.length === 1 && layouts[0] === 'HabitatLayout.plugin.js') {
+          var root = document.documentElement;
+          root.setAttribute('data-habitat-boot', window.matchMedia('(min-width: 901px)').matches ? 'desktop' : 'compact');
+          // A missing plugin, a startup error or a blocked owner must still leave usable controls.
+          setTimeout(function() { root.removeAttribute('data-habitat-boot'); }, 3000);
+          ['HabitatLayout.plugin.js', 'HavenGlyphs.plugin.js'].forEach(function(file) {
+            if (!enabled.includes(file)) return;
+            var link = document.createElement('link');
+            link.id = 'habitat-preload-' + file;
+            link.rel = 'preload';
+            link.as = 'fetch';
+            link.crossOrigin = 'anonymous';
+            link.href = '/plugins/' + file + window.habitatPluginQuery;
+            document.head.appendChild(link);
+          });
+        }
+      } catch (e) { /* Unreadable choices leave the native shell visible. */ }
+    }
+  }
+
   function _injectEarlyTheme(file, onSettled) {
     if (document.getElementById('haven-theme-file-early')) {
       if (onSettled) onSettled();
@@ -201,11 +234,8 @@
   }
   if (t) {
     if (t.indexOf('file:') === 0) {
-      // File theme: inject the CSS link immediately so the theme applies on
-      // the login page (where plugin-loader doesn't run) and avoids a FOUC
-      // on the app page while waiting for plugin-loader's 500 ms startup
-      // delay. The data-theme is set to 'haven' as a stable layout base,
-      // matching what applyFileTheme() does when the plugin-loader runs. (#5359)
+      // Habitat fork: paint the file theme on both pages while the app waits for its plugin loader.
+      // The Haven base matches applyFileTheme().
       var _themeFile = t.slice(5);
       var _cachedTheme = _themeCompat ? _themeCompat.getCachedTheme(_themeFile) : null;
       if (t === serverTheme || (_cachedTheme && _cachedTheme.compatible)) {

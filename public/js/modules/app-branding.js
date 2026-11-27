@@ -8,7 +8,8 @@ export default {
 _applyServerBranding() {
   // server_name_effective folds in SERVER_NAME from the environment, so a
   // server named only through docker doesn't read as "HAVEN" in here. (#5489)
-  const name = this.serverSettings.server_name || this.serverSettings.server_name_effective || 'HAVEN';
+  // Habitat fork: an unnamed server uses the same name as the rest of the interface.
+  const name = this.serverSettings.server_name || this.serverSettings.server_name_effective || 'Habitat';
   const icon = this.serverSettings.server_icon || '';
 
   // Sidebar brand text

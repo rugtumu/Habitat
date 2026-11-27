@@ -136,77 +136,7 @@ async _latestHavenRelease() {
   return list.reduce((best, rel) => (!best || this._isNewerVersion(rel.tag_name.replace(/^v/, ''), best.tag_name.replace(/^v/, '')) ? rel : best), null);
 },
 
-// ── Desktop App Banner (top bar only) ──────────────────
-/** Wire the "Get the Desktop App" banner in the top bar. The promo modal
- *  itself is shown via the unified welcome-popup queue (see
- *  `_initWelcomePopups`); this function only handles the persistent banner. */
-_initDesktopAppBanner() {
-  // Don't advertise the desktop app to someone already running it. This checks
-  // every signal the rest of the client uses rather than just two: the preload
-  // exposes window.havenDesktop late in a long file, so anything that throws
-  // above it leaves that undefined, and the runtime does not always carry
-  // "Electron" in the user agent. data-desktop-app is set independently by the
-  // preload, so any one of them surviving is enough to recognise the app.
-  const inDesktopApp = !!(
-    window.havenDesktop?.isDesktopApp ||
-    window.havenDesktop ||
-    navigator.userAgent.includes('Electron') ||
-    document.documentElement.hasAttribute('data-desktop-app')
-  );
-  if (inDesktopApp) {
-    // Hide rather than just bail: the banner may already be on screen from a
-    // check that ran before the desktop signals landed.
-    const b = document.getElementById('desktop-app-banner');
-    if (b) b.style.display = 'none';
-    return;
-  }
-
-  // Don't show on mobile / tablet, desktop app isn't relevant there
-  if (/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent)) return;
-
-  // ── Top-bar banner ──
-  const bannerDismissed = localStorage.getItem('haven_desktop_banner_dismissed');
-  if (!bannerDismissed) {
-    const banner = document.getElementById('desktop-app-banner');
-    if (banner) {
-      banner.style.display = 'inline-flex';
-      const dismissBtn = document.getElementById('desktop-app-dismiss');
-      if (dismissBtn) {
-        dismissBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          banner.style.display = 'none';
-          localStorage.setItem('haven_desktop_banner_dismissed', '1');
-        });
-      }
-    }
-  }
-
-  // ── Wire the promo modal's close paths. The welcome-popup queue handles
-  // auto-show + seen-tracking; here we just make sure the buttons inside
-  // the modal hide it. ──
-  const modal = document.getElementById('desktop-promo-modal');
-  if (!modal) return;
-
-  // Detect platform for the meta line
-  const meta = document.getElementById('desktop-promo-meta');
-  if (meta) {
-    const ua = navigator.userAgent.toLowerCase();
-    let platform = t('platform.desktop.desktop');
-    if (ua.includes('win')) platform = t('platform.desktop.windows_installer');
-    else if (ua.includes('linux')) platform = t('platform.desktop.linux_installer');
-    else if (ua.includes('mac')) platform = t('platform.desktop.macos_installer');
-    meta.textContent = platform;
-  }
-
-  const laterBtn = document.getElementById('desktop-promo-later');
-  if (laterBtn) laterBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-  const installBtn = document.getElementById('desktop-promo-install');
-  if (installBtn) installBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
-  });
-},
+// Habitat fork: the app no longer needs to wire desktop download controls.
 /** Wire the "Android Beta" banner in the top bar. The signup modal itself
  *  is shown via the unified welcome-popup queue (see `_initWelcomePopups`). */
 _initAndroidBetaBanner() {
@@ -314,7 +244,7 @@ _initWelcomePopups() {
       let seen = {};
       try { seen = JSON.parse(localStorage.getItem('haven_welcome_seen_v1') || '{}') || {}; } catch { seen = {}; }
       const legacy = {
-        promo_seen_desktop: seen.desktop_app_promo || localStorage.getItem('haven_desktop_promo_dismissed'),
+        // Habitat fork: migrate dismissals only for notices still in use.
         promo_seen_android: seen.android_app_promo || localStorage.getItem('haven_ab_promo_nodisplay'),
         recovery_notice_seen: localStorage.getItem('haven_recovery_notice_v1'),
       };
@@ -335,22 +265,8 @@ _initWelcomePopups() {
 
 /** The app-promo sequencer. */
 _runWelcomePromoQueue() {
-  // ── Build the queue ──
-  // Each entry: { id, modalId, prefKey, checkboxId, shouldShow }. A popup is
-  // filtered out only if its persisted "Don't show again" pref is set.
-  // shouldShow() handles per-platform skips (e.g. desktop promo is useless
-  // inside the desktop app itself).
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
-  const isElectron = !!window.havenDesktop || navigator.userAgent.includes('Electron');
-
+  // Habitat fork: the desktop download prompt has no place in the welcome queue.
   const allEntries = [
-    {
-      id: 'desktop_app_promo',
-      modalId: 'desktop-promo-modal',
-      prefKey: 'promo_seen_desktop',
-      checkboxId: 'desktop-promo-dismiss-check',
-      shouldShow: () => !isElectron && !isMobile,
-    },
     {
       id: 'android_app_promo',
       modalId: 'android-beta-modal',

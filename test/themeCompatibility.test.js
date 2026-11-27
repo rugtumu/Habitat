@@ -90,16 +90,22 @@ function browserCompat(localStorage, sessionStorage) {
   };
 }
 
-function runThemeInit({ serverTheme, theme = 'file:test.theme.css', search = '', cache = [], themes, stored = {}, setTimeout = () => 1 } = {}) {
+function runThemeInit({ serverTheme, theme = 'file:test.theme.css', search = '', cache = [], themes,
+  stored = {}, session = {}, appPage = true, width = 1440, setTimeout = () => 1 } = {}) {
   const localStorage = new MemoryStorage({ haven_theme: theme, ...stored });
-  const sessionStorage = new MemoryStorage();
+  const sessionStorage = new MemoryStorage(session);
   ThemeCompat.cacheThemes(cache, localStorage);
   const { document, documentElement, links } = createDocument();
+  document.currentScript = {
+    src: 'https://haven.test/js/theme-init.js?v=4.29.100',
+    hasAttribute: name => appPage && name === 'data-habitat-app',
+  };
   documentElement.dataset = { serverTheme };
   const location = { search, href: `https://haven.test/${search}` };
   const window = {
     HavenThemeCompat: browserCompat(localStorage, sessionStorage),
     location,
+    matchMedia: query => ({ matches: query === '(min-width: 901px)' && width >= 901 }),
     scrollX: 0,
     scrollY: 0,
     scrollTo() {},
@@ -115,14 +121,14 @@ function runThemeInit({ serverTheme, theme = 'file:test.theme.css', search = '',
   }
 
   vm.runInNewContext(THEME_INIT_SOURCE, {
-    URLSearchParams,
+    URL, URLSearchParams,
     document,
     history: {},
     localStorage,
     setTimeout,
     window,
   });
-  return { documentElement, fetches, links, localStorage, sessionStorage };
+  return { documentElement, fetches, links, localStorage, sessionStorage, window };
 }
 
 function createAdminThemeHarness() {
@@ -174,6 +180,8 @@ async function runPluginLoader({
   safe = false,
   theme = 'haven',
   enabledPlugins = [],
+  boot = null,
+  pluginSource = null,
   enabledThemes = [],
   plugins = [],
   themes = [],
@@ -205,6 +213,10 @@ async function runPluginLoader({
     addEventListener(name, listener) { if (name === 'haven:app-ready') this.startPlugins = listener; },
     havenSocket: socket,
   };
+  if (boot) {
+    window.habitatPluginQuery = boot.window.habitatPluginQuery;
+    document.getElementById = id => boot.links.find(link => link.id === id) || null;
+  }
   if (viewer) window.app = { _canPublishThemes: () => viewer === 'admin' };
   if (withCompat) window.HavenThemeCompat = browserCompat(localStorage, sessionStorage);
   let themeFetchCount = 0;
@@ -219,6 +231,9 @@ async function runPluginLoader({
         ? themeResponses[Math.min(themeFetchCount++, themeResponses.length - 1)]
         : themes;
       return { ok: true, json: async () => responseThemes };
+    }
+    if (pluginSource && url.startsWith('/plugins/')) {
+      return { ok: true, text: () => pluginSource(url) };
     }
     throw new Error(`unexpected extension fetch: ${url}`);
   };
@@ -623,6 +638,86 @@ test('Haven, safe mode and a fresh account start from the dark default scheme', 
 
   const fresh = runThemeInit({ theme: '', stored: { haven_color_scheme: 'light' } });
   assert.equal(fresh.documentElement.attributes.has('data-color-scheme'), false);
+});
+
+const habitat = 'HabitatLayout.plugin.js';
+const glyphs = 'HavenGlyphs.plugin.js';
+const braid = 'BraidLayout.plugin.js';
+
+test('the welcome queue schedules no download prompt in the Habitat app', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'public/app.html'), 'utf8');
+  const platform = fs.readFileSync(path.join(ROOT, 'public/js/modules/app-platform.js'), 'utf8');
+  assert.doesNotMatch(html + platform, /desktop-promo-(?:modal|meta|install|later|dismiss-check)/);
+  const timers = [];
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+  const methods = vm.runInNewContext(platform.replace('export default', 'const methods =') + '\nmethods', {
+    document: { getElementById: id => ids.has(id) ? {} : null },
+    setTimeout: (fn, ms) => timers.push(ms),
+  });
+  methods._runWelcomePromoQueue.call({ _userPrefs: {} });
+  assert.deepEqual(timers, []);
+  ids.add('android-beta-modal');
+  methods._runWelcomePromoQueue.call({ _userPrefs: {} });
+  assert.deepEqual(timers, [1200], 'an available queue entry still runs');
+});
+
+test('the saved Habitat layout reserves its shape until engagement or the three-second deadline', () => {
+  for (const width of [1440, 901, 900, 375]) {
+    const timers = [];
+    const boot = runThemeInit({
+      width, theme: 'haven', stored: { haven_enabled_plugins: JSON.stringify([habitat, glyphs]) },
+      setTimeout: (fn, ms) => timers.push({ fn, ms }),
+    });
+    assert.equal(boot.documentElement.attributes.get('data-habitat-boot'), width >= 901 ? 'desktop' : 'compact');
+    assert.deepEqual(boot.links.map(link => [link.rel, link.as, link.crossOrigin, link.href]),
+      [habitat, glyphs].map(file => ['preload', 'fetch', 'anonymous', '/plugins/' + file + '?v=4.29.100']));
+    assert.deepEqual(timers.map(timer => timer.ms), [3000]);
+    timers[0].fn();
+    assert.equal(boot.documentElement.hasAttribute('data-habitat-boot'), false);
+  }
+});
+
+test('other layouts, recovery, auth and unreadable choices leave the shell visible without preloads', () => {
+  const selected = { haven_enabled_plugins: JSON.stringify([habitat]) };
+  for (const options of [
+    { search: '?haven-safe-mode=1' }, { session: { haven_safe_mode: '1' } },
+    { session: { haven_customizations_reset_pending: '1' } }, { appPage: false },
+    { stored: {} }, { stored: { haven_enabled_plugins: JSON.stringify([braid]) } },
+    { stored: { ...selected, haven_plugin_data: '{"HabitatLayout":{"layoutOn":"0"}}' } },
+    { stored: { haven_enabled_plugins: JSON.stringify([braid, habitat]) } },
+    { stored: { haven_enabled_plugins: '{}' } }, { stored: { ...selected, haven_plugin_data: '[' } },
+  ]) {
+    const boot = runThemeInit({ theme: 'haven', stored: selected, ...options });
+    assert.equal(boot.documentElement.hasAttribute('data-habitat-boot'), false);
+    assert.deepEqual(boot.links, []);
+  }
+  const boot = runThemeInit({ theme: 'haven', stored: {
+    haven_enabled_plugins: JSON.stringify([braid, habitat]),
+    haven_plugin_data: '{"HabitatLayout":{"layoutOn":"1"},"BraidLayout":{"layoutOn":"0"}}',
+  } });
+  assert.deepEqual(boot.links.map(link => link.id), ['habitat-preload-' + habitat]);
+});
+
+test('the confirmed layout and glyphs start before slow theme metadata and other plugins keep server order', async () => {
+  const files = ['one.plugin.js', glyphs, 'two.plugin.js', habitat];
+  const boot = runThemeInit({ theme: 'haven', stored: { haven_enabled_plugins: JSON.stringify(files) } });
+  let releaseThemes;
+  const themes = new Promise(resolve => { releaseThemes = resolve; });
+  const result = await runPluginLoader({
+    boot, themes, enabledPlugins: files, plugins: files.map(file => ({ file })),
+    pluginSource(url) {
+      const name = url.split('/').pop().split('.')[0];
+      return `_win.${name} = class { start() { HavenApi.Data.save('started', '${name}', true); } };`;
+    },
+  });
+  const starts = () => Object.keys(JSON.parse(result.localStorage.getItem('haven_plugin_data')).started);
+  assert.deepEqual(starts(), ['HabitatLayout', 'HavenGlyphs']);
+  assert.deepEqual(result.fetches.filter(url => url.startsWith('/plugins/')), boot.links.map(link => link.href));
+  releaseThemes([]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(starts(), ['HabitatLayout', 'HavenGlyphs', 'one', 'two']);
+  assert.match(result.fetches.at(-2), /^\/plugins\/one\.plugin\.js\?_=/);
+  assert.match(result.fetches.at(-1), /^\/plugins\/two\.plugin\.js\?_=/);
 });
 
 test('safe mode never fetches or evaluates plugin files', async () => {

@@ -364,9 +364,11 @@ test('nothing leaves the sidebar without staying reachable', () => {
 test('switching the layout off puts every element back where it was', () => {
   const app = buildApp();
   const before = snapshot(app.doc.documentElement);
+  app.doc.documentElement.setAttribute('data-habitat-boot', 'desktop');
   const plugin = new HabitatLayout();
   plugin.start();
   assert.notEqual(snapshot(app.doc.documentElement), before);
+  assert.equal(app.doc.documentElement.hasAttribute('data-habitat-boot'), false);
 
   plugin._disengage();
   assert.equal(snapshot(app.doc.documentElement), before);

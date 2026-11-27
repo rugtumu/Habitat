@@ -511,7 +511,7 @@ class HavenApp {
     this._setupOnlineOverlay();
     this._setupModalExpand();
     this._checkForUpdates();
-    this._initDesktopAppBanner();
+    // Habitat fork: Habitat has no desktop download prompt or banner to initialise.
     this._initAndroidBetaBanner();
     this._initWelcomePopups();
     this._initMoveMessages();

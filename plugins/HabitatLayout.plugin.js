@@ -184,6 +184,7 @@ class HabitatLayout {
       this._mode = mode;
       document.documentElement.setAttribute('data-habitat-layout', mode);
       if (mode === 'desktop') document.documentElement.setAttribute('data-habitat-layout-desktop', '1');
+      document.documentElement.removeAttribute('data-habitat-boot');
     } catch (error) {
       this._restoreDesktop();
       throw error;

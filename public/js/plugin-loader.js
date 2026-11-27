@@ -330,6 +330,13 @@ window.HavenPluginLoader = (function () {
   }
 
   // ── Load a single plugin ──
+  // Habitat fork: shipped files can reuse the page version and the server's ETag between visits.
+  const bundledPlugins = new Set([
+    'AutoModQuarantine.plugin.js', 'BraidLayout.plugin.js', 'ChannelTabsLayout.plugin.js',
+    'ChromeLayout.plugin.js', 'CompactLayout.plugin.js', 'FocusClassicLayout.plugin.js',
+    'FocusLayout.plugin.js', 'HabitatLayout.plugin.js', 'HavenGlyphs.plugin.js', 'MessageTimestamps.plugin.js',
+  ]);
+
   async function loadPlugin(meta) {
     if (loadedPlugins.has(meta.file)) return;
     if (suppressExtensions) {
@@ -337,7 +344,9 @@ window.HavenPluginLoader = (function () {
       return;
     }
     try {
-      const resp = await fetch(`/plugins/${meta.file}?_=${Date.now()}`);
+      // Habitat fork: use the same request as the head preload and retain cache busting for third-party plugins.
+      const query = bundledPlugins.has(meta.file) ? window.habitatPluginQuery || '' : `?_=${Date.now()}`;
+      const resp = await fetch(`/plugins/${meta.file}${query}`);
       const code = await resp.text();
 
       // Execute in a Function scope so plugins can define classes
@@ -761,8 +770,23 @@ window.HavenPluginLoader = (function () {
 
   async function init(forceThemeRefresh = false) {
     try {
+      // Habitat fork: once the app and plugin list are ready, the selected shell can start
+      // while theme metadata is in flight. Only files confirmed by the server run here.
+      const plugins = fetchList('/api/plugins').then(async list => {
+        if (!list || suppressExtensions || forceThemeRefresh) return list;
+        const early = [];
+        for (const file of ['HabitatLayout.plugin.js', 'HavenGlyphs.plugin.js']) {
+          if (!document.getElementById('habitat-preload-' + file) || !getEnabledPlugins().includes(file)) continue;
+          const meta = list.find(plugin => plugin.file === file);
+          if (meta) {
+            early.push(meta);
+            await loadPlugin(meta);
+          }
+        }
+        return list.filter(meta => !early.includes(meta));
+      });
       const [pluginRes, themeRes] = await Promise.all([
-        fetchList('/api/plugins'),
+        plugins,
         ThemeCompat?.fetchThemes?.(fetch, forceThemeRefresh) || fetchList('/api/themes'),
       ]);
 
@@ -782,7 +806,7 @@ window.HavenPluginLoader = (function () {
         document.documentElement.removeAttribute('data-haven-theme-pending');
       }
 
-      // Load themes first. Safe mode records them without injecting CSS.
+      // Habitat fork: themes still precede the remaining plugins. Safe mode only records them.
       for (const t of themeRes || []) loadTheme(t);
 
       // loadPlugin() only records metadata while extensions are suppressed, so

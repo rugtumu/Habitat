@@ -1,4 +1,25 @@
 ﻿/* Haven core styles, part 4 of 16: the left sidebar, channel list, pop-out panels, main content and channel menu. Loaded in order by style.css; the order matters. */
+/* Habitat fork: reserve the rail before the first paint, even with a theme other than Grafit. */
+@media (min-width: 901px) {
+  html[data-habitat-boot="desktop"] :where([data-haven-region="server-rail"]) {
+    width: 4.5rem;
+    min-width: 4.5rem;
+    padding: .75rem 0;
+    gap: .5rem;
+  }
+  html[data-habitat-boot="desktop"] :where([data-haven-region="server-rail"] .server-icon) {
+    width: 3rem;
+    height: 3rem;
+  }
+}
+/* Habitat fork: keep the shell surfaces visible while their controls change parents. */
+html[data-habitat-boot] :is([data-haven-region="server-rail"], [data-haven-region="navigation-sidebar"],
+  [data-haven-region="context-sidebar"], [data-haven-region="channel-header"]) > *,
+html[data-habitat-boot] :is(#fx-layers, #status-bar-toggle, #sidebar-toggle-btn,
+  [data-haven-region="composer"], [data-haven-region="message-area"], [data-haven-region="welcome"]) {
+  visibility: hidden;
+}
+
 /* ── Left Sidebar ──────────────────────────────────────── */
 
 .sidebar {
