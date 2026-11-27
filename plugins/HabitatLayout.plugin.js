@@ -485,14 +485,42 @@ class HabitatLayout {
     this._voiceDirectory = section;
     this._wireVoiceMoves(rooms);
     window.app._renderChannels();
+    // Someone joining a room settles into the list, and someone leaving
+    // lingers a moment as they fade. Haven redraws a room's whole list
+    // whenever anyone in it changes state, so only a person who is new to
+    // the room, or gone from it, counts.
+    let known = null;  // room and person -> their row and its list, at the last painting
     const paint = () => {
+      const now = new Map();
+      for (const row of list.querySelectorAll('.channel-voice-user')) {
+        if (row.hasAttribute('data-habitat-leave')) continue;
+        const home = row.parentElement;
+        const key = `${home.previousElementSibling?.getAttribute('data-code')}:${row.getAttribute('data-user-id')}`;
+        if (known && !known.has(key) && !row.querySelector('[data-habitat-face]')) row.setAttribute('data-habitat-enter', '');
+        now.set(key, { row, home });
+      }
+      for (const [key, was] of known || []) {
+        // The old row is the one Haven just threw away; it goes back in for
+        // as long as the fade takes. A room that emptied has no list left.
+        if (now.has(key) || was.row.isConnected || !was.home.isConnected) continue;
+        const ghost = was.row;
+        ghost.removeAttribute('data-habitat-enter');
+        ghost.setAttribute('data-habitat-leave', '');
+        ghost.setAttribute('aria-hidden', 'true');
+        was.home.appendChild(ghost);
+        const gone = () => ghost.remove();
+        ghost.addEventListener('animationend', gone, { once: true });
+        setTimeout(gone, 400)?.unref?.();
+      }
+      known = now;
       for (const row of list.querySelectorAll('.channel-voice-user:not(:has([data-habitat-face]))')) {
         const id = row.dataset.userId;
         const code = row.parentElement.previousElementSibling?.dataset.code;
         const member = window.app._onlineByChannel?.get(code)?.find(user => String(user.id) === id)
           || window.app._memberById?.(id) || { id };
         const app = window.app;
-        if (Number(id) !== app.user?.id && row.dataset.isBot !== 'true' &&
+        // Rows are only moved from the voice directory, where the drop targets are.
+        if (Number(id) !== app.user?.id && row.dataset.isBot !== 'true' && row.closest('[data-habitat-rooms]') &&
             app.channels?.some(ch => ch.code === code && ch.canMoveVoiceMembers)) row.draggable = true;
         row.prepend(this._memberFace(member, row.dataset.username));
         this._make('span', { 'data-habitat-speaking': '' }, row).textContent = this._text('speaking');
@@ -552,6 +580,12 @@ class HabitatLayout {
       const name = window.app?._noMoreHistory ? header.textContent.trim() : '';
       if (messages.getAttribute(historyTitle) !== name) messages.setAttribute(historyTitle, name);
     };
+    const syncJoin = () => {
+      const app = window.app;
+      const channel = HavenApi.currentChannel;
+      const connected = app?.voice?.inVoice && app.voice.currentChannel === channel;
+      join.hidden = !header.hasAttribute('data-habitat-voice-title') || !app?._canUseVoice?.() || connected;
+    };
     const sync = () => {
       const name = header.textContent.trim();
       const dm = document.body.classList.contains('viewing-dm');
@@ -568,13 +602,18 @@ class HabitatLayout {
       intro.setAttribute('data-habitat-intro', voiceRoom ? 'voice' : '');
       title.textContent = voiceRoom ? name.replace(/^#\s*/, '') : name;
       hint.hidden = voiceRoom;
-      join.hidden = !voiceRoom || !window.app?._canUseVoice?.();
+      syncJoin();
       hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
       syncHistory();
     };
     this._historyObserver = new MutationObserver(syncHistory);
     this._historyObserver.observe(messages, { childList: true });
     this._on(messages, 'scrollend', syncHistory);
+    const indicator = document.getElementById('voice-active-indicator');
+    if (indicator) {
+      this._joinObserver = new MutationObserver(syncJoin);
+      this._joinObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+    }
     this._nameObserver = new MutationObserver(sync);
     this._nameObserver.observe(header, { childList: true, characterData: true, subtree: true });
     sync();
@@ -632,12 +671,57 @@ class HabitatLayout {
     let autoFocus = true;  // a new screen share takes the large spot until the member puts it back
     let shareCount = 0;
     let spread = false;    // every shared screen in the large spot at once, when the member asks for it
+    let cast = null;       // what was on the stage at the last arrangement: tile -> its row and where it sat
+    let lastSize = '';     // the stage's own size then, to tell a regrouping from a window being resized
+    const glides = new WeakMap();
+    // Alone in a room, the stage says so and offers the way to bring people in.
+    const alone = this._make('div', { 'data-habitat-alone': '', hidden: '' }, stage);
+    this._make('strong', {}, alone).textContent = this._text('aloneTitle');
+    this._make('span', {}, alone).textContent = this._text('aloneHint');
+    const invite = this._make('button', { type: 'button' }, alone);
+    invite.textContent = this._text('invite');
+    this._on(invite, 'click', () => document.getElementById('right-btn-invite-popout')?.click());
     const spreadLabel = this._text('sideBySide');
     const spreadButton = this._make('button', {
       type: 'button', 'data-habitat-stage-spread': '', 'aria-pressed': 'false',
       'aria-label': spreadLabel, title: spreadLabel, hidden: ''
     }, stage);
     spreadButton.appendChild(this._icon('M3 5h8v14H3zM13 5h8v14h-8z'));
+    // On a desktop the call buttons live in the sidebar footer. A call also
+    // wants them where the eyes are, so the stage carries stand-ins that
+    // appear when the pointer is over it. Each presses the real button and
+    // copies its icon, name and state: nothing is moved, and there is still
+    // one place that decides. A phone has the real row under the stage.
+    const proxies = [];
+    if (mode === 'desktop') {
+      const controls = this._make('div', { 'data-habitat-stage-controls': '', role: 'group' }, stage);
+      for (const id of ['voice-mute-btn', 'voice-deafen-btn', 'voice-cam-btn', 'screen-share-btn', 'voice-bar-leave-btn']) {
+        const proxy = this._make('button', { type: 'button', 'data-habitat-for': id }, controls);
+        this._on(proxy, 'click', () => document.getElementById(id)?.click());
+        proxies.push(proxy);
+      }
+      proxies[4].appendChild(this._icon('M3.5 14.5c5-4.5 12-4.5 17 0l-1.8 2.6-3.7-1.4v-2.2c-2-.6-4-.6-6 0v2.2l-3.7 1.4z'));
+    }
+    const mirror = () => {
+      for (const proxy of proxies) {
+        const real = document.getElementById(proxy.getAttribute('data-habitat-for'));
+        proxy.hidden = !real;
+        if (!real) continue;
+        const name = real.getAttribute('title') || real.getAttribute('aria-label') || real.textContent.trim();
+        if (proxy.getAttribute('aria-label') !== name) {
+          proxy.setAttribute('aria-label', name);
+          proxy.setAttribute('title', name);
+        }
+        const on = String(/(^|\s)(muted|deafened|sharing|active)(\s|$)/.test(real.getAttribute('class') || ''));
+        if (proxy !== proxies[4] && proxy.getAttribute('aria-pressed') !== on) proxy.setAttribute('aria-pressed', on);
+        const glyph = proxy === proxies[4] ? null : real.querySelector('.haven-glyph, svg');
+        const drawn = glyph ? glyph.getAttribute('class') || 'svg' : '';
+        if (glyph && proxy.getAttribute('data-habitat-drawn') !== drawn && typeof proxy.replaceChildren === 'function') {
+          proxy.setAttribute('data-habitat-drawn', drawn);
+          proxy.replaceChildren(glyph.cloneNode(true));
+        }
+      }
+    };
 
     const drawAvatars = () => {
       if (!users) return;
@@ -714,6 +798,9 @@ class HabitatLayout {
       let focus = all.find(slot => slot.key === focusKey && !slot.away) || null;
       if (!focus) focusKey = null;
       if (!focus && autoFocus) focus = screens[0] || null;
+      alone.hidden = all.length !== 1 || !stage.hasAttribute('data-habitat-voice-room');
+      invite.hidden = document.getElementById('sidebar-invite-panel')?.style.display === 'none'
+        || !document.getElementById('right-btn-invite-popout');
       let large = spread ? screens : focus ? [focus] : [];
       // Alone, there is nothing to enlarge, and a click made then must not
       // send that tile to the large spot when the next person arrives.
@@ -772,6 +859,61 @@ class HabitatLayout {
       }));
       for (const part of placed) if (!now.has(part)) unmark(part);
       placed = now;
+      // A newcomer's tile settles in, and the tile of someone who left stays
+      // where it was for the length of a fade. Haven redraws every row when
+      // anyone's state changes, so only a person new to the call, or gone
+      // from it, counts; the row it threw away is the one that fades.
+      const present = new Map();
+      // Where each tile sits is read from the layout itself (offset*), which
+      // a running animation does not disturb, so a second arrangement in the
+      // same breath leaves a glide alone.
+      const size = `${stage.clientWidth}x${stage.clientHeight}`;
+      const settled = size === lastSize && !document.documentElement.classList?.contains('reduce-motion');
+      lastSize = size;
+      for (const slot of all) {
+        const lead = slot.parts[0];
+        if (slot.row && cast && !cast.has(slot.key)) for (const part of slot.parts) part.setAttribute('data-habitat-enter', '');
+        const box = typeof lead.offsetWidth === 'number' && lead.offsetWidth > 0
+          ? { left: lead.offsetLeft, top: lead.offsetTop, width: lead.offsetWidth, height: lead.offsetHeight } : null;
+        const was = cast?.get(slot.key)?.box;
+        // When the grid changes because someone came, left or took the large
+        // spot, the others glide to their new place instead of jumping. A
+        // window being resized is not that: it would glide on every pixel.
+        if (settled && box && was) {
+          const dx = was.left + was.width / 2 - box.left - box.width / 2;
+          const dy = was.top + was.height / 2 - box.top - box.height / 2;
+          // A tile whose shape changes a lot would squash the face in it on
+          // the way; it grows evenly instead and lets the edges catch up.
+          let sx = was.width / box.width;
+          let sy = was.height / box.height;
+          if (Math.abs(sx - sy) > .1) sx = sy = (sx + sy) / 2;
+          if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(sx - 1) > .02 || Math.abs(sy - 1) > .02) {
+            for (const part of slot.parts) {
+              if (typeof part.animate !== 'function') continue;
+              glides.get(part)?.cancel();
+              glides.set(part, part.animate(
+                [{ translate: `${dx}px ${dy}px`, scale: `${sx} ${sy}` }, { translate: '0 0', scale: '1 1' }],
+                { duration: 200, easing: 'cubic-bezier(.2, .8, .2, 1)' }
+              ));
+            }
+          }
+        }
+        present.set(slot.key, { row: slot.row, plain: !!slot.row && !slot.camera, box });
+      }
+      for (const [key, was] of cast || []) {
+        if (present.has(key) || !was.box || !was.plain || was.row.isConnected) continue;
+        const ghost = was.row;
+        for (const name of [...marks, 'data-habitat-enter', 'title']) ghost.removeAttribute(name);
+        ghost.setAttribute('data-habitat-leave', '');
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.style.removeProperty('grid-area');
+        for (const side of ['left', 'top', 'width', 'height']) ghost.style.setProperty(side, `${(was.box[side] / rem).toFixed(3)}rem`);
+        stage.appendChild(ghost);
+        const gone = () => ghost.remove();
+        ghost.addEventListener('animationend', gone, { once: true });
+        setTimeout(gone, 400)?.unref?.();
+      }
+      cast = present;
     };
     // Moving a playing video the plain way pauses it in some browsers.
     const carry = (node, parent, before) => {
@@ -851,13 +993,23 @@ class HabitatLayout {
           this._stageSize = new ResizeObserver(arrange);
           this._stageSize.observe(stage);
         }
-        focusKey = null; autoFocus = true; shareCount = 0; spread = false;
+        focusKey = null; autoFocus = true; shareCount = 0; spread = false; cast = null; lastSize = '';
+        if (proxies.length) {
+          this._controlsObserver = new MutationObserver(mirror);
+          for (const home of [document.querySelector('[data-habitat-tools]'), this._region('voice-controls'), document.getElementById('voice-bar')]) {
+            if (home) this._controlsObserver.observe(home, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'title'] });
+          }
+          mirror();
+        }
         dockBar(true);
         arrange();
       } else {
         this._stageObserver?.disconnect();
         this._stageSize?.disconnect();
+        this._controlsObserver?.disconnect();
         dockBar(false);
+        for (const ghost of stage.querySelectorAll('[data-habitat-leave]')) ghost.remove();
+        cast = null;
         for (const part of placed) unmark(part);
         placed = new Set();
         for (const face of roster.querySelectorAll('[data-habitat-call-avatar]')) face.remove();
@@ -1493,6 +1645,7 @@ class HabitatLayout {
     for (const face of document.querySelectorAll('[data-habitat-dm-avatar]')) face.remove();
     this._historyObserver?.disconnect();
     this._nameObserver?.disconnect();
+    this._joinObserver?.disconnect();
     document.getElementById('channel-header-name')?.removeAttribute('data-habitat-voice-title');
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
@@ -1557,6 +1710,7 @@ HabitatLayout.TEXT = Object.freeze({
     loss: 'Packet loss', jitter: 'Jitter', route: 'Route', server: 'Server',
     direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay',
     sideBySide: 'Show every shared screen together',
+    aloneTitle: 'You are the first one here', aloneHint: 'People appear here as they join.', invite: 'Invite people',
     upload: 'Upload', download: 'Download', video: 'Picture you send',
     limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer',
     sfu: 'Through the server (voice relay)'
@@ -1573,6 +1727,7 @@ HabitatLayout.TEXT = Object.freeze({
     loss: 'Paket kaybı', jitter: 'Seğirme', route: 'Yol', server: 'Sunucu',
     direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı',
     sideBySide: 'Paylaşılan ekranları birlikte göster',
+    aloneTitle: 'Buraya ilk gelen sensin', aloneHint: 'Katılanlar burada görünür.', invite: 'Davet et',
     upload: 'Yükleme', download: 'İndirme', video: 'Gönderdiğin görüntü',
     limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor',
     sfu: 'Sunucu üzerinden (ses aktarıcısı)'
@@ -1963,12 +2118,44 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 }
 [data-habitat-call-stage] .screen-share-tile > video { object-fit: contain; }
 [data-habitat-call-stage] [data-habitat-focused] { position: absolute; z-index: 1; }
+[data-habitat-call-stage] > [data-habitat-leave] { position: absolute; z-index: 0; pointer-events: none; }
+[data-habitat-alone] {
+  position: absolute; inset: auto 1rem 5.5rem; z-index: 2; display: grid; justify-items: center; gap: .25rem;
+  color: var(--text-secondary); font-size: .875rem; text-align: center; pointer-events: none;
+}
+[data-habitat-alone][hidden], [data-habitat-alone] > [hidden] { display: none; }
+[data-habitat-alone] > strong { color: var(--text-primary); font-size: 1rem; }
+[data-habitat-alone] > button {
+  margin-top: .5rem; min-height: 2.25rem; padding: 0 1rem; border: 0; border-radius: var(--radius-sm);
+  color: var(--accent-text); background: var(--accent); font: inherit; font-weight: 650; cursor: pointer; pointer-events: auto;
+}
+html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
+[data-habitat-leave] { pointer-events: none; }
 [data-habitat-stage-spread] {
   position: absolute; inset: calc(var(--hb-stage-top) + .5rem) auto auto 50%; z-index: 3; translate: -50%;
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0;
   border: 0; border-radius: .5rem; color: #fff; background: rgba(8, 9, 12, .68); cursor: pointer;
 }
 [data-habitat-stage-spread][hidden] { display: none; }
+[data-habitat-stage-controls] {
+  position: absolute; inset: auto auto 1rem 50%; z-index: 4; translate: -50%;
+  display: flex; gap: .5rem; padding: .375rem; border-radius: 2rem; background: rgba(8, 9, 12, .78);
+  opacity: 0; pointer-events: none;
+}
+[data-habitat-call-stage][data-habitat-focus] > [data-habitat-stage-controls] {
+  bottom: calc(var(--hb-stage-pad) + var(--hb-tile-h, 0rem) + var(--hb-stage-gap) + .75rem);
+}
+[data-habitat-call-stage]:is(:hover, :focus-within) > [data-habitat-stage-controls] { opacity: 1; pointer-events: auto; }
+[data-habitat-stage-controls] > button {
+  display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
+  border: 0; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .12); cursor: pointer;
+}
+[data-habitat-stage-controls] > button[hidden] { display: none; }
+[data-habitat-stage-controls] > button[aria-pressed="true"] { color: var(--danger-text); background: var(--danger); }
+[data-habitat-stage-controls] > :is([data-habitat-for="voice-cam-btn"], [data-habitat-for="screen-share-btn"])[aria-pressed="true"] {
+  color: var(--accent-text); background: var(--accent);
+}
+[data-habitat-stage-controls] > [data-habitat-for="voice-bar-leave-btn"] { color: var(--danger-text); background: var(--danger); }
 [data-habitat-stage-spread][aria-pressed="true"] { color: var(--accent-text); background: var(--accent); }
 [data-habitat-call-stage] .voice-user-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .375rem;
@@ -2160,17 +2347,17 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
 }
 [data-habitat-intro] h2 { margin: .75rem 0 .25rem; overflow-wrap: anywhere; font: 750 1.625rem/1.15 var(--font-heading); }
 [data-habitat-join-room] { margin-block-start: .5rem; min-height: 2.5rem; }
-[data-habitat-join-room][hidden], html:has([data-habitat-rooms] .active[data-voice-connected]) [data-habitat-join-room] { display: none; }
+[data-habitat-join-room][hidden] { display: none; }
 [data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
 @media (min-width: 901px) {
-  html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #voice-join-mobile { display: none; }
-  html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #right-sidebar-voice:has(#voice-users > .muted-text:only-child) { display: none; }
+  html[data-habitat-layout-desktop] #voice-join-mobile { display: none; }
+  html[data-habitat-layout-desktop] #right-sidebar-voice:has(#voice-join-mobile:not([style*="none"])):has(#voice-users > .muted-text:only-child) { display: none; }
 }
 /* A voice room has nothing to search, and on a phone its name needs the
    room, so the search button is only brought back for text channels. */
 @media (max-width: 768px) {
   html[data-habitat-layout] #header-actions-box[style*="display: flex"] { display: flex !important; padding: 0; gap: 0; }
-  html[data-habitat-layout]:not(:has(#channel-header-name[data-habitat-voice-title])) #header-actions-box #search-toggle-btn,
+  html[data-habitat-layout] .channel-header:not(:has(#channel-header-name[data-habitat-voice-title])) #header-actions-box #search-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #pinned-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #copy-code-btn[style*="inline-flex"] { display: inline-flex !important; }
   [data-habitat-channel-tools] summary, html[data-habitat-layout] #search-toggle-btn {

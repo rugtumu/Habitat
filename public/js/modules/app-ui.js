@@ -5,7 +5,7 @@
 
 import { keepInColumn } from './keep-in-column.js?v=4.29.18';
 
-// Habitat fork: move a guide while dragging so a busy chat only reflows on release.
+// Habitat fork: resize the panel live and fit the conversation or video once on release.
 function bindSidebarResize(handleId, storageKey, defaultSide) {
   const handle = document.getElementById(handleId);
   if (!handle) return;
@@ -22,37 +22,51 @@ function bindSidebarResize(handleId, storageKey, defaultSide) {
     const max = parseFloat(style.maxWidth) || Infinity;
     const onLeft = (panel.dataset.panelPos || defaultSide) === 'left';
     const direction = onLeft ? 1 : -1;
-    const guide = document.createElement('div');
-    guide.className = 'sidebar-resize-guide';
-    guide.style.left = (onLeft ? rect.right : rect.left) + 'px';
-    guide.style.top = rect.top + 'px';
-    guide.style.height = rect.height + 'px';
-    document.body.append(guide);
-    document.body.classList.add('resizing-sidebar');
+    const originalWidth = panel.style.width;
+    const area = document.getElementById('message-area');
+    const main = area?.closest('.main');
+    const contentWidth = main && style.position !== 'fixed' ? area.getBoundingClientRect().width : 0;
+    const originalContentWidth = area?.style.width;
+    if (contentWidth) {
+      area.style.width = contentWidth + 'px';
+      main.classList.add('clipping-resize');
+    }
     handle.setPointerCapture(start.pointerId);
+    handle.classList.add('dragging');
 
+    let frame = 0;
+    let nextWidth = rect.width;
     const widthAt = x => Math.round(Math.max(min, Math.min(max, rect.width + direction * (x - start.clientX))));
+    function paint() {
+      frame = 0;
+      panel.style.width = nextWidth + 'px';
+    }
     function move(event) {
-      if (event.pointerId === start.pointerId) {
-        guide.style.translate = direction * (widthAt(event.clientX) - rect.width) + 'px';
-      }
+      if (event.pointerId !== start.pointerId) return;
+      nextWidth = widthAt(event.clientX);
+      if (!frame) frame = requestAnimationFrame(paint);
     }
     function finish(event) {
       if (event.pointerId !== undefined && event.pointerId !== start.pointerId) return;
-      if (event.type === 'pointerup' && event.clientX !== start.clientX) {
-        const width = widthAt(event.clientX);
-        panel.style.width = width + 'px';
-        panel.getBoundingClientRect(); // Apply the drop before restoring the collapse transition.
-        localStorage.setItem(storageKey, width);
-        window._updateSbToggleRight?.();
-      }
+      cancelAnimationFrame(frame);
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', finish);
       handle.removeEventListener('lostpointercapture', finish);
       window.removeEventListener('blur', finish);
       if (handle.hasPointerCapture(start.pointerId)) handle.releasePointerCapture(start.pointerId);
-      guide.remove();
-      document.body.classList.remove('resizing-sidebar');
+      handle.classList.remove('dragging');
+      const commit = event.type === 'pointerup' && event.clientX !== start.clientX;
+      if (commit) {
+        nextWidth = widthAt(event.clientX);
+        paint();
+      } else {
+        panel.style.width = originalWidth;
+      }
+      if (contentWidth) {
+        area.style.width = originalContentWidth;
+        main.classList.remove('clipping-resize');
+      }
+      if (commit) localStorage.setItem(storageKey, nextWidth);
     }
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', finish);

@@ -1511,13 +1511,21 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
     // Honour auto-accept setting: show a join prompt instead of opening the
     // tile automatically. Clicking the sharer's live badge counts as the
     // accept for that share, so it skips the prompt too (#5636).
-    const accepted = !!(this._acceptedStreams && this._acceptedStreams.has(userId));
+    // Habitat fork: accepting a share also accepts later frames from its resumed sender.
+    const tileId = `screen-tile-${userId || 'self'}`;
+    let tile = document.getElementById(tileId);
+    const accepted = !!tile || this._acceptedStreams?.has(userId);
     const autoAccept = force || accepted || localStorage.getItem('haven_auto_accept_streams') !== 'false';
     if (!autoAccept && userId !== null && userId !== this.user.id) {
       const who = this.voice.peerName(userId) || t('voice.someone');
       // Keep the offered stream so the live badge can open it after the
       // prompt has gone (#5636).
       if (!this._pendingStreamOffers) this._pendingStreamOffers = new Map();
+      // Habitat fork: a late peer needs a viewer snapshot after its connection was created.
+      if (!this._pendingStreamOffers.has(userId) && this.voice.inVoice &&
+          !this.voice._relay && this.voice._callTransport !== 'relay') {
+        this.socket.emit('stream-unwatch', { code: this.voice.currentChannel, sharerId: userId });
+      }
       this._pendingStreamOffers.set(userId, stream);
       this._showToast(t('voice.sharing_started', { who }), 'info', {
         label: t('voice_runtime.join'),
@@ -1537,8 +1545,6 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
     this._pendingStreamOffers?.delete(userId);
 
     // Create a tile for this user's stream
-    const tileId = `screen-tile-${userId || 'self'}`;
-    let tile = document.getElementById(tileId);
     if (!tile) {
       tile = document.createElement('div');
       tile.id = tileId;
@@ -1721,42 +1727,12 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
     // Also re-play when metadata loads (handles late-arriving tracks)
     videoEl.onloadedmetadata = () => { videoEl.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ }); };
 
-    // WebRTC video tracks often arrive muted (no frames yet). Retry playback
-    // until the video actually has dimensions, which means frames are flowing.
-    let _retries = 0;
-    let _renegotiateRequested = false;
-    const _retryPlay = () => {
-      if (!videoEl.srcObject || _retries > 20) return;
-      if (videoEl.videoWidth === 0) {
-        _retries++;
-        // Re-trigger srcObject assignment to prod the decoder
-        if (_retries % 5 === 0) {
-          const s = videoEl.srcObject;
-          videoEl.srcObject = null;
-          videoEl.srcObject = s;
-        }
-        // After ~3s of no frames, ask the sharer to re-issue the offer.
-        // A hung renegotiation on the sharer side, an ICE restart that
-        // didn't carry video, or simply a dropped voice-offer all leave
-        // the receiver with audio-but-no-video. Asking for a renegotiate
-        // is the only way to recover without a full leave/rejoin.
-        // (#5347 v3.15.5)
-        if (!_renegotiateRequested && _retries >= 6 &&
-            this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
-          _renegotiateRequested = true;
-          this.socket.emit('request-screen-renegotiate', {
-            code: this.voice.currentChannel,
-            sharerId: userId
-          });
-        }
-        videoEl.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ });
-        setTimeout(_retryPlay, 500);
-      }
-    };
-    setTimeout(_retryPlay, 600);
-    this._startStreamStallWatchdog(tileId, userId);
-    this._screenShareMinimized = false;
-    this._removeScreenShareIndicator();
+    // Habitat fork: a parked tile can receive a replacement track while it is hidden.
+    if (tile.dataset.hidden !== 'true') {
+      this._startScreenPlaybackRecovery(tile, userId);
+      this._screenShareMinimized = false;
+      this._removeScreenShareIndicator();
+    }
     // Apply saved stream size so it doesn't start at default/cut-off height
     const savedStreamSize = localStorage.getItem('haven_stream_size');
     if (savedStreamSize) {
@@ -1768,8 +1744,8 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
     // Update label accounting for hidden tiles, and refresh hidden streams bar
     this._updateHiddenStreamsBar();
     this._updateScreenShareVisibility();
-    // Notify server we're watching this stream
-    if (this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
+    // Habitat fork: track redelivery must respect a viewer who closed the tile.
+    if (tile.dataset.hidden !== 'true' && this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
       this.socket.emit('stream-watch', { code: this.voice.currentChannel, sharerId: userId });
     }
   } else {
@@ -1786,6 +1762,8 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
       const vid = tile.querySelector('video');
       this._handleFullscreenTileRemoval(tile);
       this._updateFullscreenTileSource(tile, null);
+      clearTimeout(tile._screenPlaybackTimer);
+      clearTimeout(tile._screenPlaybackTimer);
       if (vid) vid.srcObject = null;
       tile.remove();
     }
@@ -1808,6 +1786,46 @@ _handleScreenStream(userId, stream, { force = false } = {}) {
     this._syncFullscreenCallControls();
     this._updateScreenShareVisibility();
   }
+},
+
+// Habitat fork: restoring a tile gives its encoder time to deliver a keyframe before recovery starts.
+_startScreenPlaybackRecovery(tile, userId) {
+  clearTimeout(tile._screenPlaybackTimer);
+  const videoEl = tile.querySelector('video');
+  // WebRTC video tracks often arrive muted (no frames yet). Retry playback
+  // until the video actually has dimensions, which means frames are flowing.
+  let _retries = 0;
+  let _renegotiateRequested = false;
+  const _retryPlay = () => {
+    if (tile.dataset.hidden === 'true' || !videoEl.srcObject || _retries > 20) return;
+    if (videoEl.videoWidth === 0) {
+      _retries++;
+      // Re-trigger srcObject assignment to prod the decoder
+      if (_retries % 5 === 0) {
+        const s = videoEl.srcObject;
+        videoEl.srcObject = null;
+        videoEl.srcObject = s;
+      }
+      // After ~3s of no frames, ask the sharer to re-issue the offer.
+      // A hung renegotiation on the sharer side, an ICE restart that
+      // didn't carry video, or simply a dropped voice-offer all leave
+      // the receiver with audio-but-no-video. Asking for a renegotiate
+      // is the only way to recover without a full leave/rejoin.
+      // (#5347 v3.15.5)
+      if (!_renegotiateRequested && _retries >= 6 &&
+          this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
+        _renegotiateRequested = true;
+        this.socket.emit('request-screen-renegotiate', {
+          code: this.voice.currentChannel,
+          sharerId: userId
+        });
+      }
+      videoEl.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ });
+      tile._screenPlaybackTimer = setTimeout(_retryPlay, 500);
+    }
+  };
+  tile._screenPlaybackTimer = setTimeout(_retryPlay, 600);
+  this._startStreamStallWatchdog(tile.id, userId);
 },
 
 // ── Stream Frame-Progress Watchdog ───────────────────────

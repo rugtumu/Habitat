@@ -1,3 +1,4 @@
+// Habitat fork: group related sections so members can reach them from one settings page.
 const SETTINGS_PAGES = {
   user: [
     ['look', '🎨', 'settings.pages.look', 'Appearance', ['section-layout', 'section-toolbar-icons', 'section-banner-display']],

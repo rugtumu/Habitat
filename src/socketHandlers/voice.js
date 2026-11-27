@@ -112,6 +112,8 @@ module.exports = function register(socket, ctx) {
         }
         streams.push({
           sharerId,
+          // Habitat fork: identify the capture so an old viewer list cannot pause a new share.
+          streamId: activeScreenSessions?.get(code)?.get(sharerId)?.streamId,
           sharerName: sharerInfo ? sharerInfo.username : 'Unknown',
           viewers: viewerList
         });

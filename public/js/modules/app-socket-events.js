@@ -5,6 +5,22 @@
 
 export default {
 
+// Habitat fork: a reused receiver may need to be watched before it can produce a frame.
+_syncMeshScreenWatches(channelCode, streams) {
+  const voice = this.voice;
+  if (!voice?.inVoice || voice.currentChannel !== channelCode || voice._relay || voice._callTransport === 'relay') return;
+  for (const share of streams) {
+    if (!share?.streamId || share.sharerId === this.user.id || !Array.isArray(share.viewers)) continue;
+    const { sharerId, viewers } = share;
+    if (viewers.some(v => v?.id === this.user.id)) continue;
+    const tile = document.getElementById(`screen-tile-${sharerId}`);
+    if (tile?.dataset.hidden === 'true') continue;
+    if (tile || this._acceptedStreams?.has(sharerId) || localStorage.getItem('haven_auto_accept_streams') !== 'false') {
+      this.socket.emit('stream-watch', { code: channelCode, sharerId });
+    }
+  }
+},
+
 _listenFeatureEvents() {
   this._listenForumVotes?.();
   this._listenForumBlog?.();
@@ -193,7 +209,10 @@ _listenFeatureEvents() {
   // ── Stream viewer tracking ───────────────────────
   this._streamInfo = []; // Array of { sharerId, sharerName, viewers: [{ id, username }] }
   this.socket.on('stream-viewers-update', (data) => {
-    this._streamInfo = data.streams || [];
+    this._streamInfo = Array.isArray(data?.streams) ? data.streams : [];
+    // Habitat fork: voice and text can be in different rooms, so pass the snapshot's channel.
+    this.voice?.updateScreenViewers(data?.channelCode, this._streamInfo);
+    this._syncMeshScreenWatches(data?.channelCode, this._streamInfo);
     this._updateStreamViewerBadges();
     // Always re-render voice users so the LIVE viewer count updates
     // regardless of which text channel the user is viewing

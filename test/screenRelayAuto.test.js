@@ -142,5 +142,6 @@ test('the userId is recovered from the connection when a caller does not pass it
   await voice._detectRelayPath(2, connection);
   connection.sender.applied = null;
   voice._applyScreenBitrate(connection, 8_000_000);
+  await new Promise(setImmediate);
   assert.equal(connection.sender.applied.encodings[0].maxBitrate, 3_000_000);
 });

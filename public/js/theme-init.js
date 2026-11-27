@@ -171,13 +171,13 @@
     link.rel = 'stylesheet';
     link.href = '/themes/' + encodeURIComponent(file);
     link.id = 'haven-theme-file-early';
-    // Habitat fork: a script-inserted stylesheet does not hold up the first
-    // paint by itself, so the base theme could show for a frame. Browsers
-    // that know blocking="render" wait for it; the rest ignore the attribute.
-    link.blocking = 'render';
     if (onSettled) {
       link.onload = onSettled;
       link.onerror = onSettled;
+    } else {
+      // Habitat fork: give the theme time to load without letting a stalled stylesheet hold first paint indefinitely.
+      link.blocking = 'render';
+      setTimeout(function() { link.blocking = ''; }, 3000);
     }
     document.head.appendChild(link);
   }

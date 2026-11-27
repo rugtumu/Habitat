@@ -106,6 +106,8 @@ class VoiceManager {
     const savedRes = localStorage.getItem('haven_screen_res');
     this.screenResolution = savedRes !== null ? parseInt(savedRes, 10) : 1080;  // 1080p default
     this.screenFrameRate = parseInt(localStorage.getItem('haven_screen_fps') || '30', 10) || 30;
+    // Habitat fork: remember whether the sharer wants smooth motion or legible text.
+    this.screenHint = localStorage.getItem('haven_screen_hint') === 'text' ? 'text' : 'motion';
     // User bitrate cap in kbps (0 = unlimited). Stepper in Settings moves in
     // 100 kbps steps between 300 and 10000; anything above wraps to unlimited.
     // Default 8000 restores the #5379 1080p ceiling for people who never
@@ -659,6 +661,8 @@ class VoiceManager {
   // ── Socket event listeners ──────────────────────────────
 
   _setupSocketListeners() {
+    // Habitat fork: media can survive a signalling outage that loses watch notifications.
+    this.socket.on('disconnect', () => this.updateScreenViewers(this.currentChannel, []));
     // Server signalled the voice channel no longer exists (DB row gone,
     // or we were never a member). Stop the watchdog/self-heal loop by
     // fully tearing down local voice state so the client stops thinking
@@ -697,11 +701,17 @@ class VoiceManager {
       // A client without the relay (its script failed to load) treats the call
       // as direct and connects to everyone itself, like an older app would.
       const canRelay = typeof window !== 'undefined' && typeof window.HavenRelaySession === 'function';
+      const previousTransport = this._callTransport;
       this._callTransport = data.transport === 'relay' && canRelay ? 'relay' : 'direct';
       if (this._callTransport === 'relay') {
         this._ensureRelay(channelCode, { resync: !!data.rejoin });
       } else if (this._relay) {
         this._closeRelay();
+      }
+      // Habitat fork: a capture moving between mesh and SFU should pick up that transport's hint.
+      if (previousTransport !== this._callTransport && this.isScreenSharing) {
+        this.updateScreenViewers(channelCode, []);
+        this._applyScreenContentHint();
       }
       const directUsers = (data.users || []).filter(u => u && !this._isRelayedPeer(u.id));
       // Apply audio bitrate cap from channel settings
@@ -758,6 +768,8 @@ class VoiceManager {
       console.warn('[Relay] The relay was turned off; switching this call to direct connections.');
       this._callTransport = 'direct';
       this._closeRelay();
+      // Habitat fork: resume the sharer's chosen hint on the newly direct connections.
+      if (this.isScreenSharing) this._applyScreenContentHint();
       const me = this.localUserId;
       for (const [userId, info] of this._voiceUserInfo) {
         if (userId === me || this.peers.has(userId) || !(me > userId)) continue;
@@ -1239,9 +1251,9 @@ class VoiceManager {
         const missing = screenTracks.filter(track => !senders.some(s => s.track === track));
         if (missing.length) {
           missing.forEach(track => conn.addTrack(track, this.screenStream));
-          const maxBitrate = this._screenBitrateFor(this.screenResolution);
-          this._applyScreenBitrate(conn, maxBitrate, targetUserId);
         }
+        // Habitat fork: a recovery request also retries a resume the encoder may have rejected.
+        this._applyScreenBitrate(conn, this._screenBitrateFor(this.screenResolution), targetUserId);
 
         // Renegotiate to include the video tracks (or refresh an existing
         // screen-share m-section that the receiver lost frames on), then nudge
@@ -1556,6 +1568,8 @@ class VoiceManager {
       this._screenWatchdogTimers.delete(sharerId);
       if (!this.screenSharers.has(sharerId)) return; // sharer stopped
       if (!this.inVoice || !this.currentChannel) return;
+      // Habitat fork: an intentionally hidden screen has no frames for recovery to find.
+      if (typeof document !== 'undefined' && document.getElementById(`screen-tile-${sharerId}`)?.dataset?.hidden === 'true') return;
       if (this._screenDelivered.has(sharerId)) {
         // Delivered flag can go stale if the track later ended/muted. Verify
         // the UI still has a live track; if not, clear and keep recovering.
@@ -1834,6 +1848,7 @@ class VoiceManager {
   }
 
   leave() {
+    // Habitat fork: leaving cancels pending rejoins and releases the microphone even if teardown fails.
     this._softLeftChannel = null;
     this._lastLiveRoom = null;
     this._leaveCount = (this._leaveCount || 0) + 1;
@@ -2308,14 +2323,9 @@ class VoiceManager {
 
       this.isScreenSharing = true;
 
-      // 3.18.1 (#5379): hint the encoder that this is motion content (games,
-      // videos, scrolling). Without this hint, browsers may bias toward
-      // "detail" mode which sacrifices framerate for sharpness, the opposite
-      // of what most screen-share use cases want.
-      try {
-        const vTrack = this.screenStream.getVideoTracks()[0];
-        if (vTrack && 'contentHint' in vTrack) vTrack.contentHint = 'motion';
-      } catch { /* unsupported, ignore */ }
+      // Habitat fork: each capture starts with fresh viewer decisions and the chosen content hint.
+      this._pausedScreenPeers = new Set();
+      this._applyScreenContentHint();
 
       // When user clicks browser "Stop sharing" button
       this.screenStream.getVideoTracks()[0].onended = () => {
@@ -2717,6 +2727,28 @@ class VoiceManager {
     if (this.isScreenSharing) this.reapplyScreenBitrate();
   }
 
+  // Habitat fork: changing what is on screen should not require another capture.
+  setScreenHint(value) {
+    this.screenHint = value === 'text' ? 'text' : 'motion';
+    try { localStorage.setItem('haven_screen_hint', this.screenHint); } catch { /* keep the choice for this session */ }
+    if (this.isScreenSharing && !this._relay && this._callTransport !== 'relay') {
+      this._applyScreenContentHint();
+      this._rebalanceScreenShare();
+    }
+  }
+
+  get _screenContentHint() {
+    return this.screenHint === 'text' && !this._relay && this._callTransport !== 'relay' ? 'detail' : 'motion';
+  }
+
+  _applyScreenContentHint() {
+    const track = this.screenStream?.getVideoTracks()[0];
+    if (!track || !('contentHint' in track)) return;
+    try {
+      track.contentHint = this._screenContentHint;
+    } catch { /* this browser does not support capture hints */ }
+  }
+
   /**
    * Apply resolution / framerate / bitrate changes to an active screen share
    * without stopping and restarting the stream.
@@ -2845,19 +2877,32 @@ class VoiceManager {
     return user > 0 ? user * 1000 : null;
   }
 
-  // Habitat fork: a call is a mesh, so a shared screen is encoded and uploaded
-  // once for every other person in it. The cap from settings is treated as
-  // the upload budget of the whole share and split between them, down to a
-  // floor that keeps text readable. Before, five people in a room meant four
-  // times the cap going out, more than most home lines can send, and the
-  // share froze for everyone. "Unlimited" stays unlimited: the sharer chose it.
-  _screenShareOf(cap) {
-    if (!cap) return cap;
-    return Math.max(Math.min(cap, 1_000_000), Math.round(cap / Math.max(1, this.peers.size)));
+  // Habitat fork: only a snapshot for this capture can stop an existing peer's video.
+  // A new connection stays active until a later snapshot covers it.
+  updateScreenViewers(channelCode, streams) {
+    if (!this.isScreenSharing || !this.screenStream || (channelCode && channelCode !== this.currentChannel)) return;
+    const share = channelCode && Array.isArray(streams) && streams.find(s => s?.sharerId === this.localUserId);
+    const viewers = share?.streamId && share.streamId === this.screenStream.id ? share.viewers : null;
+    const paused = new Set();
+    if (!this._relay && this._callTransport !== 'relay' && Array.isArray(viewers) &&
+        viewers.every(v => Number.isSafeInteger(v?.id))) {
+      const watching = new Set(viewers.map(v => v.id));
+      for (const [id, peer] of this.peers) if (!watching.has(id)) paused.add(peer);
+    }
+    const previous = this._pausedScreenPeers;
+    this._pausedScreenPeers = paused;
+    if (paused.size !== (previous?.size || 0) || [...paused].some(peer => !previous?.has(peer))) {
+      this._rebalanceScreenShare();
+    }
   }
 
-  // Habitat fork: the split depends on how many people are in the call, so it
-  // is worked out again when someone joins or leaves during a share.
+  // Habitat fork: divide the upload budget between active mesh senders and keep the readable floor.
+  _screenShareOf(cap) {
+    if (!cap) return cap;
+    const active = this.peers.size - (this._pausedScreenPeers?.size || 0);
+    return Math.max(Math.min(cap, 1_000_000), Math.round(cap / Math.max(1, active)));
+  }
+
   _rebalanceScreenShare() {
     if (!this.isScreenSharing) return;
     const cap = this._screenBitrateFor(this.screenResolution);
@@ -2891,10 +2936,7 @@ class VoiceManager {
   // (cheap); the relay producer re-create is debounced (see below).
   reapplyScreenBitrate() {
     if (!this.isScreenSharing) return;
-    const maxBitrate = this._screenBitrateFor(this.screenResolution);
-    for (const [userId, peer] of this.peers) {
-      this._applyScreenBitrate(peer.connection, maxBitrate, userId);
-    }
+    this._rebalanceScreenShare();
     this._scheduleRelayScreenRepublish();
   }
 
@@ -3094,41 +3136,59 @@ class VoiceManager {
 
   _applyScreenBitrate(connection, maxBitrate, userId = this._peerIdForConnection(connection)) {
     try {
-      const relayProfile = this._screenRelayProfileFor(userId);
-      const senders = connection.getSenders();
-      for (const sender of senders) {
-        if (sender.track && sender.track.kind === 'video' &&
-            this.screenStream && this.screenStream.getVideoTracks().includes(sender.track)) {
-          const params = sender.getParameters();
-          if (!params.encodings || params.encodings.length === 0) {
-            params.encodings = [{}];
-          }
-          // Per-encoding cap is the primary control; framerate hint also helps
-          // browsers that respect it (Chromium-based ones do). Under the relay
-          // profile the framerate stays unpinned on purpose, so the encoder can
-          // shed frames instead of filling a queue it cannot drain. A null cap
-          // is the "unlimited" setting, so remove any previous limit instead of
-          // writing zero, which some browsers read as "send nothing".
-          // Habitat fork: each viewer gets a share of the cap, see _screenShareOf.
-          const share = this._screenShareOf(maxBitrate);
-          if (relayProfile) {
-            const relayCap = this._screenBitrateFor(this.screenResolution, true);
-            params.encodings[0].maxBitrate = share ? Math.min(relayCap, share) : relayCap;
-            delete params.encodings[0].maxFramerate;
-          } else {
-            if (share) params.encodings[0].maxBitrate = share;
-            else delete params.encodings[0].maxBitrate;
-            if (this.screenFrameRate) {
-              params.encodings[0].maxFramerate = this.screenFrameRate;
-            }
-          }
-          params.degradationPreference = relayProfile ? 'balanced' : 'maintain-framerate';
-          sender.setParameters(params).catch(() => { /* browser rejected the hint: the encoder keeps its defaults */ });
-        }
-      }
+      const track = this.screenStream?.getVideoTracks()[0];
+      const sender = track && connection.getSenders().find(s => s.track === track);
+      if (sender) this._applyScreenVideoParameters(sender, maxBitrate, userId);
       // Protect audio from the video ramp-up. (#5426)
       this._prioritiseAudioSenders(connection);
     } catch (e) { /* setParameters not supported: adaptive bitrate remains */ }
+  }
+
+  // Habitat fork: finish one sender update before reading its parameters for the next.
+  // A quick restore must take effect even when the preceding pause is still in flight.
+  async _applyScreenVideoParameters(sender, maxBitrate, userId) {
+    const updates = this._screenSenderUpdates ||= new WeakMap();
+    if (updates.has(sender)) {
+      updates.set(sender, () => this._applyScreenVideoParameters(sender, maxBitrate, userId));
+      return;
+    }
+    updates.set(sender, null);
+    try {
+      if (!sender.track || sender.track !== this.screenStream?.getVideoTracks()[0]) return;
+      const params = sender.getParameters();
+      if (!params.encodings?.length) params.encodings = [{}];
+      const encoding = params.encodings[0];
+      const active = !this._pausedScreenPeers?.has(this.peers.get(userId));
+      const resuming = encoding.active === false && active;
+      encoding.active = active;
+      const share = this._screenShareOf(maxBitrate);
+      if (this._screenRelayProfileFor(userId)) {
+        const relayCap = this._screenBitrateFor(this.screenResolution, true);
+        encoding.maxBitrate = share ? Math.min(relayCap, share) : relayCap;
+        delete encoding.maxFramerate;
+        params.degradationPreference = 'balanced';
+      } else {
+        if (share) encoding.maxBitrate = share;
+        else delete encoding.maxBitrate;
+        if (this.screenFrameRate) encoding.maxFramerate = this.screenFrameRate;
+        params.degradationPreference = this._screenContentHint === 'detail' ? 'maintain-resolution' : 'maintain-framerate';
+      }
+      try {
+        await sender.setParameters(params);
+      } catch {
+        if (!resuming) return;
+        // Habitat fork: a rejected quality hint must not keep a returning viewer paused.
+        const fresh = sender.getParameters();
+        fresh.encodings[0].active = true;
+        await sender.setParameters(fresh);
+      }
+      if (resuming) this._requestScreenKeyframe(userId);
+    } catch { /* the sender may have closed during negotiation */ }
+    finally {
+      const next = updates.get(sender);
+      updates.delete(sender);
+      next?.();
+    }
   }
 
   // Mark every audio sender on this connection as high network priority.
@@ -3398,10 +3458,6 @@ class VoiceManager {
       this.screenStream.getTracks().filter(t => t.readyState === 'live').forEach(track => {
         connection.addTrack(track, this.screenStream);
       });
-      // Cap bitrate for this new peer
-      const res = this.screenResolution;
-      const maxBitrate = this._screenBitrateFor(this.screenResolution);
-      this._applyScreenBitrate(connection, maxBitrate, userId);
     }
 
     // If our webcam is active, add the webcam video track
@@ -3528,8 +3584,7 @@ class VoiceManager {
         // signals above have fired yet and this would be filed as voice
         // permanently. deferredAudio existed for exactly this and was drained
         // in the video branch, but nothing ever pushed into it, so the case
-        // was unreachable. Park it briefly instead, and fall back to voice if
-        // no video shows up. Never silently drop someone's speech. (#5426)
+        // was unreachable. Park it briefly so the video can claim it. (#5426)
         const mayBeScreenAudio = !isScreenAudio && peerIsSharing && !streamHasVideo &&
                                  sourceStream && sourceStream.id !== voiceStreamId;
         if (mayBeScreenAudio) {
@@ -3538,8 +3593,16 @@ class VoiceManager {
             const idx = deferredAudio.findIndex(d => d.track === track);
             if (idx === -1) return;              // the video branch claimed it
             deferredAudio.splice(idx, 1);
-            if (track.readyState !== 'live') return;
-            playMic(track);
+            const peer = this.peers.get(userId);
+            if (track.readyState !== 'live' || peer?.connection !== connection) return;
+            // Habitat fork: an unclaimed share must leave a live microphone playing on its own route.
+            const mic = peer.stream.getAudioTracks().find(t => t.readyState === 'live');
+            if (mic) {
+              if (mic !== track && this.screenSharers.has(userId)) this._playScreenAudio(userId, sourceStream);
+            } else {
+              voiceStreamId = sourceStream.id;
+              playMic(track);
+            }
           }, 1500);
           return;
         }
@@ -3646,7 +3709,8 @@ class VoiceManager {
       _offerIsIceRestart: false,
       _offerChannelCode: null,
     });
-    this._rebalanceScreenShare();  // Habitat fork: one viewer more, a smaller share each
+    // Habitat fork: include the new connection in the budget before applying its first cap.
+    this._rebalanceScreenShare();
 
     // If we're the initiator, create and send an offer
     if (createOffer) {
@@ -3674,6 +3738,7 @@ class VoiceManager {
       this._pendingScreenAudio?.delete(userId);
       this._screenDelivered.delete(userId);
       this._relayPeers?.delete(userId);
+      this._pausedScreenPeers?.delete(peer); // Habitat fork: a replacement connection starts active.
       this.peers.delete(userId);
       this._rebalanceScreenShare();  // Habitat fork: one viewer fewer, a larger share each
     } else if (this._relay || this._callTransport === 'relay') {
@@ -3698,6 +3763,7 @@ class VoiceManager {
   }
 
   _clearRemoteScreenAudio(userId) {
+    // Habitat fork: a closed share must release its playback and any audio waiting for its tile.
     this._cleanupScreenPlayback(userId);
     this._pendingScreenAudio?.delete(userId);
   }
@@ -4256,6 +4322,7 @@ class VoiceManager {
         audioEl.setSinkId(savedOutput).catch((err) => { console.warn('[Voice] saved output device unavailable, using the default', err); });
       }
     }
+    // Habitat fork: a reused element may still be muted from the previous share's mixer.
     audioEl.muted = false;
     audioEl.srcObject = stream;
 
@@ -4307,6 +4374,7 @@ class VoiceManager {
       source.connect(gainNode);
       gainNode.connect(this.audioCtx.destination);
       this.screenGainNodes.set(userId, gainNode);
+      // Habitat fork: the mixer already plays this share, so silence the element to avoid an echo.
       audioEl.muted = true;
       audioEl.volume = 0;
     } catch {
@@ -4566,6 +4634,7 @@ class VoiceManager {
   _disableRNNoise() {
     if (!this._rnnoiseNode) return;
     try {
+      // Habitat fork: detach the old worklet so late messages cannot rewire the microphone.
       this._rnnoiseNode.port.onmessage = null;
       this._rnnoiseNode.port.onmessageerror = null;
       this._rnnoiseSource?.disconnect(this._rnnoiseNode);
@@ -4953,6 +5022,7 @@ class VoiceManager {
 // there is one copy of that code, and gets its own AudioContext (48 kHz, as a
 // call's) so a test never touches a running call.
 class MicChain {
+  // Habitat fork: the microphone preview starts with the same noise suppression as a call.
   constructor(rawStream, { noiseMode = 'suppress' } = {}) {
     this.noiseMode = noiseMode;
     this.noiseSensitivity = 10;

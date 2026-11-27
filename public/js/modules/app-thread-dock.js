@@ -63,6 +63,8 @@ _syncThreadDock() {
   const next = margin ? `${margin}px` : '';
   if (main.style.marginRight !== next) main.style.marginRight = next;
   document.body.classList.toggle('thread-docked', !!margin);
+  // Habitat fork: keep the sidebar buttons above a forum topic without rescanning the page on each style change.
+  document.body.classList.toggle('forum-topic-docked', panel.classList.contains('thread-panel-forum') && !panel.classList.contains('pip'));
 },
 
 };

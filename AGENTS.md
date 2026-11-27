@@ -57,6 +57,12 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   their buttons and handlers keep working. `HabitatLayout.stageGrid` picks the
   tile size. Haven writes sizes and `display` inline on those panels, which is
   why the stage carries three `!important` rules; the layout test lists them.
+- Haven redraws every voice row when anyone's state changes. Anything that
+  should happen once per person (the join and leave effects, the avatars on
+  the stage) is keyed by who is there, never by which element is new.
+- The buttons on the stage (`[data-habitat-stage-controls]`) are stand-ins:
+  they click the real button and copy its icon, name and state. Do not move
+  the real ones there.
 
 ## Running and testing
 
@@ -102,9 +108,12 @@ server's owner; the steps, checks and rollback are in
    once to every other person. `public/js/voice.js` now splits the screen
    share cap between the people in the call (`_screenShareOf`) and gives the
    camera a ceiling per quality (`_applyWebcamBitrate`); `test/habitatMedia.test.js`
-   covers both. Still open: a viewer who closes a share keeps receiving it,
-   the share is always tuned for motion rather than text, and coturn in the
-   example setup has no bandwidth limit. Haven's built-in voice relay (an SFU,
+   covers both. On the mesh a viewer who closes a share, or has not accepted
+   it, is no longer sent the picture (`updateScreenViewers`; the sender's
+   encoding is switched off, never the track), and the split counts only the
+   people being sent to. A sharer can tune a share for motion or for text
+   (`haven_screen_hint`). Still open: coturn in the example setup has no
+   bandwidth limit. Haven's built-in voice relay (an SFU,
    Settings > Large Server Setup) sends each picture once however many people
    watch and stops sending a share to a viewer who closes it. It was tried
    locally with two accounts: the call stage and the connection details work

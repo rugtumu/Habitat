@@ -25,6 +25,8 @@ export const CALL_SETTING_KEYS = Object.freeze({
   screenResolution: 'haven_screen_res',
   screenFrameRate: 'haven_screen_fps',
   screenBitrate: 'haven_screen_bitrate',
+  // Habitat fork: both settings panels share the same screen content preference.
+  screenHint: 'haven_screen_hint',
 });
 
 const CAMERA_QUALITIES = ['480', '720', '720p60', '1080', '1080p60'];
@@ -72,6 +74,7 @@ const DEFINITIONS = {
   screenResolution: { default: 1080, normalize: oneOf(SCREEN_RESOLUTIONS, 1080, (v) => intOr(v, NaN)) },
   screenFrameRate: { default: 30, normalize: oneOf(SCREEN_FRAME_RATES, 30, (v) => intOr(v, NaN)) },
   screenBitrate: { default: 8000, normalize: normalizeBitrate },
+  screenHint: { default: 'motion', normalize: oneOf(['motion', 'text'], 'motion') },
 };
 
 /**
@@ -159,6 +162,9 @@ export function createCallSettings({ storage, getVoice } = {}) {
       case 'screenFrameRate':
         voice.setScreenFrameRate(value);
         break;
+      case 'screenHint':
+        voice.setScreenHint(value);
+        break;
       case 'screenBitrate':
         voice.setScreenBitrate(value);
         break;
@@ -174,7 +180,7 @@ export function createCallSettings({ storage, getVoice } = {}) {
     let next = def.normalize(raw);
     // A value that is not one of the choices is refused, not swapped for the
     // default: the setting stays as it was.
-    if ((id === 'noiseMode' || id === 'cameraQuality') && next !== String(raw)) return get(id);
+    if ((id === 'noiseMode' || id === 'cameraQuality' || id === 'screenHint') && next !== String(raw)) return get(id);
     if (notifying.has(id) && next === get(id)) return next; // a subscriber echoing the value back
     write(id, next);
     // The value is saved either way, so a failure in the engine must not keep

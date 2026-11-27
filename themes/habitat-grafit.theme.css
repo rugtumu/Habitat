@@ -495,7 +495,7 @@ html[data-haven-theme-api="1"] :focus-visible {
    keeps to that shape at its largest size; a ring or ornament drawn inside
    that outline is untouched. Hexagon and diamond frames stay as uploaded. */
 [data-haven-page="app"] .avatar-circle ~ .pfp-border,
-[data-haven-page="app"] [data-habitat-call-avatar] > .pfp-border { clip-path: circle(62.5%); }
+[data-haven-page="app"] :is([data-habitat-call-avatar], [data-habitat-face]) > .pfp-border { clip-path: circle(62.5%); }
 [data-haven-page="app"] .avatar-squircle ~ .pfp-border { clip-path: inset(-12.5% round 28%); }
 [data-haven-page="app"] .avatar-rounded ~ .pfp-border { clip-path: inset(-12.5% round .5rem); }
 
@@ -1031,6 +1031,10 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
   from { opacity: 0; translate: 0 .5rem; scale: .98; }
 }
 
+@keyframes hb-leave {
+  to { opacity: 0; scale: .94; }
+}
+
 /* Windows: the backdrop fades, the window settles into place. */
 [data-haven-page="app"] .modal-overlay {
   animation: hb-fade var(--hb-base) ease-out;
@@ -1114,19 +1118,20 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
   top: 50%;
   left: calc(-1 * var(--hb-rail-gap, .5rem));
   width: .3125rem;
-  height: 0;
+  height: 2.25rem;
+  scale: 1 0;
   translate: 0 -50%;
   background: var(--text-primary);
   clip-path: polygon(0 0, 100% .1875rem, 100% calc(100% - .1875rem), 0 100%);
-  transition: height var(--hb-base) var(--hb-ease);
+  transition: scale var(--hb-base) var(--hb-ease);
 }
 
 [data-haven-page="app"] .server-icon:not(.add-server):not(.manage-servers):not(.sync-servers):hover::before {
-  height: 1.25rem;
+  scale: 1 .556;
 }
 
 [data-haven-page="app"] .server-icon.active:not(.add-server):not(.manage-servers):not(.sync-servers)::before {
-  height: 2.25rem;
+  scale: 1 1;
 }
 
 html[data-habitat-layout-desktop="1"] {
@@ -2000,6 +2005,12 @@ html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn:active { sc
 
 /* Notices drop in under the channel header instead of over its buttons. */
 html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-inset-top, 0px)); }
+/* On a phone the header is taller than that and every pixel of it is a
+   button, so notices rise from the bottom instead, clear of the message box
+   and of the call buttons. */
+html[data-habitat-layout="compact"] #toast-container {
+  top: auto; bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse;
+}
 
 /* A voice room with no old messages gives all its space to the call. A room
    that has them, or a text channel with a call, keeps the chat underneath. */
@@ -2039,6 +2050,9 @@ html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-i
   width: clamp(1.5rem, calc(var(--hb-tile-h, 4rem) * .62), 3rem); height: clamp(1.5rem, calc(var(--hb-tile-h, 4rem) * .62), 3rem); font-size: .875rem;
 }
 [data-habitat-call-stage] .voice-user-item[data-habitat-focused] [data-habitat-call-avatar] { width: 6rem; height: 6rem; font-size: 2.25rem; }
+/* A picture frame is drawn a quarter larger than the face; without room of
+   its own it sat on the name underneath. */
+[data-habitat-call-stage] [data-habitat-call-avatar]:has(> .pfp-border) { margin-block: .5rem .625rem; }
 [data-habitat-call-stage] .voice-user-item .user-dot.voice { display: none; }
 [data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: .9375rem; }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .625rem .625rem auto; }
@@ -2086,6 +2100,23 @@ html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-i
   margin-inline-start: .375rem; padding: .1875rem .375rem; border-radius: .375rem; background: rgba(8, 9, 12, .68);
 }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons:empty { display: none; }
+/* The call buttons on the stage: they come and go with the pointer. */
+[data-habitat-stage-controls] { transition: opacity var(--hb-base) var(--hb-ease); }
+[data-habitat-stage-controls] > button {
+  transition: background-color var(--hb-fast) var(--hb-ease), scale var(--hb-fast) var(--hb-ease);
+}
+[data-habitat-stage-controls] > button:hover { scale: 1.06; }
+[data-habitat-stage-controls] > button:active { scale: .95; }
+[data-habitat-stage-controls] > button:focus-visible { outline: .125rem solid var(--accent); outline-offset: .125rem; }
+[data-habitat-stage-controls] .haven-glyph { font-size: 1.125rem; }
+/* Coming and going. A person who joins a call settles into the stage and
+   into the list under the room; a person who leaves fades where they were.
+   The layout marks only the rows that are new or gone, so nothing replays
+   when Haven redraws the others. */
+[data-habitat-call-stage] [data-habitat-enter] { animation: hb-pop .22s var(--hb-ease) both; }
+[data-habitat-call-stage] > [data-habitat-leave] { animation: hb-leave var(--hb-base) ease-in both; }
+html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-enter] { animation: hb-rise var(--hb-base) var(--hb-ease) both; }
+html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-leave] { animation: hb-leave var(--hb-base) ease-in both; }
 /* Haven redraws the people rows whenever someone speaks, so only the
    pictures, which stay put, fade in. */
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { animation: hb-fade var(--hb-base) var(--hb-ease) both; }

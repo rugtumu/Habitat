@@ -102,7 +102,7 @@ test('setScreenBitrate persists and re-applies live', () => {
   assert.equal(sender.applied.encodings[0].maxBitrate, 2_500_000);
 });
 
-test('unlimited removes the sender cap instead of writing zero', () => {
+test('unlimited removes the sender cap instead of writing zero', async () => {
   const { VoiceManager } = loadVoiceManager();
   const { voice, sender } = makeSharer(VoiceManager, { bitrate: 8000 });
   voice._applyScreenBitrate(
@@ -112,6 +112,7 @@ test('unlimited removes the sender cap instead of writing zero', () => {
   );
   assert.equal(sender.applied.encodings[0].maxBitrate, 8_000_000);
   voice.setScreenBitrate(0);
+  await new Promise(setImmediate);
   assert.ok(!('maxBitrate' in sender.applied.encodings[0]), 'cap removed for unlimited');
   assert.equal(sender.applied.encodings[0].maxFramerate, 60);
   assert.equal(sender.applied.degradationPreference, 'maintain-framerate');
@@ -936,4 +937,48 @@ test('keyframe requests only touch screen video senders', () => {
   voice.isScreenSharing = false;
   voice._requestScreenKeyframe();
   assert.equal(keyframes, 1, 'no-op when not sharing');
+});
+
+test('a fresh capture uses motion by default and for unknown preferences, and detail for text', () => {
+  for (const [stored, setting, hint] of [[null, 'motion', 'motion'], ['other', 'motion', 'motion'], ['text', 'text', 'detail']]) {
+    const { VoiceManager } = loadVoiceManager({ haven_screen_hint: stored });
+    const voice = new VoiceManager({ on() {} });
+    const track = { contentHint: '' };
+    voice.screenStream = { getVideoTracks: () => [track] };
+    voice._applyScreenContentHint();
+    assert.equal(voice.screenHint, setting);
+    assert.equal(track.contentHint, hint);
+  }
+});
+
+test('changing Optimize for updates the current track and senders while TURN keeps its balanced preference', async () => {
+  const { VoiceManager, storage } = loadVoiceManager();
+  const { voice, sender } = makeSharer(VoiceManager);
+  sender.track.contentHint = 'motion';
+  const turn = fakeSender(sender.track);
+  voice.peers.set(3, { connection: { getSenders: () => [turn] } });
+  voice._relayPeers = new Set([3]);
+  voice.setScreenHint('text');
+  assert.equal(storage.haven_screen_hint, 'text');
+  assert.equal(sender.track.contentHint, 'detail');
+  assert.equal(sender.applied.degradationPreference, 'maintain-resolution');
+  assert.equal(turn.applied.degradationPreference, 'balanced');
+  voice.setScreenHint('motion');
+  await new Promise(setImmediate);
+  assert.equal(sender.track.contentHint, 'motion');
+  assert.equal(sender.applied.degradationPreference, 'maintain-framerate');
+  assert.equal(turn.applied.degradationPreference, 'balanced');
+});
+
+test('the SFU capture keeps its motion hint when the mesh preference changes', () => {
+  const { VoiceManager, storage } = loadVoiceManager();
+  const { voice, sender } = makeSharer(VoiceManager);
+  voice._relay = {};
+  sender.track.contentHint = '';
+  voice.screenHint = 'text';
+  voice._applyScreenContentHint();
+  voice.setScreenHint('text');
+  assert.equal(storage.haven_screen_hint, 'text');
+  assert.equal(sender.track.contentHint, 'motion');
+  assert.equal(sender.applied, null);
 });

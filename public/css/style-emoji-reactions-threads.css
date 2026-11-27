@@ -1232,7 +1232,7 @@ html:not([data-toolbaricons="emoji"]):not([data-toolbaricons="color"]) .tb-icon-
 /* The member list and soundboard handles sit on the chat column's right
    edge. They stay above the open topic so the lists can still be opened and
    closed, and the topic's header keeps clear of them. */
-body:has(#thread-panel.thread-panel-forum:not(.pip)) :is(#sidebar-toggle-btn, #sb-sidebar-toggle-btn) { z-index: 99997; }
+body.forum-topic-docked :is(#sidebar-toggle-btn, #sb-sidebar-toggle-btn) { z-index: 99997; }
 .thread-panel.thread-panel-forum:not(.pip) .thread-panel-header { padding-right: 2.25rem; }
 .thread-panel-forum .thread-parent-meta,
 .thread-panel-forum .thread-parent-preview { display: none; }

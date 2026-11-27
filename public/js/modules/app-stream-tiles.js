@@ -60,7 +60,13 @@ _updateScreenShareVisibility() {
 _hideScreenShare() {
   const container = document.getElementById('screen-share-container');
   const grid = document.getElementById('screen-share-grid');
-  // Just minimize; don't destroy streams or stop sharing
+  // Habitat fork: minimising the whole mesh panel also stops watching its visible tiles.
+  if (this.voice?.inVoice && !this.voice._relay && this.voice._callTransport !== 'relay') {
+    for (const tile of grid.querySelectorAll('.screen-share-tile:not([data-hidden="true"])')) {
+      const uid = tile.id.replace('screen-tile-', '');
+      this._hideStreamTile(tile, parseInt(uid, 10) || uid);
+    }
+  }
   container.style.display = 'none';
   this._screenShareMinimized = true;
   // Show a "streams hidden" indicator if there are still tiles
@@ -81,15 +87,9 @@ _showScreenShareIndicator(count) {
       // Restore all hidden tiles and their audio
       if (grid) {
         grid.querySelectorAll('.screen-share-tile[data-hidden="true"]').forEach(t => {
-          t.style.display = '';
-          delete t.dataset.hidden;
-          if (t.dataset.muted === 'true') {
-            delete t.dataset.muted;
-            const uid = t.id.replace('screen-tile-', '');
-            const volSlider = t.querySelector('.stream-vol-slider');
-            const vol = volSlider ? parseInt(volSlider.value) / 100 : 1;
-            this.voice.setStreamVolume(uid, vol);
-          }
+          // Habitat fork: every restored screen needs a fresh watch notification.
+          const uid = t.id.replace('screen-tile-', '');
+          this._showStreamTile(t.id, parseInt(uid, 10) || uid);
         });
       }
       container.style.display = 'flex';
@@ -112,6 +112,10 @@ _removeScreenShareIndicator() {
 _hideStreamTile(tile, userId, who, muteAudio = false) {
   tile.style.display = 'none';
   tile.dataset.hidden = 'true';
+  // Habitat fork: intentionally paused video should never trigger decoder recovery.
+  clearTimeout(tile._screenPlaybackTimer);
+  this._stopStreamStallWatchdog(tile.id);
+  this.voice?._cancelScreenWatchdog?.(userId);
   if (muteAudio) {
     tile.dataset.muted = 'true';
     // Mute this stream's audio via gain node + audio element
@@ -121,7 +125,7 @@ _hideStreamTile(tile, userId, who, muteAudio = false) {
     if (audioEl) { audioEl.volume = 0; audioEl.pause(); }
   }
   // Notify server we stopped watching this stream
-  if (this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
+  if (this.voice && this.voice.inVoice && userId && userId !== 'self' && userId !== this.user.id) {
     this.socket.emit('stream-unwatch', { code: this.voice.currentChannel, sharerId: userId });
   }
   this._updateHiddenStreamsBar();
@@ -134,9 +138,14 @@ _showStreamTile(tileId, userId) {
   if (tile) {
     tile.style.display = '';
     delete tile.dataset.hidden;
+    if (this._screenShareMinimized) {
+      this._screenShareMinimized = false;
+      this._removeScreenShareIndicator();
+    }
     // Re-play video (browsers may pause while display:none)
     const vid = tile.querySelector('video');
     if (vid && vid.srcObject) vid.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ });
+    if (vid?.srcObject) this._startScreenPlaybackRecovery(tile, userId);
     // Restore audio if it was muted by close
     if (tile.dataset.muted === 'true') {
       delete tile.dataset.muted;
@@ -156,7 +165,7 @@ _showStreamTile(tileId, userId) {
       }
     }
     // Notify server we're watching this stream again
-    if (this.voice && this.voice.inVoice && userId && userId !== this.user.id) {
+    if (this.voice && this.voice.inVoice && userId && userId !== 'self' && userId !== this.user.id) {
       this.socket.emit('stream-watch', { code: this.voice.currentChannel, sharerId: userId });
     }
   }
@@ -167,7 +176,6 @@ _showStreamTile(tileId, userId) {
 
 _updateHiddenStreamsBar() {
   const grid = document.getElementById('screen-share-grid');
-  const container = document.getElementById('screen-share-container');
   let bar = document.getElementById('hidden-streams-bar');
   const hiddenTiles = grid.querySelectorAll('.screen-share-tile[data-hidden="true"]');
 
@@ -189,35 +197,9 @@ _updateHiddenStreamsBar() {
   // Bind restore button: clicking it restores all hidden streams
   bar.querySelector('.hidden-stream-restore-btn').addEventListener('click', () => {
     hiddenTiles.forEach(t => {
-      t.style.display = '';
-      delete t.dataset.hidden;
       const uid = t.id.replace('screen-tile-', '');
-      // Re-play video (browsers may pause while display:none)
-      const vid = t.querySelector('video');
-      if (vid && vid.srcObject) vid.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ });
-      // Restore audio if it was muted by close
-      if (t.dataset.muted === 'true') {
-        delete t.dataset.muted;
-        // Resume the audio element that was paused when hiding
-        const audioEl = document.getElementById(`voice-audio-screen-${uid}`);
-        if (audioEl && audioEl.paused) audioEl.play().catch(() => { /* autoplay blocked until the next click; nothing to recover */ });
-        // Check if the user had manually muted before closing
-        const muteBtn = t.querySelector('.stream-mute-btn');
-        if (muteBtn && muteBtn.dataset.muted === 'true') {
-          this.voice.setStreamVolume(uid, 0);
-        } else {
-          const volSlider = t.querySelector('.stream-vol-slider');
-          const vol = volSlider ? parseInt(volSlider.value) / 100 : 1;
-          this.voice.setStreamVolume(uid, vol);
-        }
-      }
-      // Notify server we're watching again
-      if (this.voice && this.voice.inVoice && uid !== String(this.user?.id)) {
-        this.socket.emit('stream-watch', { code: this.voice.currentChannel, sharerId: parseInt(uid) || uid });
-      }
+      this._showStreamTile(t.id, parseInt(uid, 10) || uid);
     });
-    this._updateHiddenStreamsBar();
-    this._updateScreenShareVisibility();
   });
 
   // Show the container only if there are still visible tiles; _updateScreenShareVisibility handles this.

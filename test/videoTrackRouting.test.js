@@ -15,7 +15,7 @@ class FakeMediaStream {
   getAudioTracks() { return this.tracks.filter(track => track.kind === 'audio'); }
 }
 
-function loadVoiceManager() {
+function loadVoiceManager(setTimeout = () => 1) {
   let connection;
   class FakeRTCPeerConnection {
     constructor() {
@@ -34,15 +34,15 @@ function loadVoiceManager() {
     console: { log() {}, warn() {}, error() {} },
     MediaStream: FakeMediaStream,
     RTCPeerConnection: FakeRTCPeerConnection,
-    setTimeout: () => 1,
+    setTimeout,
     clearTimeout() {},
   });
   vm.runInContext(`${VOICE_SOURCE}\nmodule.exports = VoiceManager;`, context, { filename: 'voice.js' });
   return { VoiceManager: context.module.exports, getConnection: () => connection };
 }
 
-async function createViewer() {
-  const { VoiceManager, getConnection } = loadVoiceManager();
+async function createViewer(setTimeout) {
+  const { VoiceManager, getConnection } = loadVoiceManager(setTimeout);
   const voice = Object.create(VoiceManager.prototype);
   voice.peers = new Map();
   voice.rtcConfig = {};
@@ -84,6 +84,35 @@ function remoteVideoTrack(id) {
     getSettings: () => ({}),
   };
 }
+
+test('unclaimed share audio keeps a live microphone playing after the timeout', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { voice, connection } = await createViewer(setTimeout);
+  const micRoutes = [];
+  const screenRoutes = [];
+  voice._playAudio = (_, stream) => micRoutes.push(stream);
+  voice._playScreenAudio = (_, stream) => screenRoutes.push(stream);
+  const deliverAudio = (id) => {
+    const track = { kind: 'audio', readyState: 'live', id };
+    const stream = new FakeMediaStream([track]);
+    stream.id = id;
+    connection.ontrack({ track, streams: [stream] });
+    return stream;
+  };
+
+  const mic = deliverAudio('microphone');
+  voice.screenSharers.add(7);
+  const share = deliverAudio('screen');
+  t.mock.timers.tick(1500);
+  assert.equal(micRoutes.length, 1, 'the microphone route was left alone');
+  assert.equal(voice.peers.get(7).stream.getAudioTracks()[0], mic.getAudioTracks()[0]);
+  assert.deepEqual(screenRoutes, [share]);
+
+  mic.getAudioTracks()[0].readyState = 'ended';
+  const replacement = deliverAudio('replacement');
+  t.mock.timers.tick(1500);
+  assert.equal(micRoutes.at(-1).getAudioTracks()[0], replacement.getAudioTracks()[0]);
+});
 
 test('camera stays in the webcam section while its peer is also screen-sharing', async () => {
   const { voice, connection } = await createViewer();

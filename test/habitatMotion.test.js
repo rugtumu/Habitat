@@ -85,9 +85,10 @@ test('reduced motion is left to Haven\'s own switch in the app, and follows the 
 
 test('the mark beside a server grows with the pointer and the selection', () => {
   const base = theme.match(/\.server-icon:not\(\.add-server\)[^{}]*::before\s*\{[^}]*\}/)?.[0] || '';
-  assert.match(base, /height:\s*0;/);
-  assert.match(base, /transition:\s*height/);
+  assert.match(base, /height:\s*2\.25rem;/);
+  assert.match(base, /scale:\s*1 0;/);
+  assert.match(base, /transition:\s*scale/);
   assert.match(base, /clip-path:\s*polygon/, 'it carries the Habitat cut');
-  assert.match(theme, /\.server-icon:not\([^{}]*:hover::before\s*\{\s*height:\s*1\.25rem/);
-  assert.match(theme, /\.server-icon\.active:not\([^{}]*::before\s*\{\s*height:\s*2\.25rem/);
+  assert.match(theme, /\.server-icon:not\([^{}]*:hover::before\s*\{\s*scale:\s*1 \.556/);
+  assert.match(theme, /\.server-icon\.active:not\([^{}]*::before\s*\{\s*scale:\s*1 1/);
 });

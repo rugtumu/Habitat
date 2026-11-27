@@ -383,3 +383,12 @@ test('the custom language picker preserves visible focus and listbox keyboard na
   assert.match(I18N_SOURCE, /close\(true\)/);
   assert.ok((I18N_SOURCE.match(/event\.stopPropagation\(\)/g) || []).length >= 4);
 });
+
+test('every bundled locale labels the screen optimization setting and its two choices', () => {
+  for (const file of filesUnder(path.join(ROOT, 'public/locales')).filter(file => file.endsWith('.json'))) {
+    const { voice_settings } = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const key of ['optimize_for', 'optimize_motion', 'optimize_text']) {
+      assert.ok(voice_settings[key]?.trim(), `${path.basename(file)}: voice_settings.${key}`);
+    }
+  }
+});

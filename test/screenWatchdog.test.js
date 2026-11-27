@@ -146,3 +146,12 @@ test('without a tile, a live receiver is still adopted', () => {
   assert.equal(voice.delivered.length, 1, 'receiver adopted when no tile exists');
   assert.equal(voice.emitted.length, 0, 'no signalling needed');
 });
+
+test('the late-join watchdog leaves a hidden tile alone', () => {
+  const { VoiceManager, fireTimer } = loadVoiceManager({ getElementById: () => ({ dataset: { hidden: 'true' } }) });
+  const voice = makeViewer(VoiceManager);
+  voice._watchForScreenStream(7, 1);
+  fireTimer();
+  assert.deepEqual(voice.emitted, []);
+  assert.deepEqual(voice.delivered, []);
+});

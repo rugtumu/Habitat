@@ -339,9 +339,13 @@ test('the page shows every call setting and the voice volume, with no legacy ids
   const { host, done } = await setupPage();
   try {
     const shown = new Set(host.querySelectorAll('[data-setting]').map((n) => n.getAttribute('data-setting')));
-    assert.ok(shown.has('voiceVolume'));
-    assert.ok(shown.has('inputDevice') && shown.has('cameraDevice') && shown.has('screenBitrate'));
+    const { CALL_SETTING_KEYS } = await load('public/js/modules/call-settings.js');
+    assert.deepEqual([...shown].sort(), Object.keys(CALL_SETTING_KEYS).filter(key => key !== 'voiceVolume').sort());
     assert.equal(host.querySelectorAll('[id]').length, 0);
+    const html = fs.readFileSync(path.join(ROOT, 'public/app.html'), 'utf8');
+    const section = html.split('id="section-call-settings">')[1].split('<div class="settings-section"')[0];
+    assert.match(section, /<input\b(?=[^>]*\btype="range")(?=[^>]*\bid="voice-master-volume")[^>]*>/);
+    assert.equal(html.match(/id="voice-master-volume"/g)?.length, 1);
   } finally { done(); }
 });
 

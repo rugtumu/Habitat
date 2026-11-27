@@ -1317,6 +1317,10 @@ _watchStream(userId) {
   if (!this._acceptedStreams) this._acceptedStreams = new Set();
   this._acceptedStreams.add(userId);
   if (!this.voice) return;
+  // Habitat fork: a mesh sharer may be waiting for this click before it sends any frames.
+  if (this.voice.inVoice && !this.voice._relay && this.voice._callTransport !== 'relay') {
+    this.socket.emit('stream-watch', { code: this.voice.currentChannel, sharerId: userId });
+  }
   // Media may already be flowing into a receiver nobody rendered.
   if (this.voice._deliverScreenFromReceivers?.(userId)) return;
   // No tile at all (e.g. we joined after they went live and their stream

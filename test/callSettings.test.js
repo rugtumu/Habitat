@@ -44,6 +44,7 @@ function makeVoice(overrides = {}) {
     setNoiseSensitivity: (v) => calls.push(['setNoiseSensitivity', v]),
     setScreenResolution: (v) => calls.push(['setScreenResolution', v]),
     setScreenFrameRate: (v) => calls.push(['setScreenFrameRate', v]),
+    setScreenHint: (v) => calls.push(['setScreenHint', v]),
     setScreenBitrate: (v) => calls.push(['setScreenBitrate', v]),
     ...overrides,
   };
@@ -67,6 +68,7 @@ test('storage keys are the ones the app already uses', () => {
     screenResolution: 'haven_screen_res',
     screenFrameRate: 'haven_screen_fps',
     screenBitrate: 'haven_screen_bitrate',
+    screenHint: 'haven_screen_hint',
   });
 });
 
@@ -82,6 +84,7 @@ test('get returns the default for every setting when nothing is saved', () => {
   assert.equal(settings.get('screenResolution'), 1080);
   assert.equal(settings.get('screenFrameRate'), 30);
   assert.equal(settings.get('screenBitrate'), 8000);
+  assert.equal(settings.get('screenHint'), 'motion');
 });
 
 test('get reads saved values and falls back on invalid ones', () => {
@@ -94,6 +97,7 @@ test('get reads saved values and falls back on invalid ones', () => {
     haven_screen_res: '0',
     haven_screen_fps: '60',
     haven_screen_bitrate: '2500',
+    haven_screen_hint: 'text',
   });
   const { settings } = setup({ storage });
   assert.equal(settings.get('inputDevice'), 'mic-1');
@@ -104,6 +108,7 @@ test('get reads saved values and falls back on invalid ones', () => {
   assert.equal(settings.get('screenResolution'), 0);
   assert.equal(settings.get('screenFrameRate'), 60);
   assert.equal(settings.get('screenBitrate'), 2500);
+  assert.equal(settings.get('screenHint'), 'text');
 
   const bad = setup({ storage: makeStorage({
     haven_voice_master_volume: 'loud',
@@ -113,6 +118,7 @@ test('get reads saved values and falls back on invalid ones', () => {
     haven_screen_res: 'x',
     haven_screen_fps: '0',
     haven_screen_bitrate: 'x',
+    haven_screen_hint: 'unknown',
   }) }).settings;
   assert.equal(bad.get('voiceVolume'), 1);
   assert.equal(bad.get('cameraQuality'), '480');
@@ -121,6 +127,7 @@ test('get reads saved values and falls back on invalid ones', () => {
   assert.equal(bad.get('screenResolution'), 1080);
   assert.equal(bad.get('screenFrameRate'), 30);
   assert.equal(bad.get('screenBitrate'), 8000);
+  assert.equal(bad.get('screenHint'), 'motion');
 });
 
 test('get still works when storage throws (private mode)', () => {
@@ -239,12 +246,14 @@ test('output device, volume and screen settings go to the engine whenever it exi
   settings.set('screenResolution', 720);
   settings.set('screenFrameRate', 60);
   settings.set('screenBitrate', 4000);
+  settings.set('screenHint', 'text');
   assert.deepEqual(voice.calls, [
     ['switchOutputDevice', 'spk-1'],
     ['setVoiceMasterVolume', 0.5],
     ['setScreenResolution', 720],
     ['setScreenFrameRate', 60],
     ['setScreenBitrate', 4000],
+    ['setScreenHint', 'text'],
   ]);
 });
 
@@ -326,12 +335,12 @@ test('screen bitrate rules match the voice engine', () => {
 test('voice.js and the layer use the same storage keys', () => {
   const fs = require('node:fs');
   const voiceSource = fs.readFileSync(path.join(__dirname, '..', 'public/js/voice.js'), 'utf8');
-  const used = new Set(voiceSource.match(/haven_(?:input_device|output_device|cam_device|voice_master_volume|cam_quality|noise_mode|ns_value|screen_res|screen_fps|screen_bitrate)\b/g));
+  const used = new Set(voiceSource.match(/haven_(?:input_device|output_device|cam_device|voice_master_volume|cam_quality|noise_mode|ns_value|screen_res|screen_fps|screen_bitrate|screen_hint)\b/g));
   const known = new Set(Object.values(CALL_SETTING_KEYS));
   for (const key of used) assert.ok(known.has(key), `${key} is not in CALL_SETTING_KEYS`);
   // voice.js is a classic script and cannot import the layer, so every key it
   // reads for a call setting must be one the layer owns, with the same default.
-  for (const key of ['haven_noise_mode', 'haven_screen_res', 'haven_screen_fps', 'haven_screen_bitrate', 'haven_ns_value']) {
+  for (const key of ['haven_noise_mode', 'haven_screen_res', 'haven_screen_fps', 'haven_screen_bitrate', 'haven_screen_hint', 'haven_ns_value']) {
     assert.ok(used.has(key), `voice.js no longer reads ${key}; update this test`);
   }
 });

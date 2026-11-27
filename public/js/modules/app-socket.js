@@ -595,6 +595,7 @@ _listenSession() {
           iAmInVoice: !!(this.voice && this.voice.inVoice && this.voice.currentChannel === this.currentChannel)
         });
       }
+      // Habitat fork: returning to the foreground may resume only a call that is still live.
       // (#5444) We deliberately kept the socket alive above if voice was
       // live, so rebind the voice slot here instead. This is a no-op on
       // the server when we're already bound on this socket.
@@ -610,9 +611,13 @@ _listenSession() {
   // iOS Safari bfcache: page is restored from cache (back/forward nav or tab switch)
   // without a visibilitychange event, so reconnect if the socket is stale.
   window.addEventListener('pageshow', (e) => {
-    if (e.persisted && this.socket && !this.socket.connected) {
-      this.socket.connect();
-    }
+    if (!e.persisted) return;
+    if (this.socket && !this.socket.connected) this.socket.connect();
+    // Habitat fork: pagehide ends the call, but the cache preserves its buttons and bar.
+    if (!this.voice) return;
+    this._updateVoiceButtons(this.voice.inVoice);
+    this._updateVoiceStatus(this.voice.inVoice);
+    this._updateVoiceBar();
   });
 
   // ── Wake-from-sleep detector (#post-sleep-channel-desync round 2) ──

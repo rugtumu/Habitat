@@ -211,8 +211,8 @@ function loadMasterVolumeMethods(document, localStorage) {
   return context.module.exports;
 }
 
-function loadStreamTileMethods(document) {
-  const context = vm.createContext({ module: { exports: {} }, document, t: key => key });
+function loadStreamTileMethods(document, globals = {}) {
+  const context = vm.createContext({ module: { exports: {} }, document, t: key => key, clearTimeout, ...globals });
   vm.runInContext(streamTilesSource.replace(/^export default/m, 'module.exports ='), context, {
     filename: 'app-stream-tiles.js',
   });
@@ -1926,4 +1926,36 @@ test('the grid button shows every stream in one click while some are left out', 
 
   setStreamShown(cameraTile, shareTile.id, false);
   assert.equal(button.hidden, false);
+});
+
+test('hiding a mesh tile cancels recovery and restoring it gives the first keyframe time to arrive', t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const video = {
+    videoWidth: 0, play: async () => {},
+    srcObject: { getVideoTracks: () => [{ readyState: 'live' }] },
+    getVideoPlaybackQuality: () => ({ totalVideoFrames: 0 }),
+  };
+  const tile = { id: 'screen-tile-2', style: {}, dataset: {}, querySelector: () => video };
+  const document = { getElementById: () => tile };
+  const globals = { document, localStorage: { getItem: () => null }, setTimeout, clearTimeout, setInterval, clearInterval };
+  const emitted = [];
+  const app = {
+    ...loadMethods(globals),
+    _hideStreamTile: loadStreamTileMethods(document, globals)._hideStreamTile,
+    _showStreamTile: loadStreamTileMethods(document, globals)._showStreamTile,
+    user: { id: 1 }, voice: { inVoice: true, currentChannel: '11111111' },
+    socket: { emit: event => emitted.push(event) },
+    _updateHiddenStreamsBar() {}, _updateScreenShareVisibility() {}, _refreshFullscreenStreamPicker() {},
+  };
+  app._startScreenPlaybackRecovery(tile, 2);
+  t.mock.timers.tick(600);
+  for (let n = 0; n < 4; n++) t.mock.timers.tick(500);
+  app._hideStreamTile(tile, 2);
+  for (let n = 0; n < 12; n++) t.mock.timers.tick(1000);
+  assert.deepEqual(emitted, ['stream-unwatch']);
+  app._showStreamTile(tile.id, 2);
+  t.mock.timers.tick(1000);
+  assert.deepEqual(emitted, ['stream-unwatch', 'stream-watch']);
+  for (let n = 0; n < 5; n++) t.mock.timers.tick(500);
+  assert.deepEqual(emitted, ['stream-unwatch', 'stream-watch', 'request-screen-renegotiate']);
 });

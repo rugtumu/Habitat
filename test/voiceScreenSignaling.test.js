@@ -108,6 +108,9 @@ test('screen-share-started forwards the display stream ID for remote track class
   const start = outgoing.find(entry => entry.event === 'screen-share-started');
   assert.ok(start);
   assert.equal(start.payload.streamId, 'screen-stream-1');
+  const snapshot = outgoing.find(entry => entry.event === 'stream-viewers-update');
+  assert.equal(snapshot.payload.streams[0].streamId, start.payload.streamId);
+  assert.deepEqual(snapshot.payload.streams[0].viewers, []);
 });
 
 test('late-join snapshots include active camera and screen stream IDs', () => {

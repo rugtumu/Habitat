@@ -869,6 +869,103 @@ test('a camera or a shared screen opens the stage by itself, once per call', () 
   assert.equal(FakeMutationObserver.live.size, 0);
 });
 
+test('only a newcomer settles into the stage; a redraw of the others replays nothing', () => {
+  const { stage, users, person, settle, layout } = buildCall({ people: 2 });
+  const entering = () => users.querySelectorAll('.voice-user-item').filter(row => row.hasAttribute('data-habitat-enter'))
+    .map(row => row.getAttribute('data-user-id'));
+  assert.deepEqual(entering(), [], 'the people already there when the stage opens just appear');
+  users.appendChild(person(3));
+  settle();
+  assert.deepEqual(entering(), ['3']);
+  // Haven throws every row away and draws them again when anyone's state changes.
+  for (const row of [...users.children]) row.remove();
+  for (const id of [1, 2, 3]) users.appendChild(person(id));
+  settle();
+  assert.deepEqual(entering(), [], 'known faces do not enter twice');
+  assert.equal(stage.querySelectorAll('[data-habitat-leave]').length, 0);
+  layout.stop();
+});
+
+test('tiles glide to their new place when the grid regroups, and not when the window is resized', () => {
+  const { stage, users, settle, layout } = buildCall({ people: 2 });
+  const [first, second] = users.querySelectorAll('.voice-user-item');
+  const glides = [];
+  const seat = (row, left, top, width, height) => Object.assign(row, { offsetLeft: left, offsetTop: top, offsetWidth: width, offsetHeight: height });
+  for (const row of [first, second]) row.animate = (frames, timing) => { glides.push({ row, frames, timing }); return { cancel() {} }; };
+  seat(first, 0, 0, 400, 300);
+  seat(second, 410, 0, 400, 300);
+  settle();
+  assert.equal(glides.length, 0, 'where things sit is learnt first');
+  // Someone took the large spot: the second person moves under the first.
+  seat(second, 0, 310, 400, 300);
+  settle();
+  assert.equal(glides.length, 1);
+  assert.equal(glides[0].row, second);
+  assert.equal(glides[0].frames[0].translate, '410px -310px', 'from where it was');
+  assert.equal(glides[0].frames[1].translate, '0 0', 'to where it belongs');
+  assert.ok(glides[0].timing.duration <= 250);
+  settle();
+  assert.equal(glides.length, 1, 'a second look at the same grid starts nothing');
+  // A window being dragged narrower moves everything on every pixel.
+  stage.clientWidth = 700;
+  seat(first, 0, 0, 340, 255);
+  seat(second, 0, 265, 340, 255);
+  settle();
+  assert.equal(glides.length, 1);
+  layout.stop();
+});
+
+test('alone in a voice room the stage says so, and stops saying it when someone joins', () => {
+  const { doc, stage, users, person, settle, layout } = buildCall({ people: 1 });
+  const note = stage.querySelector('[data-habitat-alone]');
+  assert.ok(note.hidden, 'a call in a text channel has the chat to look at');
+  stage.setAttribute('data-habitat-voice-room', '');
+  settle();
+  assert.ok(!note.hidden);
+  assert.ok(note.querySelector('button').hidden, 'no invite button without Haven\'s own');
+  const real = el(doc, 'button', { id: 'right-btn-invite-popout' });
+  let asked = 0;
+  real.click = () => { asked++; };
+  doc.body.appendChild(real);
+  settle();
+  assert.ok(!note.querySelector('button').hidden);
+  note.querySelector('button').fire('click');
+  assert.equal(asked, 1, 'the button presses Haven\'s invite');
+  users.appendChild(person(2));
+  settle();
+  assert.ok(note.hidden);
+  real.remove();
+  layout.stop();
+});
+
+test('the stage carries stand-ins for the call buttons on a desktop, and they press the real ones', () => {
+  const { doc, stage, layout } = buildCall();
+  const group = stage.querySelector('[data-habitat-stage-controls]');
+  const names = group.children.map(button => button.getAttribute('data-habitat-for'));
+  assert.deepEqual(names, ['voice-mute-btn', 'voice-deafen-btn', 'voice-cam-btn', 'screen-share-btn', 'voice-bar-leave-btn']);
+  const mute = doc.getElementById('voice-mute-btn');
+  let pressed = 0;
+  mute.click = () => { pressed++; mute.setAttribute('class', 'muted'); };
+  const stand = group.children[0];
+  assert.equal(stand.getAttribute('title'), 'Mute', 'named after the button it stands for');
+  assert.equal(stand.getAttribute('aria-pressed'), 'false');
+  stand.fire('click');
+  assert.equal(pressed, 1);
+  FakeMutationObserver.notify(doc.getElementById('voice-bar'));
+  assert.equal(stand.getAttribute('aria-pressed'), 'true', 'and shows its state');
+  assert.ok(group.children[2].hidden, 'a button the page does not have gets no stand-in');
+  assert.ok(!stage.fire('click', { target: stand }).stopped);
+  assert.ok(!stage.hasAttribute('data-habitat-focus'), 'pressing one does not enlarge a tile');
+  layout.stop();
+  assert.equal(doc.querySelector('[data-habitat-stage-controls]'), null);
+});
+
+test('a phone gets no stand-ins: the real row is under the stage', () => {
+  const { stage, layout } = buildCall({ desktop: false });
+  assert.equal(stage.querySelector('[data-habitat-stage-controls]'), null);
+  layout.stop();
+});
+
 test('on a phone the call buttons sit under the stage, and go back to the drawer with it', () => {
   const { doc, area, stage, context, voiceControls, layout, before } = buildCall({ desktop: false });
   const settings = doc.querySelector('[data-haven-region="voice-settings"]');
@@ -1038,6 +1135,30 @@ test('the channel disclosure preserves its original buttons and their visibility
   assert.equal(settings.style.display, 'none');
   layout.stop();
   assert.equal(snapshot(box), before);
+});
+
+test('the room join action follows the call even when the channel title stays put', () => {
+  const { doc, api } = buildApp();
+  doc.body.classList = { contains: () => false };
+  api.currentChannel = 'lobi';
+  Object.assign(window.app, { _canUseVoice: () => true, _isVoiceOnlyChannel: () => true });
+  const title = el(doc, 'h3', { id: 'channel-header-name' });
+  title.textContent = '# Lobi';
+  const indicator = el(doc, 'div', { id: 'voice-active-indicator' });
+  doc.body.appendChild(title);
+  doc.body.appendChild(indicator);
+  doc.body.appendChild(region(doc, 'message-list'));
+  const layout = new HabitatLayout();
+  layout.start();
+  const join = doc.querySelector('[data-habitat-join-room]');
+  assert.equal(join.hidden, false);
+  window.app.voice = { inVoice: true, currentChannel: 'lobi' };
+  FakeMutationObserver.notify(indicator);
+  assert.equal(join.hidden, true);
+  window.app.voice.currentChannel = 'oyun';
+  FakeMutationObserver.notify(indicator);
+  assert.equal(join.hidden, false);
+  layout.stop();
 });
 
 test('a room heading follows the start of history without adding a row to the feed', () => {

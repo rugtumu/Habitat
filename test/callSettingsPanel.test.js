@@ -47,7 +47,7 @@ function makeVoice() {
   const calls = [];
   const voice = { inVoice: false, isWebcamActive: false, calls };
   for (const name of ['switchInputDevice', 'switchOutputDevice', 'switchCamera', 'setVoiceMasterVolume',
-    'setNoiseMode', 'setNoiseSensitivity', 'setScreenResolution', 'setScreenFrameRate', 'setScreenBitrate']) {
+    'setNoiseMode', 'setNoiseSensitivity', 'setScreenResolution', 'setScreenFrameRate', 'setScreenBitrate', 'setScreenHint']) {
     voice[name] = (...args) => calls.push([name, ...args]);
   }
   return voice;
@@ -194,7 +194,7 @@ const byId = (host, id) => host.querySelector(`#${id}`);
 test('controls start on the saved values', () => {
   const storage = makeStorage({
     haven_cam_quality: '720p60', haven_noise_mode: 'suppress', haven_ns_value: '40',
-    haven_screen_res: '0', haven_screen_fps: '60', haven_screen_bitrate: '2500',
+    haven_screen_res: '0', haven_screen_fps: '60', haven_screen_bitrate: '2500', haven_screen_hint: 'text',
   });
   const { host } = setup({ storage });
   assert.equal(byId(host, 'voice-cam-quality').value, '720p60');
@@ -202,6 +202,7 @@ test('controls start on the saved values', () => {
   assert.equal(byId(host, 'voice-ns-slider').value, '40');
   assert.equal(byId(host, 'screen-res-select').value, 'source');
   assert.equal(byId(host, 'screen-fps-select').value, '60');
+  assert.equal(byId(host, 'screen-hint-select').value, 'text');
   assert.equal(byId(host, 'screen-bitrate-value').value, '2500 Kbps');
 });
 
@@ -212,6 +213,7 @@ test('defaults show when nothing is saved', () => {
   assert.equal(byId(host, 'voice-ns-slider').value, '10');
   assert.equal(byId(host, 'screen-res-select').value, '1080');
   assert.equal(byId(host, 'screen-fps-select').value, '30');
+  assert.equal(byId(host, 'screen-hint-select').value, 'motion');
   assert.equal(byId(host, 'screen-bitrate-value').value, '8000 Kbps');
 });
 
@@ -222,6 +224,7 @@ test('changing a control saves under the same key the app always used', () => {
   change('voice-noise-mode', 'off');
   change('screen-res-select', 'source');
   change('screen-fps-select', '60');
+  change('screen-hint-select', 'text');
   const slider = byId(host, 'voice-ns-slider');
   slider.value = '55';
   slider.dispatch('input');
@@ -229,6 +232,7 @@ test('changing a control saves under the same key the app always used', () => {
   assert.equal(storage.data.haven_noise_mode, 'off');
   assert.equal(storage.data.haven_screen_res, '0');
   assert.equal(storage.data.haven_screen_fps, '60');
+  assert.equal(storage.data.haven_screen_hint, 'text');
   assert.equal(storage.data.haven_ns_value, '55');
 });
 

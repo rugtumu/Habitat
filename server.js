@@ -724,8 +724,7 @@ app.get(['/', '/index.html', '/app', '/app.html'], async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// A fork release can keep the upstream package version. Revalidate executable assets
-// against this server instance even if Docker preserved the previous size and timestamp.
+// Habitat fork: revalidate client assets after a deploy even when their version, size and timestamp stay the same.
 const assetGeneration = crypto.randomBytes(8).toString('hex');
 function setClientAssetHeaders(res, file, stat) {
   if (!/\.(?:js|css|json|mjs)$/i.test(file)) return;

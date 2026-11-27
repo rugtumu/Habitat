@@ -893,7 +893,7 @@ html[lang="fa"] :is(input:not([type]), input[type="text"], input[type="search"],
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  transition: width 0.25s ease, min-width 0.25s ease, border-width 0.25s ease, opacity 0.2s ease;
+  transition: opacity 0.16s ease-out;
 }
 
 /* Collapsed state */
@@ -926,9 +926,7 @@ html[lang="fa"] :is(input:not([type]), input[type="text"], input[type="search"],
   cursor: pointer;
   padding: 0;
   z-index: 100;
-  /* `right` is set imperatively in JS when sidebars open/close; animate it
-     so the button slides with the panel rather than popping into place. */
-  transition: right 0.25s ease, color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 .sidebar-collapse-btn:hover {
   color: var(--text-primary);

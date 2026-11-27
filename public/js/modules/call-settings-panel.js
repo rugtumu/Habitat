@@ -125,6 +125,12 @@ export const CONTROLS = [
     options: SCREEN_RESOLUTION_OPTIONS,
     toControl: (v) => (v === 0 ? 'source' : String(v)),
     fromControl: (v) => (v === 'source' ? 0 : parseInt(v, 10)) },
+  // Habitat fork: a sharer can choose legible text for a document or smooth motion for video.
+  { kind: 'select', setting: 'screenHint', id: 'screen-hint-select', labelKey: 'voice_settings.optimize_for',
+    options: [
+      { value: 'motion', labelKey: 'voice_settings.optimize_motion' },
+      { value: 'text', labelKey: 'voice_settings.optimize_text' },
+    ] },
   { kind: 'bitrate', setting: 'screenBitrate', labelKey: 'voice_settings.bitrate' },
   { kind: 'select', setting: 'screenFrameRate', id: 'screen-fps-select', labelKey: 'voice_settings.frame_rate',
     options: [

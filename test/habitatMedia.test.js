@@ -37,7 +37,9 @@ function fakeSender(track) {
   return {
     track,
     applied: null,
-    getParameters() { return { encodings: [{}] }; },
+    keyframes: 0,
+    generateKeyFrame() { this.keyframes++; return Promise.resolve(); },
+    getParameters() { return structuredClone(this.applied || { encodings: [{ active: true }] }); },
     setParameters(p) { this.applied = p; return Promise.resolve(); }
   };
 }
@@ -47,7 +49,9 @@ function makeSharer(VoiceManager, { viewers = 1, bitrate, resolution = 1080 } = 
   const voice = Object.create(VoiceManager.prototype);
   const track = { kind: 'video', readyState: 'live' };
   voice.peers = new Map();
-  voice.screenStream = { getVideoTracks: () => [track], getTracks: () => [track] };
+  voice.currentChannel = '11111111';
+  voice.localUserId = 1;
+  voice.screenStream = { id: 'capture', getVideoTracks: () => [track], getTracks: () => [track] };
   voice.isScreenSharing = true;
   voice.screenResolution = resolution;
   voice.screenFrameRate = 30;
@@ -104,11 +108,12 @@ test('a viewer reached through the relay gets the smaller of its profile and its
   assert.deepEqual(alone.sent(), [3_000_000], 'and below the whole of it');
 });
 
-test('the split is worked out again when someone leaves', () => {
+test('the split is worked out again when someone leaves', async () => {
   const { voice, sent } = makeSharer(loadVoiceManager(), { viewers: 4 });
   voice.reapplyScreenBitrate();
   voice.peers.delete(5);
   voice._rebalanceScreenShare();
+  await new Promise(setImmediate);
   assert.deepEqual(sent().slice(0, 3), [2_666_667, 2_666_667, 2_666_667]);
   voice.isScreenSharing = false;
   voice.peers.delete(4);
@@ -128,4 +133,131 @@ test('a camera carries a ceiling for the quality picked', () => {
     assert.equal(camera.applied.encodings[0].maxBitrate, cap, `quality ${pick}`);
     assert.equal(microphone.applied, null, 'the voice is left alone');
   }
+});
+
+function snapshot(ids, streamId = 'capture') {
+  return [{ sharerId: 1, streamId, viewers: ids.map(id => ({ id })) }];
+}
+
+test('only the three watchers share the cap among nine peers and a bitrate change keeps six paused', async () => {
+  const { voice, senders } = makeSharer(loadVoiceManager(), { viewers: 9, bitrate: 9000 });
+  voice.updateScreenViewers(voice.currentChannel, snapshot([2, 5, 9]));
+  for (const [i, sender] of senders.entries()) {
+    assert.equal(sender.applied.encodings[0].active, [2, 5, 9].includes(i + 2));
+    assert.equal(sender.applied.encodings[0].maxBitrate, 3_000_000);
+  }
+  voice.setScreenBitrate(0);
+  await new Promise(setImmediate);
+  assert.equal(senders[1].applied.encodings[0].active, false);
+  assert.ok(senders.every(s => !('maxBitrate' in s.applied.encodings[0])));
+});
+
+test('a rapid unwatch and watch resumes after the pending pause, then asks for a keyframe', async () => {
+  const { voice, senders: [sender] } = makeSharer(loadVoiceManager());
+  let finishPause;
+  const apply = sender.setParameters.bind(sender);
+  sender.setParameters = params => {
+    if (params.encodings[0].active) return apply(params);
+    return new Promise(resolve => { finishPause = () => resolve(apply(params)); });
+  };
+  voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+  voice.updateScreenViewers(voice.currentChannel, snapshot([2]));
+  assert.equal(sender.keyframes, 0);
+  finishPause();
+  await new Promise(setImmediate);
+  assert.equal(sender.applied.encodings[0].active, true);
+  assert.equal(sender.keyframes, 1);
+});
+
+test('a missing, malformed or stale viewer list resumes the current share', async () => {
+  for (const list of [undefined, [], [{ sharerId: 3, viewers: [] }], [{ sharerId: 1, viewers: [] }],
+    [{ sharerId: 1, streamId: 'capture', viewers: [null] }], snapshot([], 'previous capture')]) {
+    const { voice, senders: [sender] } = makeSharer(loadVoiceManager());
+    voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+    voice.updateScreenViewers('22222222', snapshot([2]));
+    assert.equal(sender.applied.encodings[0].active, false, 'a text channel cannot control the voice share');
+    voice.updateScreenViewers(voice.currentChannel, list);
+    await new Promise(setImmediate);
+    assert.equal(sender.applied.encodings[0].active, true);
+    assert.equal(sender.keyframes, 1);
+  }
+});
+
+test('a new peer starts active until a snapshot arrives after it joined', async () => {
+  const { voice, senders: [first] } = makeSharer(loadVoiceManager());
+  voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+  const late = fakeSender(first.track);
+  voice.peers.set(3, { connection: { getSenders: () => [late] } });
+  voice._rebalanceScreenShare();
+  assert.equal(late.applied.encodings[0].active, true);
+  assert.equal(late.applied.encodings[0].maxBitrate, 8_000_000);
+  voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+  await new Promise(setImmediate);
+  assert.equal(late.applied.encodings[0].active, false);
+});
+
+test('losing the signalling socket releases paused mesh senders', async () => {
+  const { voice, senders: [sender] } = makeSharer(loadVoiceManager());
+  const handlers = new Map();
+  voice.socket = { on: (event, fn) => handlers.set(event, fn) };
+  voice._setupSocketListeners();
+  voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+  handlers.get('disconnect')();
+  await new Promise(setImmediate);
+  assert.equal(sender.applied.encodings[0].active, true);
+});
+
+test('mesh viewer updates leave a voice relay session alone', () => {
+  const { voice, senders: [sender] } = makeSharer(loadVoiceManager());
+  voice._relay = {};
+  voice.updateScreenViewers(voice.currentChannel, snapshot([]));
+  assert.equal(sender.applied, null);
+});
+
+test('the viewer-list socket handler pauses the sharer and only asks for shares the viewer wants', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'public/js/modules/app-socket-events.js'), 'utf8');
+  let auto = 'false';
+  let tile = null;
+  const context = vm.createContext({
+    module: { exports: {} },
+    document: { getElementById: () => tile },
+    localStorage: { getItem: () => auto },
+  });
+  vm.runInContext(source.replace(/^export default/m, 'module.exports ='), context);
+  const { voice, senders: [sender] } = makeSharer(loadVoiceManager());
+  voice.inVoice = true;
+  const listeners = new Map();
+  const watched = [];
+  const app = {
+    ...context.module.exports, voice, user: { id: 1 }, _updateStreamViewerBadges() {},
+    socket: {
+      on: (event, fn) => listeners.set(event, fn),
+      emit(event, { code, sharerId }) {
+        assert.equal(event, 'stream-watch');
+        assert.equal(code, voice.currentChannel);
+        watched.push(sharerId);
+      },
+    },
+  };
+  app._listenFeatureEvents();
+  const otherShare = { sharerId: 2, streamId: 'other-capture', viewers: [] };
+  const broadcast = () => listeners.get('stream-viewers-update')({
+    channelCode: voice.currentChannel, streams: [...snapshot([]), otherShare],
+  });
+  broadcast();
+  assert.equal(sender.applied.encodings[0].active, false);
+  assert.deepEqual(watched, [], 'the Join prompt has not been accepted');
+  auto = 'true';
+  broadcast();
+  assert.deepEqual(watched, [2], 'auto-accept can start a reused receiver before its first frame');
+  tile = { dataset: { hidden: 'true' } };
+  broadcast();
+  assert.deepEqual(watched, [2], 'a hidden tile stays unwatched');
+  auto = 'false';
+  tile = { dataset: {} };
+  broadcast();
+  assert.deepEqual(watched, [2, 2], 'a visible accepted tile can recover a lost watch');
+  otherShare.viewers = [{ id: 1 }];
+  broadcast();
+  assert.deepEqual(watched, [2, 2], 'an acknowledged watch yields no further requests');
 });
