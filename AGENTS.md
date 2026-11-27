@@ -81,6 +81,17 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   again on every repaint over it: a 70 megapixel banner held a live server
   to six frames a second while the page's own code sat idle.
 
+- The page opens straight into Habitat. `public/js/theme-init.js` marks the
+  root with `data-habitat-boot` before first paint when Habitat is the saved
+  layout; the regions the layout moves stay out of sight until the plugin
+  stamps `data-habitat-layout`, and the mark expires after three seconds so
+  a failed plugin never leaves the page hidden. A returning member lands in
+  the conversation they last had open on that device
+  (`habitat_last_conversation_<userId>`); nothing else opens by itself,
+  because opening a channel marks it read. The message list carries
+  `data-history` (pending, loading, ready, start, empty, failed), and the
+  conversation introduction shows only for `start` and `empty`.
+
 ## Running and testing
 
 ```bash
@@ -92,7 +103,7 @@ Register as `admin` to get an admin account. Then set the look in the browser:
 theme Habitat Grafit, Settings > Layout > Habitat, Interface Icons > Glyphs.
 
 ```bash
-node --test test/habitatIcons.test.js test/habitatLayout.test.js test/habitatMobile.test.js test/habitatMotion.test.js test/habitatMedia.test.js
+node --test test/habitat*.test.js
 npm test
 ```
 

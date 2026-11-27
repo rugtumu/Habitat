@@ -325,19 +325,12 @@ _listenFeatureEvents() {
       this._historyAfter = null;
 
       this.socket.emit('enter-channel', { code: data.newCode });
-      this.socket.emit('get-messages', { code: data.newCode });
+      // Habitat fork: a first page still in flight under the old code needs a fresh deadline.
+      this._setHistoryState('pending');
+      this._requestOpeningHistory(data.newCode);
       this.socket.emit('get-channel-members', { code: data.newCode });
       this.socket.emit('request-online-users', { code: data.newCode });
       this.socket.emit('request-voice-users', { code: data.newCode });
-
-      if (this._switchChannelSafetyTimer) clearTimeout(this._switchChannelSafetyTimer);
-      this._pendingChannelHistoryCode = data.newCode;
-      this._switchChannelSafetyTimer = setTimeout(() => {
-        if (this._pendingChannelHistoryCode === data.newCode && this.currentChannel === data.newCode) {
-          console.warn(`[channel-code-rotated] no message-history for ${data.newCode} within 5s - forcing resync`);
-          this._forceFullResync?.('channel-code-rotated-timeout');
-        }
-      }, 5000);
     } else if (wasInVoiceHere) {
       this.socket.emit('request-voice-users', { code: data.newCode });
     }

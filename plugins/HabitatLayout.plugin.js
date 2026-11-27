@@ -530,7 +530,9 @@ class HabitatLayout {
     const historyTitle = 'data-habitat-history-title';
     this._setAttr(messages, historyTitle, '');
     const syncHistory = () => {
-      const name = window.app?._noMoreHistory ? header.textContent.trim() : '';
+      const history = messages.getAttribute('data-history');
+      const atStart = (history === 'start' || history === 'empty') && window.app?._noMoreHistory;
+      const name = atStart ? header.textContent.trim() : '';
       if (messages.getAttribute(historyTitle) !== name) messages.setAttribute(historyTitle, name);
     };
     const syncJoin = () => {
@@ -563,7 +565,7 @@ class HabitatLayout {
       syncHistory();
     };
     this._historyObserver = new MutationObserver(syncHistory);
-    this._historyObserver.observe(messages, { childList: true });
+    this._historyObserver.observe(messages, { childList: true, attributes: true, attributeFilter: ['data-history'] });
     this._on(messages, 'scrollend', syncHistory);
     const indicator = document.getElementById('voice-active-indicator');
     if (indicator) {
@@ -2313,7 +2315,7 @@ html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile > spa
 html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; overflow: visible; }
 [data-habitat-intro] { display: none; }
 [data-habitat-intro="voice"]:not([hidden]),
-[data-haven-region="message-list"]:not(:has(> :not(#msg-more-btn))) + [data-habitat-intro]:not([hidden]) {
+[data-haven-region="message-list"][data-history="empty"]:not(:has(> :not(#msg-more-btn))) + [data-habitat-intro]:not([hidden]) {
   display: block; flex: none; padding: 1rem 1.5rem; color: var(--text-primary);
 }
 [data-habitat-intro] > span {

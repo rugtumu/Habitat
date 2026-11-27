@@ -163,7 +163,8 @@
   if (_safeMode) document.documentElement.setAttribute('data-haven-safe-mode', '1');
 
   // Habitat fork: the login page shares this script, but only the app starts layout plugins.
-  if (document.currentScript?.hasAttribute('data-habitat-app')) {
+  var habitatApp = document.currentScript?.hasAttribute('data-habitat-app');
+  if (habitatApp) {
     window.habitatPluginQuery = new URL(document.currentScript.src).search;
     if (!_safeMode && !_resetPending) {
       try {
@@ -199,6 +200,24 @@
     if (document.getElementById('haven-theme-file-early')) {
       if (onSettled) onSettled();
       return;
+    }
+    // Habitat fork: the verified Grafit stylesheet paints the header with --bg-primary.
+    // Its literal is needed before CSS loads. The shell uses Figtree for labels and
+    // Bricolage Grotesque for the channel and Welcome headings.
+    if (file === 'habitat-grafit.theme.css' && habitatApp) {
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = '#24282b';
+      if (!_a11yState || _a11yState.prefs.font === 'theme') {
+        ['figtree', 'bricolage-grotesque'].forEach(function(font) {
+          var preload = document.createElement('link');
+          preload.rel = 'preload';
+          preload.as = 'font';
+          preload.type = 'font/woff2';
+          preload.crossOrigin = 'anonymous';
+          preload.href = '/themes/habitat-fonts/' + font + '-latin.woff2';
+          document.head.appendChild(preload);
+        });
+      }
     }
     var link = document.createElement('link');
     link.rel = 'stylesheet';

@@ -6,6 +6,18 @@
 export default {
 
 _listenChannelsAndMessages() {
+  // Habitat fork: Welcome opens the same picker as Ctrl/Cmd+K, and retry requests only this page.
+  document.getElementById('welcome-find')?.addEventListener('click', () => this._openQuickSwitcher());
+  document.getElementById('history-retry')?.addEventListener('click', () => {
+    if (!this.currentChannel || document.getElementById('messages').dataset.history !== 'failed') return;
+    this._setHistoryState('pending');
+    this._requestOpeningHistory(this.currentChannel);
+  });
+  // Habitat fork: a broken connection ends the outstanding request even before its watchdog fires.
+  this.socket.on('disconnect', () => {
+    if (this.currentChannel && this._pendingChannelHistoryCode === this.currentChannel) this._setHistoryState('failed');
+  });
+  let firstList = true;
   this.socket.on('channels-list', (channels) => {
     // (#5391) Cancel the channels-not-arriving watchdog
     this._channelsListGotResponse = true;
@@ -123,6 +135,12 @@ _listenChannelsAndMessages() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
+    // Habitat fork: an invite or link owns this visit, even if it fails or a later list arrives after URL cleanup.
+    if (firstList) {
+      firstList = false;
+      if (!inviteCode && !linkChannel && !this.currentChannel) this._restoreConversation();
+    }
+
     // Re-evaluate input area visibility for the current channel (read-only, text/media toggles may have changed)
     if (this.currentChannel) {
       const curCh = this.channels.find(c => c.code === this.currentChannel);
@@ -147,7 +165,9 @@ _listenChannelsAndMessages() {
         this._noMoreFuture = true;
         this._loadingFuture = false;
         this._historyAfter = null;
-        this.socket.emit('get-messages', { code: this.currentChannel });
+        // Habitat fork: use the rotated code for the first page and its retry.
+        this._setHistoryState('pending');
+        this._requestOpeningHistory(this.currentChannel);
         this.socket.emit('get-channel-members', { code: this.currentChannel });
       }
     }
@@ -205,6 +225,12 @@ _listenChannelsAndMessages() {
   });
 
   this.socket.on('message-history', async (data) => {
+    const view = this._openingView;
+    // Habitat fork: only a well-formed page for the open conversation can establish its history.
+    if (!Array.isArray(data?.messages)) {
+      if (data?.channelCode && data.channelCode === this.currentChannel) this._setHistoryState('failed');
+      return;
+    }
     // (#post-sleep-channel-desync round 2) Clear the switch-channel safety
     // timer as soon as history arrives for the channel we last switched to.
     // This is what tells us the get-messages round-trip actually completed.
@@ -232,9 +258,17 @@ _listenChannelsAndMessages() {
       if (data.channelCode !== this.currentChannel) return;
       // Otherwise fall through so the main pane renders too.
     }
-    if (data.channelCode !== this.currentChannel) return;
+    if (data.channelCode !== this.currentChannel || this._openingView !== view) return;
     // E2E: decrypt DM messages before rendering
-    await this._decryptMessages(data.messages);
+    // Habitat fork: the member may navigate away while the DM keys are in use.
+    try {
+      await this._decryptMessages(data.messages);
+    } catch (error) {
+      if (data.channelCode === this.currentChannel && this._openingView === view) this._setHistoryState('failed');
+      console.warn('[History] Could not read the message page:', error);
+      return;
+    }
+    if (data.channelCode !== this.currentChannel || this._openingView !== view) return;
 
     // Self-healing key fetch: if the partner key was absent during decryption
     // (e.g. the pre-fetch in _recoverE2EFromBackup timed out before this
@@ -254,6 +288,8 @@ _listenChannelsAndMessages() {
       return;
     }
     if (this._historyBefore) {
+      // Habitat fork: even an empty older page must notify the layout that the start has been reached.
+      if (data.messages.length < 80) this._setHistoryState('start');
       // Pagination request: prepend older messages
       this._historyBefore = null;
       if (data.messages.length === 0) {
@@ -281,6 +317,8 @@ _listenChannelsAndMessages() {
       this._appendMessages(data.messages);
       this._loadingFuture = false;
     } else if (data.around) {
+      // Habitat fork: a window around a message does not establish the beginning of a conversation.
+      this._setHistoryState('ready');
       // Jump-to-message: replace everything and scroll to target
       if (data.messages.length > 0) {
         this._oldestMsgId = data.messages[0].id;
@@ -300,10 +338,10 @@ _listenChannelsAndMessages() {
       if (data.messages.length > 0) {
         this._oldestMsgId = data.messages[0].id;
         this._newestMsgId = data.messages[data.messages.length - 1].id;
-        if (data.messages.length < 80) this._noMoreHistory = true;
-      } else {
-        this._noMoreHistory = true;
       }
+      // Habitat fork: the server returns at most 80 messages, so a full page leaves earlier history unknown.
+      this._noMoreHistory = data.messages.length < 80;
+      this._setHistoryState(data.messages.length === 0 ? 'empty' : this._noMoreHistory ? 'start' : 'ready');
       this._renderMessages(data.messages, data.lastReadMessageId);
     }
 

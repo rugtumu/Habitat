@@ -468,7 +468,12 @@
           <div class="welcome-content">
             <div class="welcome-icon">⬡</div>
             <h2 data-i18n="welcome.title">Welcome to Habitat</h2>
-            <p data-i18n="welcome.subtitle">Join a channel with a code from your friends,<br>
+            <!-- Habitat fork: wait for the member's channel list before offering a way into a conversation. -->
+            <div id="welcome-conversations" hidden>
+              <p data-i18n="welcome.pick_conversation">Choose a conversation to open.</p>
+              <button id="welcome-find" type="button" class="btn-sm btn-accent" data-i18n="welcome.find_conversation">Find a conversation</button>
+            </div>
+            <p id="welcome-new-member" hidden data-i18n="welcome.subtitle">Join a channel with a code from your friends,<br>
                or create one if you're the admin.</p>
           </div>
         </div>
@@ -563,6 +568,13 @@
           <div class="messages" id="messages" data-haven-region="message-list">
             <!-- Floating "⋯" button for touch-device message actions fallback -->
             <button id="msg-more-btn" data-i18n-aria-label="app.actions.message_actions" aria-label="Message actions">⋯</button>
+          </div>
+          <!-- Habitat fork: keep history feedback outside the list so pagination and scroll geometry stay intact. -->
+          <div class="history-status" role="status">
+            <span class="history-loading" data-i18n="history.loading">Loading messages…</span>
+            <span class="history-failed"><span data-i18n="history.failed">Messages couldn’t load.</span>
+              <button type="button" id="history-retry" class="btn-sm" data-i18n="history.retry">Retry</button>
+            </span>
           </div>
           <button id="jump-to-bottom" class="jump-to-bottom" data-i18n-title="app.actions.jump_to_bottom" title="Jump to bottom">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

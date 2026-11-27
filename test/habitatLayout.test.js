@@ -1368,6 +1368,12 @@ test('a room heading follows the start of history without adding a row to the fe
   layout.start();
   assert.equal(feed.getAttribute('data-habitat-history-title'), '');
   window.app._noMoreHistory = true;
+  for (const state of ['pending', 'loading', 'failed', 'ready']) {
+    feed.setAttribute('data-history', state);
+    FakeMutationObserver.notify(feed);
+    assert.equal(feed.getAttribute('data-habitat-history-title'), '');
+  }
+  feed.setAttribute('data-history', 'start');
   FakeMutationObserver.notify(feed);
   assert.equal(feed.getAttribute('data-habitat-history-title'), '# oyun');
   assert.deepEqual(feed.children, [first]);

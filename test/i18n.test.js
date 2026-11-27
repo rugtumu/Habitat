@@ -189,6 +189,19 @@ test('loaded text says Habitat, but links, identifiers and the Haven Desktop app
   assert.equal(env.i18n.t('mobile'), 'the Amni-Haven Android app');
 });
 
+test('opening copy has English text, and every other locale falls back to it', async () => {
+  const bundled = url => {
+    const match = /^\/locales\/([a-z]+)\.json$/.exec(url);
+    if (match) return jsonResponse(JSON.parse(fs.readFileSync(path.join(ROOT, 'public/locales', match[1] + '.json'), 'utf8')));
+  };
+  const english = await createI18n({ storedLocale: 'en', fetchOverride: bundled });
+  const fr = await createI18n({ storedLocale: 'fr', fetchOverride: bundled });
+  for (const key of ['welcome.pick_conversation', 'welcome.find_conversation', 'history.loading', 'history.failed', 'history.retry']) {
+    assert.notEqual(english.i18n.t(key), key);
+    assert.equal(fr.i18n.t(key), english.i18n.t(key));
+  }
+});
+
 test('automatic language follows the first supported browser language without freezing it', async () => {
   const env = await createI18n({ languages: ['xx-ZZ', 'pt-BR'] });
   assert.equal(env.i18n.locale, 'pt');

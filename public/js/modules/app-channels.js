@@ -60,6 +60,51 @@ _dmOpensInMain() {
   return choice === null ? document.documentElement.hasAttribute('data-habitat-layout') : choice === 'true';
 },
 
+// Habitat fork: the stable ID survives channel code rotations and belongs only to this member on this origin.
+_rememberConversation(channel) {
+  if (this.user?.id == null || this.user.isGuest) return;
+  const key = 'habitat_last_conversation_' + this.user.id;
+  try {
+    if (channel?.id != null) localStorage.setItem(key, String(channel.id));
+    else localStorage.removeItem(key);
+  } catch { /* Storage is optional for navigation. */ }
+},
+
+_restoreConversation() {
+  if (this.currentChannel || this._activeDMPip || this.user?.id == null || this.user.isGuest) return;
+  let id;
+  try {
+    if (sessionStorage.getItem('haven_pending_invite') || sessionStorage.getItem('haven_pending_channel')) return;
+    id = localStorage.getItem('habitat_last_conversation_' + this.user.id);
+  } catch { return; }
+  if (id === null) return;
+  const channel = this.channels.find(ch => String(ch.id) === id);
+  if (channel) this.switchChannel(channel.code);
+  else this._rememberConversation(null);
+},
+
+// Habitat fork: the first page may arrive before a loading label would be useful.
+_setHistoryState(state) {
+  clearTimeout(this._historyLabelTimer);
+  const list = document.getElementById('messages');
+  list.dataset.history = state;
+  list.setAttribute('aria-busy', String(state === 'pending'));
+  if (state === 'pending') {
+    this._historyLabelTimer = setTimeout(() => { list.dataset.history = 'loading'; }, 150);
+  }
+},
+
+_requestOpeningHistory(code) {
+  clearTimeout(this._switchChannelSafetyTimer);
+  this._pendingChannelHistoryCode = code;
+  this._switchChannelSafetyTimer = setTimeout(() => {
+    if (this.currentChannel !== code || this._pendingChannelHistoryCode !== code) return;
+    this._setHistoryState('failed');
+    this._forceFullResync?.('switch-channel-timeout');
+  }, 5000);
+  this.socket.emit('get-messages', this._getMessagesParams ? this._getMessagesParams(code) : { code });
+},
+
 async switchChannel(code) {
   if (this.currentChannel === code) return;
 
@@ -216,6 +261,10 @@ async switchChannel(code) {
   }
 
   const messagesEl = document.getElementById('messages');
+  // Habitat fork: changing the title must not present an empty list as the start of history.
+  const view = this._openingView = Symbol();
+  this._setHistoryState('pending');
+  if (channel) this._rememberConversation(channel);
   messagesEl.innerHTML = '';
   document.getElementById('message-area').style.display = 'flex';
   document.getElementById('no-channel-msg').style.display = 'none';
@@ -257,7 +306,9 @@ async switchChannel(code) {
       console.warn('[Haven] DM partner key fetch failed, continuing unencrypted:', err);
     }
   }
-  this.socket.emit('get-messages', this._getMessagesParams ? this._getMessagesParams(code) : { code });
+  // Habitat fork: a DM key can finish fetching after the member has opened a different conversation.
+  const stillViewing = this.currentChannel === code && this._openingView === view;
+  if (stillViewing) this._requestOpeningHistory(code);
   // Belt-and-braces mark-read: if the server already told us the latest
   // message id for this channel (channels-list snapshot), fire a
   // mark-read IMMEDIATELY (not via the debounced _markRead path) so that
@@ -287,27 +338,14 @@ async switchChannel(code) {
       try { this._updateDesktopBadge?.(); } catch (err) { console.warn('[Channels] _updateDesktopBadge failed', err); }
     }
   }
+  // Habitat fork: a DM that was briefly open still counts as read, but its roster belongs to the previous view.
+  if (!stillViewing) return;
   this.socket.emit('get-channel-members', { code });
   // VOICE panel shows who's in voice in the channel you just opened.
   this.socket.emit('request-voice-users', {
     code,
     iAmInVoice: !!(this.voice && this.voice.inVoice && this.voice.currentChannel === code)
   });
-  // Safety net (#post-sleep-channel-desync round 2): if message-history
-  // doesn't arrive within 5 s for the channel we just switched to, the
-  // socket is likely a zombie (silent disconnect, write buffered but not
-  // flushed). Force a full resync: the 'connect' handler will re-emit
-  // enter-channel + get-messages and unstick the empty chat view. Cleared
-  // by the message-history listener in app-socket.js when a response for
-  // this code arrives.
-  if (this._switchChannelSafetyTimer) clearTimeout(this._switchChannelSafetyTimer);
-  this._pendingChannelHistoryCode = code;
-  this._switchChannelSafetyTimer = setTimeout(() => {
-    if (this._pendingChannelHistoryCode === code && this.currentChannel === code) {
-      console.warn(`[switch-channel] no message-history for ${code} within 5s, forcing resync`);
-      this._forceFullResync?.('switch-channel-timeout');
-    }
-  }, 5000);
   this._clearReply();
   this._closeThread();
 
@@ -466,7 +504,18 @@ _showWelcome() {
   if (dmNotice) { dmNotice.style.display = 'none'; dmNotice.textContent = ''; }
 },
 
+_updateWelcomeChoices() {
+  // Habitat fork: a returning member can find a channel or DM from Welcome even after the list changes.
+  const existing = document.getElementById('welcome-conversations');
+  const newcomer = document.getElementById('welcome-new-member');
+  if (existing && newcomer && this._channelsListGotResponse) {
+    existing.hidden = this.channels.length === 0;
+    newcomer.hidden = !existing.hidden;
+  }
+},
+
 _renderChannels() {
+  this._updateWelcomeChoices();
   const list = document.getElementById('channel-list');
   // Habitat fork: keep native channel rows and their menus in the layout's voice section.
   const voiceSection = list.querySelector('[data-habitat-voice-section]');

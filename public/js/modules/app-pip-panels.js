@@ -519,6 +519,8 @@ _openDMPiP(code) {
   }
   panel.style.display = 'flex';
   panel.dataset.code = code;
+  // Habitat fork: a DM opened over a channel is the member's most recent conversation.
+  this._rememberConversation(ch);
   this._typingRender?.();
   // Title: partner name, or the group's name for a group DM
   const partnerName = ch.is_group ? this._groupName(ch) : ch.dm_target ? this._getNickname(ch.dm_target.id, ch.dm_target.username) : 'DM';
@@ -656,6 +658,8 @@ _openDMPiPBody(ch, code, panel) {
 },
 
 _closeDMPiP() {
+  // Habitat fork: closing the floating DM returns the member to the conversation beneath it.
+  if (this._activeDMPip) this._rememberConversation(this.channels.find(ch => ch.code === this.currentChannel));
   this._activeDMPip = null;
   // A reaction picker opened on one of its messages floats on <body>.
   this._closeReactionPickers?.();

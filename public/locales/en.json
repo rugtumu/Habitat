@@ -992,7 +992,15 @@
     "too_many_requests": "Slow down: too many requests",
     "muted_for": "You are muted for {{minutes}} more minute(s)"
   },
+  "_habitat_note": "Habitat fork: Welcome and message history explain the next action in the member’s language.",
+  "history": {
+    "loading": "Loading messages…",
+    "failed": "Messages couldn’t load.",
+    "retry": "Retry"
+  },
   "welcome": {
+    "pick_conversation": "Choose a conversation to open.",
+    "find_conversation": "Find a conversation",
     "title": "Welcome to Haven",
     "subtitle": "Join a channel with a code from your friends,\nor create one if you're the admin."
   },
