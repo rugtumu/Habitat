@@ -69,7 +69,7 @@ Register as `admin` to get an admin account. Then set the look in the browser:
 theme Habitat Grafit, Settings > Layout > Habitat, Interface Icons > Glyphs.
 
 ```bash
-node --test test/habitatIcons.test.js test/habitatLayout.test.js test/habitatMobile.test.js test/habitatMotion.test.js
+node --test test/habitatIcons.test.js test/habitatLayout.test.js test/habitatMobile.test.js test/habitatMotion.test.js test/habitatMedia.test.js
 npm test
 ```
 
@@ -98,6 +98,15 @@ server's owner; the steps, checks and rollback are in
    live participants and phones still need a real call. On a phone the camera,
    share and leave buttons are in the drawer; a control bar on the stage itself
    would be the next step.
-2. **Light theme.** Habitat Grafit is dark only.
-3. **Native apps.** The TestFlight and Play Store apps are upstream's and
+2. **Call quality.** A call is a mesh: a shared screen and a camera are sent
+   once to every other person. `public/js/voice.js` now splits the screen
+   share cap between the people in the call (`_screenShareOf`) and gives the
+   camera a ceiling per quality (`_applyWebcamBitrate`); `test/habitatMedia.test.js`
+   covers both. Still open: a viewer who closes a share keeps receiving it,
+   the share is always tuned for motion rather than text, and coturn in the
+   example setup has no bandwidth limit. Haven's built-in voice relay (an SFU,
+   Admin > voice relay mode) sends each picture once however many people watch;
+   it has not been tried on this server.
+3. **Light theme.** Habitat Grafit is dark only.
+4. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.

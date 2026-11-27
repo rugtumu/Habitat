@@ -2541,6 +2541,7 @@ class VoiceManager {
       const renegotiations = [];
       for (const [userId, peer] of this.peers) {
         peer.connection.addTrack(camTrack, this.webcamStream);
+        this._applyWebcamBitrate(peer.connection, camTrack);  // Habitat fork: see _applyWebcamBitrate
         renegotiations.push(this._renegotiate(userId, peer.connection));
       }
       await Promise.all(renegotiations);
@@ -2657,6 +2658,8 @@ class VoiceManager {
         }
       }
       await Promise.all(swaps);
+      // Habitat fork: a new quality brings its own ceiling.
+      for (const [, peer] of this.peers) this._applyWebcamBitrate(peer.connection, newTrack);
       if (this._relay) await this._relay.replace('webcam', newTrack).catch(e => console.warn('[Relay] Camera swap failed:', e.message));
 
       // Left voice during the swap: nothing wants this camera any more.
@@ -2844,6 +2847,43 @@ class VoiceManager {
     // null, meaning "leave the sender uncapped".
     const user = Number.isSafeInteger(this.screenBitrate) ? this.screenBitrate : 8000;
     return user > 0 ? user * 1000 : null;
+  }
+
+  // Habitat fork: a call is a mesh, so a shared screen is encoded and uploaded
+  // once for every other person in it. The cap from settings is treated as
+  // the upload budget of the whole share and split between them, down to a
+  // floor that keeps text readable. Before, five people in a room meant four
+  // times the cap going out, more than most home lines can send, and the
+  // share froze for everyone. "Unlimited" stays unlimited: the sharer chose it.
+  _screenShareOf(cap) {
+    if (!cap) return cap;
+    return Math.max(Math.min(cap, 1_000_000), Math.round(cap / Math.max(1, this.peers.size)));
+  }
+
+  // Habitat fork: the split depends on how many people are in the call, so it
+  // is worked out again when someone joins or leaves during a share.
+  _rebalanceScreenShare() {
+    if (!this.isScreenSharing) return;
+    const cap = this._screenBitrateFor(this.screenResolution);
+    for (const [userId, peer] of this.peers) this._applyScreenBitrate(peer.connection, cap, userId);
+  }
+
+  // Habitat fork: a camera had no ceiling, so everyone on camera sent whatever
+  // the browser settled on, often 2 Mbps and more, to every other person. A
+  // ceiling per picked quality keeps a room full of cameras inside a home
+  // upload; the picture a small tile shows does not need more.
+  _applyWebcamBitrate(connection, track = this.webcamStream?.getVideoTracks()[0]) {
+    try {
+      const sender = track && connection.getSenders().find(s => s.track === track);
+      if (!sender) return;
+      let pick = '480';
+      try { pick = localStorage.getItem('haven_cam_quality') || '480'; } catch { /* private mode: the default */ }
+      const caps = { '480': 600_000, '720': 1_200_000, '720p60': 1_800_000, '1080': 2_500_000, '1080p60': 3_500_000 };
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+      params.encodings[0].maxBitrate = caps[pick] || caps['480'];
+      sender.setParameters(params).catch(() => { /* browser rejected the hint: the encoder keeps its defaults */ });
+    } catch { /* setParameters not supported: adaptive bitrate remains */ }
   }
 
   // Re-apply the current cap to every peer, for when the toggle changes while
@@ -3069,11 +3109,14 @@ class VoiceManager {
           // shed frames instead of filling a queue it cannot drain. A null cap
           // is the "unlimited" setting, so remove any previous limit instead of
           // writing zero, which some browsers read as "send nothing".
+          // Habitat fork: each viewer gets a share of the cap, see _screenShareOf.
+          const share = this._screenShareOf(maxBitrate);
           if (relayProfile) {
-            params.encodings[0].maxBitrate = this._screenBitrateFor(this.screenResolution, true);
+            const relayCap = this._screenBitrateFor(this.screenResolution, true);
+            params.encodings[0].maxBitrate = share ? Math.min(relayCap, share) : relayCap;
             delete params.encodings[0].maxFramerate;
           } else {
-            if (maxBitrate) params.encodings[0].maxBitrate = maxBitrate;
+            if (share) params.encodings[0].maxBitrate = share;
             else delete params.encodings[0].maxBitrate;
             if (this.screenFrameRate) {
               params.encodings[0].maxFramerate = this.screenFrameRate;
@@ -3366,6 +3409,7 @@ class VoiceManager {
       const camTrack = this.webcamStream.getVideoTracks()[0];
       if (camTrack) {
         connection.addTrack(camTrack, this.webcamStream);
+        this._applyWebcamBitrate(connection, camTrack);  // Habitat fork: see _applyWebcamBitrate
       }
     }
 
@@ -3598,6 +3642,7 @@ class VoiceManager {
       _offerIsIceRestart: false,
       _offerChannelCode: null,
     });
+    this._rebalanceScreenShare();  // Habitat fork: one viewer more, a smaller share each
 
     // If we're the initiator, create and send an offer
     if (createOffer) {
@@ -3628,6 +3673,7 @@ class VoiceManager {
       this.gainNodes.delete(userId);
       this._relayPeers?.delete(userId);
       this.peers.delete(userId);
+      this._rebalanceScreenShare();  // Habitat fork: one viewer fewer, a larger share each
       // Always stop the analyser here too, not just in voice-user-left.
       // _restartIce failure calls _removePeer directly (without _stopAnalyser),
       // which would leave an orphaned interval connected to the dead stream.

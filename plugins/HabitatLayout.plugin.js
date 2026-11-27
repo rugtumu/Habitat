@@ -1000,13 +1000,15 @@ class HabitatLayout {
     const head = this._make('strong', {}, panel);
     const table = this._make('dl', {}, panel);
     const cells = {};
-    for (const key of ['people', 'serverPing', 'voicePing', 'loss', 'jitter', 'route', 'server']) {
+    for (const key of ['people', 'serverPing', 'voicePing', 'loss', 'jitter', 'upload', 'download', 'video', 'route', 'server']) {
       this._make('dt', {}, table).textContent = this._text(key);
       cells[key] = this._make('dd', {}, table);
     }
     let before = new Map();  // per person: packets lost and received at the last reading
+    let traffic = null;      // bytes sent and received, and when, at the last reading
     const read = async () => {
-      const out = { peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0 };
+      const out = { peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0, up: null, down: null, video: null };
+      let sentBytes = 0; let gotBytes = 0;
       const peers = window.app?.voice?.peers;
       if (!peers || typeof peers.forEach !== 'function') return out;
       const trips = []; const shakes = []; let lost = 0; let got = 0;
@@ -1023,6 +1025,16 @@ class HabitatLayout {
         let pair = null; let peerLost = 0; let peerGot = 0;
         stats.forEach((report) => {
           if (report.type === 'transport' && report.selectedCandidatePairId) pair = byId.get(report.selectedCandidatePairId) || pair;
+          // What this member sends and receives, voice and pictures together,
+          // and the largest picture going out: its size, its frame rate and
+          // what, if anything, the browser says is holding it back.
+          if (report.type === 'inbound-rtp') gotBytes += report.bytesReceived || 0;
+          if (report.type === 'outbound-rtp') {
+            sentBytes += report.bytesSent || 0;
+            if (report.kind === 'video' && report.frameHeight && (!out.video || report.frameHeight > out.video.height)) {
+              out.video = { height: report.frameHeight, fps: report.framesPerSecond, limit: report.qualityLimitationReason };
+            }
+          }
           if (report.type === 'inbound-rtp' && report.kind === 'audio') {
             peerLost += report.packetsLost || 0;
             peerGot += report.packetsReceived || 0;
@@ -1045,6 +1057,13 @@ class HabitatLayout {
         got += Math.max(0, peerGot - was.got);
       }
       before = seen;
+      const now = Date.now();
+      if (traffic && now > traffic.at) {
+        const seconds = (now - traffic.at) / 1000;
+        out.up = Math.max(0, sentBytes - traffic.sent) * 8 / seconds;
+        out.down = Math.max(0, gotBytes - traffic.got) * 8 / seconds;
+      }
+      traffic = { sent: sentBytes, got: gotBytes, at: now };
       const mean = list => list.reduce((sum, value) => sum + value, 0) / list.length;
       if (trips.length) out.rtt = mean(trips);
       if (shakes.length) out.jitter = mean(shakes);
@@ -1052,6 +1071,8 @@ class HabitatLayout {
       return out;
     };
     const ms = value => (value === null || !Number.isFinite(value) ? '–' : `${Math.round(value)} ms`);
+    const rate = value => (value === null || !Number.isFinite(value) ? '–'
+      : value >= 1e6 ? `${(value / 1e6).toFixed(1)} Mbps` : `${Math.round(value / 1000)} kbps`);
     let drawing = false;
     const draw = async () => {
       const app = window.app;
@@ -1063,9 +1084,10 @@ class HabitatLayout {
       const ping = parseInt(document.getElementById('status-ping')?.textContent, 10);
       const worst = Math.max(Number.isFinite(ping) ? ping : 0, call.rtt || 0);
       const loss = call.loss || 0;
+      const held = call.video?.limit === 'bandwidth' || call.video?.limit === 'cpu';
       const grade = (call.peers && !call.live) || worst > 300 || loss > 8 ? 'poor'
-        : worst > 120 || loss > 3 ? 'fair' : 'good';
-      bar.setAttribute('data-habitat-signal', grade);
+        : worst > 120 || loss > 3 || held ? 'fair' : 'good';
+      if (bar.getAttribute('data-habitat-signal') !== grade) bar.setAttribute('data-habitat-signal', grade);
       if (panel.hidden) return;
       panel.setAttribute('data-habitat-connection', grade);
       head.textContent = this._text(grade);
@@ -1074,6 +1096,13 @@ class HabitatLayout {
       cells.voicePing.textContent = ms(call.rtt);
       cells.loss.textContent = call.loss === null ? '–' : `${call.loss.toFixed(1)}%`;
       cells.jitter.textContent = ms(call.jitter);
+      cells.upload.textContent = rate(call.up);
+      cells.download.textContent = rate(call.down);
+      cells.video.textContent = !call.video ? '–' : [
+        `${call.video.height}p`,
+        Number.isFinite(call.video.fps) ? `${Math.round(call.video.fps)} fps` : '',
+        held ? this._text(call.video.limit === 'cpu' ? 'limitCpu' : 'limitBandwidth') : ''
+      ].filter(Boolean).join(' · ');
       cells.route.textContent = !call.relayed && !call.direct ? '–'
         : this._text(call.relayed && call.direct ? 'mixed' : call.relayed ? 'relay' : 'direct');
       cells.server.textContent = window.location?.host || '–';
@@ -1127,6 +1156,7 @@ class HabitatLayout {
         if (timer) clearInterval(timer);
         timer = null;
         before = new Map();
+        traffic = null;
         bar.removeAttribute('data-habitat-signal');
         const status = bar.querySelector('.voice-bar-status');
         for (const name of ['role', 'tabindex', 'title', 'aria-expanded']) status?.removeAttribute(name);
@@ -1415,7 +1445,9 @@ HabitatLayout.TEXT = Object.freeze({
     people: 'Connected to', alone: 'No one else here yet', serverPing: 'Server ping', voicePing: 'Voice delay',
     loss: 'Packet loss', jitter: 'Jitter', route: 'Route', server: 'Server',
     direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay',
-    sideBySide: 'Show every shared screen together'
+    sideBySide: 'Show every shared screen together',
+    upload: 'Upload', download: 'Download', video: 'Picture you send',
+    limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
@@ -1428,7 +1460,9 @@ HabitatLayout.TEXT = Object.freeze({
     people: 'Bağlı kişiler', alone: 'Henüz başka kimse yok', serverPing: 'Sunucu gecikmesi', voicePing: 'Ses gecikmesi',
     loss: 'Paket kaybı', jitter: 'Seğirme', route: 'Yol', server: 'Sunucu',
     direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı',
-    sideBySide: 'Paylaşılan ekranları birlikte göster'
+    sideBySide: 'Paylaşılan ekranları birlikte göster',
+    upload: 'Yükleme', download: 'İndirme', video: 'Gönderdiğin görüntü',
+    limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor'
   })
 });
 
