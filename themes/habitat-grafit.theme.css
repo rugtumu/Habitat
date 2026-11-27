@@ -302,6 +302,12 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-muted);
 }
 
+/* The participant list belongs to the preceding room. Only the next channel gets a line. */
+[data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-item,
+[data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-voice-users + .channel-item {
+  border-block-start: .0625rem solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
 /* Unread counts stay distinct from room type and mention icons. */
 [data-haven-page="app"] .channel-badge {
   background: var(--danger);
@@ -1456,15 +1462,6 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
   color: var(--text-primary);
   font: 750 1.25rem/1.2 var(--font-heading);
 }
-[data-haven-page="app"] [data-habitat-lists] {
-  padding: .1875rem;
-  background: var(--hb-rail);
-  border-radius: .625rem;
-}
-[data-haven-page="app"] [data-habitat-lists] button[aria-pressed="true"] {
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
 @media (max-width: 900px) {
   [data-haven-page="app"] .channel-item { min-height: 2.75rem; }
   html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
@@ -2003,6 +2000,12 @@ html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn:active { sc
    the least to spare during a call. */
 [data-haven-page="app"] :is(.update-pulse, .disk-low-dot, .cvu-live, .screen-share-indicator) { animation: none; }
 
+/* The rail's buttons sit on one rhythm. Two of Haven's carried a 2px margin
+   of their own, and the list of other servers took a gap even when empty, so
+   the spacing read 8, 26, 10, 10 down the column. */
+html[data-habitat-layout] [data-haven-region="server-rail"] > :is(#manage-servers-btn, #sync-servers-btn) { margin: 0; }
+html[data-habitat-layout] [data-haven-region="server-rail"] > #server-list:empty { display: none; }
+
 /* Notices drop in under the channel header instead of over its buttons. */
 html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-inset-top, 0px)); }
 /* On a phone the header is taller than that and every pixel of it is a
@@ -2012,17 +2015,6 @@ html[data-habitat-layout="compact"] #toast-container {
   top: auto; bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse;
 }
 
-/* A voice room with no old messages gives all its space to the call. A room
-   that has them, or a text channel with a call, keeps the chat underneath. */
-#message-area:has(> [data-habitat-call-stage][data-habitat-voice-room]) > [data-habitat-intro] {
-  display: none;
-}
-[data-haven-region="message-area"]:not(:has(#messages > :not(#msg-more-btn))) > [data-habitat-call-stage][data-habitat-voice-room] {
-  flex: 1 1 auto; height: auto;
-}
-[data-haven-region="message-area"]:has(> [data-habitat-call-stage][data-habitat-voice-room]) > #messages:not(:has(> :not(#msg-more-btn))) {
-  flex: 0 1 auto; min-height: 0; padding-block: 0;
-}
 [data-habitat-call-stage] {
   --hb-stage-gap: .625rem; --hb-stage-pad: .875rem;
   background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 5%, var(--bg-tertiary)), var(--bg-tertiary) 70%);

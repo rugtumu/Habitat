@@ -39,11 +39,11 @@ class FakeStyle {
 
 // Records what the plugin watches, and lets a test deliver a change by hand.
 class FakeMutationObserver {
-  constructor(callback) { this.callback = callback; this.target = null; FakeMutationObserver.live.add(this); }
-  observe(target) { this.target = target; }
-  disconnect() { FakeMutationObserver.live.delete(this); this.target = null; }
+  constructor(callback) { this.callback = callback; this.targets = new Set(); }
+  observe(target) { this.targets.add(target); FakeMutationObserver.live.add(this); }
+  disconnect() { FakeMutationObserver.live.delete(this); this.targets.clear(); }
   static notify(target) {
-    for (const observer of [...FakeMutationObserver.live]) if (observer.target === target) observer.callback([]);
+    for (const observer of [...FakeMutationObserver.live]) if (observer.targets.has(target)) observer.callback([]);
   }
 }
 FakeMutationObserver.live = new Set();
@@ -166,6 +166,7 @@ class FakeDocument extends FakeTarget {
     this.documentElement = new FakeElement('html', this);
     this.documentElement.lang = 'en';
     this.body = new FakeElement('body', this);
+    this.body.classList = { contains: name => this.body.matches('.' + name) };
     this.documentElement.appendChild(this.body);
     this.activeElement = null;
   }
@@ -208,7 +209,13 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   const join = region(doc, 'join-channel', [el(doc, 'div', {}, [field(), button('join-channel-btn')])]);
   const create = region(doc, 'create-channel', [el(doc, 'div', {}, [field(), button('create-channel-btn')])]);
   const channels = region(doc, 'channels', [el(doc, 'h5', { id: 'channels-toggle' }), el(doc, 'div', { id: 'channel-list' })]);
-  const content = region(doc, 'sidebar-content', [join, create, channels, region(doc, 'direct-messages')]);
+  channels.setAttribute('id', 'channels-pane');
+  const badge = el(doc, 'span', { id: 'dm-unread-badge' });
+  const dms = region(doc, 'direct-messages', [badge, el(doc, 'div', { id: 'dm-list' })]);
+  dms.setAttribute('id', 'dm-pane');
+  const split = el(doc, 'div', { id: 'sidebar-split' }, [channels, el(doc, 'div', { class: 'sidebar-split-handle' }), dms]);
+  const content = region(doc, 'sidebar-content', [join, create, split]);
+  const rail = region(doc, 'server-rail', [el(doc, 'div', { id: 'home-server' })]);
   const actions = region(doc, 'sidebar-actions', [
     button('theme-popup-toggle', 'Theme'),
     button('activities-btn', 'Activities'),
@@ -231,7 +238,7 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     voiceControls,
     el(doc, 'div', { id: 'settings-panel' }, [button('open-settings-btn', 'Settings')])
   ], 'aside');
-  doc.body.appendChild(el(doc, 'div', { id: 'app' }, [navigation, region(doc, 'main'), context]));
+  doc.body.appendChild(el(doc, 'div', { id: 'app' }, [rail, navigation, region(doc, 'main'), context]));
   doc.getElementById('app').appendChild(button('status-bar-toggle', 'Toggle status bar'));
   // The member's own "fold the message box buttons" setting, when the test wants one.
   if (foldSetting !== null) {
@@ -280,7 +287,7 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     if (!on) for (const child of [...voiceBar.children]) child.remove();
     FakeMutationObserver.notify(voiceBar);
   };
-  return { doc, media, phoneMedia, composerRefreshes, voiceBar, call, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
+  return { doc, rail, split, dms, badge, media, phoneMedia, composerRefreshes, voiceBar, call, data, styles, api, account, header, footer, actions, join, create, channels, context, voiceControls };
 }
 
 function snapshot(node) {
@@ -377,6 +384,78 @@ test('switching the layout off puts every element back where it was', () => {
   assert.equal(app.phoneMedia.listenerCount(), 0);
   assert.equal(app.styles.size, 0);
   assert.equal(app.data.get('HabitatLayout/layoutOn'), '1', 'stop() does not change the saved choice');
+});
+
+for (const [shape, options] of [
+  ['desktop', { desktop: true }], ['tablet', { desktop: false }], ['phone', { desktop: false, phone: true }]
+]) {
+  test(`Messages switches the sidebar and restores the native ${shape} navigation`, () => {
+    const { doc, rail, split, dms, badge, api } = buildApp(options);
+    const title = el(doc, 'h3', { id: 'channel-header-name' });
+    doc.body.appendChild(title);
+    doc.body.appendChild(region(doc, 'message-list'));
+    let searches = 0;
+    window.app._openQuickSwitcher = () => { searches++; };
+    api.currentChannel = 'general';
+    badge.textContent = '3';
+    const before = snapshot(doc.documentElement);
+    const layout = new HabitatLayout();
+    layout.start();
+
+    const inbox = doc.querySelector('[data-habitat-inbox]');
+    const nav = doc.querySelector('[data-habitat-nav]');
+    const home = doc.getElementById('home-server');
+    assert.equal(inbox.parentNode, options.desktop ? rail : nav);
+    assert.equal(inbox.getAttribute('aria-controls'), dms.id);
+    assert.equal(doc.querySelector('[data-habitat-lists], [data-habitat-inbox-page]'), null);
+    const state = name => {
+      assert.equal(split.getAttribute('data-habitat-list'), name);
+      assert.equal(inbox.getAttribute('aria-pressed'), String(name === 'messages'));
+    };
+    state('channels');
+    inbox.fire('click');
+    state('messages');
+    assert.equal(api.currentChannel, 'general', 'browsing messages leaves the conversation alone');
+    assert.equal(inbox.querySelector('[data-habitat-count]').textContent, '3');
+    nav.querySelector('[data-habitat-jump]').fire('click');
+    assert.equal(searches, 1);
+    FakeMutationObserver.notify(title);
+    state('messages');
+    inbox.fire('click');
+    state('channels');
+    api.currentChannel = 'dm';
+    doc.body.setAttribute('class', 'viewing-dm');
+    FakeMutationObserver.notify(title);
+    state('messages');
+    badge.style.display = 'none';
+    FakeMutationObserver.notify(badge);
+    assert.equal(inbox.querySelector('[data-habitat-count]').textContent, '');
+    home.fire('click');
+    state('channels');
+    inbox.fire('click');
+    state('messages');
+    doc.body.removeAttribute('class');
+    api.currentChannel = 'general';
+    FakeMutationObserver.notify(title);
+    state('channels');
+    layout.stop();
+    assert.equal(snapshot(doc.documentElement), before);
+    assert.equal(FakeMutationObserver.live.size, 0);
+  });
+}
+
+test('guests stay on channels and the Messages button is hidden in both shapes', () => {
+  const { doc, split, media } = buildApp();
+  doc.body.setAttribute('class', 'is-guest');
+  const layout = new HabitatLayout();
+  layout.start();
+  for (const desktop of [true, false]) {
+    media.set(desktop);
+    doc.querySelector('[data-habitat-inbox]').fire('click');
+    assert.equal(split.getAttribute('data-habitat-list'), 'channels');
+  }
+  assert.match(HabitatLayout.CSS, /body\.is-guest \[data-habitat-inbox\] \{ display: none; \}/);
+  layout.stop();
 });
 
 test('a saved "off" choice is respected on start', () => {
@@ -640,6 +719,36 @@ test('the members panel keeps its own mute buttons on a phone, and drops the sec
   assert.match(duplicate, /display:\s*none/);
 });
 
+test('the members sidebar gives the roster no space, in or out of the stage', () => {
+  const { doc, context, media } = buildApp();
+  const roster = doc.querySelector('[data-haven-region="voice-roster"]');
+  const close = el(doc, 'button', { id: 'mobile-right-close' });
+  roster.appendChild(close);
+  doc.body.appendChild(region(doc, 'message-area'));
+  doc.body.appendChild(el(doc, 'div', { id: 'voice-active-indicator' }));
+  const invite = el(doc, 'button', { id: 'right-btn-invite-popout' });
+  const invitePanel = el(doc, 'div', { id: 'sidebar-invite-panel' }, [invite]);
+  context.appendChild(invitePanel);
+  const before = snapshot(doc.documentElement);
+  const layout = new HabitatLayout();
+  layout.start();
+  assert.equal(roster.parentNode, context);
+  assert.ok(doc.querySelector('[data-habitat-menu]').contains(invite));
+  const css = HabitatLayout.CSS;
+  assert.match(css, /html\[data-habitat-layout\] \[data-haven-region="context-sidebar"\] > \[data-haven-region="voice-roster"\],[^{}]*\[data-habitat-roster-home\][^{}]*\{ display: none;/);
+  assert.match(css, /html\[data-habitat-layout="compact"\] \[data-habitat-roster-home\]:not\(:empty\) \{ display: block;/);
+  doc.querySelector('[data-habitat-call-view]').fire('click');
+  assert.equal(roster.parentNode, doc.querySelector('[data-habitat-call-stage]'));
+  assert.equal(close.parentNode, roster);
+  assert.deepEqual(context.querySelector('[data-habitat-roster-home]').children, []);
+  media.set(false);
+  assert.equal(invite.parentNode, invitePanel);
+  doc.querySelector('[data-habitat-call-view]').fire('click');
+  assert.equal(close.parentNode, context.querySelector('[data-habitat-roster-home]'));
+  layout.stop();
+  assert.equal(snapshot(doc.documentElement), before);
+});
+
 test('the call view returns the live roster and the drawer close button on leave or layout change', () => {
   const { doc, context } = buildApp({ desktop: false, phone: true });
   const area = region(doc, 'message-area');
@@ -665,12 +774,32 @@ test('the call view returns the live roster and the drawer close button on leave
   indicator.style.display = 'none';
   FakeMutationObserver.notify(indicator);
   assert.equal(roster.parentNode, context);
-  assert.equal(close.parentNode, roster);
+  assert.equal(close.parentNode, doc.querySelector('[data-habitat-roster-home]'),
+    'on a phone the drawer\'s close button waits in the placeholder for as long as the layout is on');
   assert.equal(doc.querySelector('[data-habitat-call-stage]'), null, 'the empty stage leaves the page');
   indicator.style.display = 'flex';
   FakeMutationObserver.notify(indicator);
   toggle.fire('click');
   layout.stop();
+  assert.equal(snapshot(doc.body), before);
+});
+
+test('on a phone the way into a text channel\'s call moves from the hidden roster block to the channel menu', () => {
+  const { doc } = buildApp({ desktop: false, phone: true });
+  const roster = doc.querySelector('[data-haven-region="voice-roster"]');
+  const join = el(doc, 'button', { id: 'voice-join-mobile' });
+  join.style.display = 'none';
+  roster.appendChild(join);
+  doc.body.appendChild(el(doc, 'div', { id: 'header-actions-box' }, [el(doc, 'button', { id: 'copy-code-btn' })]));
+  const before = snapshot(doc.body);
+  const layout = new HabitatLayout();
+  layout.start();
+  const menu = doc.querySelector('[data-habitat-channel-menu]');
+  assert.equal(join.parentNode, menu);
+  assert.equal(menu.children[0], join, 'first in the menu');
+  assert.equal(join.style.display, 'none', 'Haven still decides when it shows');
+  layout.stop();
+  assert.equal(join.parentNode, roster);
   assert.equal(snapshot(doc.body), before);
 });
 
@@ -938,6 +1067,16 @@ test('alone in a voice room the stage says so, and stops saying it when someone 
   layout.stop();
 });
 
+test('a profile picture of any shape fills the stage face instead of hanging out of it', () => {
+  // A grid item's percentage height has nothing definite to measure against,
+  // so a tall photo kept its own height and showed as an oval over the name.
+  const rule = HabitatLayout.CSS.match(/\[data-habitat-call-avatar\] > \[data-habitat-call-photo\]\s*\{[^}]*\}/)?.[0] || '';
+  assert.match(rule, /position:\s*absolute/);
+  assert.match(rule, /inset:\s*0/);
+  assert.match(rule, /object-fit:\s*cover/);
+  assert.match(HabitatLayout.CSS, /\[data-habitat-call-avatar\]\s*\{[^}]*position:\s*relative/, 'the face is what the picture is pinned to');
+});
+
 test('the stage carries stand-ins for the call buttons on a desktop, and they press the real ones', () => {
   const { doc, stage, layout } = buildCall();
   const group = stage.querySelector('[data-habitat-stage-controls]');
@@ -1139,7 +1278,6 @@ test('the channel disclosure preserves its original buttons and their visibility
 
 test('the room join action follows the call even when the channel title stays put', () => {
   const { doc, api } = buildApp();
-  doc.body.classList = { contains: () => false };
   api.currentChannel = 'lobi';
   Object.assign(window.app, { _canUseVoice: () => true, _isVoiceOnlyChannel: () => true });
   const title = el(doc, 'h3', { id: 'channel-header-name' });
@@ -1161,9 +1299,63 @@ test('the room join action follows the call even when the channel title stays pu
   layout.stop();
 });
 
+test('explicit voice room re-entry settles from the voice bar without another title or indicator change', () => {
+  const { doc, api, call } = buildApp();
+  const voice = { inVoice: false, currentChannel: null };
+  const room = 'lobi';
+  api.currentChannel = room;
+  let requested = false;
+  Object.assign(window.app, {
+    currentChannel: room, voice, _canUseVoice: () => true, _isVoiceOnlyChannel: () => true,
+    _joinVoice() { requested = true; }
+  });
+  const title = el(doc, 'h3', { id: 'channel-header-name' });
+  title.textContent = '# Lobi';
+  const indicator = el(doc, 'div', { id: 'voice-active-indicator' });
+  indicator.style.display = 'none';
+  const share = el(doc, 'div', { class: 'screen-share-tile', id: 'share-1' });
+  const streams = region(doc, 'screen-shares', [share]);
+  const area = region(doc, 'message-area', [streams, region(doc, 'message-list')]);
+  doc.body.appendChild(title);
+  doc.body.appendChild(indicator);
+  doc.body.appendChild(area);
+  const before = snapshot(doc.body);
+  const layout = new HabitatLayout();
+  layout.start();
+  const join = doc.querySelector('[data-habitat-join-room]');
+  const intro = join.parentNode;
+  assert.equal(join.hidden, false);
+  join.fire('click');
+  assert.ok(requested);
+
+  // The header has already settled. Only the connected bar delivers a mutation.
+  Object.assign(voice, { inVoice: true, currentChannel: room });
+  call(true);
+  assert.ok(join.hidden, 'the live call retires the join action');
+  assert.ok(intro.hidden);
+  const stage = area.querySelector('[data-habitat-call-stage]');
+  assert.ok(stage?.hasAttribute('data-habitat-voice-room'));
+  assert.ok(stage.contains(share), 'the original shared screen is in the full-height stage');
+  assert.match(HabitatLayout.CSS, /\[data-habitat-call-stage\]\[data-habitat-voice-room\] \{ flex: 1 1 auto; height: auto;/);
+
+  voice.currentChannel = 'other';
+  call(true);
+  assert.equal(join.hidden, false, 'moving the call leaves the displayed room available');
+  assert.equal(area.querySelector('[data-habitat-call-stage]'), null);
+  voice.currentChannel = room;
+  call(true);
+  assert.ok(join.hidden);
+  Object.assign(voice, { inVoice: false, currentChannel: null });
+  call(false);
+  assert.equal(join.hidden, false);
+  assert.equal(intro.hidden, false);
+  assert.equal(area.querySelector('[data-habitat-call-stage]'), null);
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
+});
+
 test('a room heading follows the start of history without adding a row to the feed', () => {
   const { doc } = buildApp();
-  doc.body.classList = { contains: () => false };
   const title = el(doc, 'h3', { id: 'channel-header-name' });
   title.textContent = '# oyun';
   const first = el(doc, 'div', { 'data-msg-id': '1' });

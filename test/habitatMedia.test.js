@@ -14,8 +14,9 @@ const vm = require('node:vm');
 
 const VOICE_SOURCE = fs.readFileSync(path.join(__dirname, '..', 'public/js/voice.js'), 'utf8');
 
-function loadVoiceManager(storage = {}) {
+function loadVoiceManager(storage = {}, extra = {}) {
   const context = vm.createContext({
+    ...extra,
     module: { exports: {} },
     navigator: { userAgent: '', platform: '', maxTouchPoints: 0 },
     localStorage: {
@@ -72,15 +73,26 @@ test('one viewer gets the whole cap, as before', () => {
   assert.deepEqual(sent(), [8_000_000]);
 });
 
-test('the cap is the budget of the whole share, split between the people watching', () => {
+test('up to three viewers get the picture the sharer asked for', () => {
+  for (const viewers of [2, 3]) {
+    const { voice, sent } = makeSharer(loadVoiceManager(), { viewers });
+    voice.reapplyScreenBitrate();
+    assert.ok(sent().every(value => value === 8_000_000), `${viewers} viewers`);
+  }
+});
+
+test('past three viewers the whole share is held to three caps and split', () => {
   const { voice, sent } = makeSharer(loadVoiceManager(), { viewers: 4 });
   voice.reapplyScreenBitrate();
-  assert.deepEqual(sent(), [2_000_000, 2_000_000, 2_000_000, 2_000_000]);
-  assert.equal(sent().reduce((sum, value) => sum + value, 0), 8_000_000, 'four viewers no longer cost four caps');
+  assert.deepEqual(sent(), [6_000_000, 6_000_000, 6_000_000, 6_000_000]);
+  const five = makeSharer(loadVoiceManager(), { viewers: 5, bitrate: 10000 });
+  five.voice.reapplyScreenBitrate();
+  assert.ok(five.sent().every(value => value === 6_000_000), 'a six-person room at 10 Mbps: 6 each, not 2');
+  assert.equal(five.sent().reduce((sum, value) => sum + value, 0), 30_000_000, 'and never five caps');
 });
 
 test('a crowded room never drops a viewer below a readable picture', () => {
-  const { voice, sent } = makeSharer(loadVoiceManager(), { viewers: 12 });
+  const { voice, sent } = makeSharer(loadVoiceManager(), { viewers: 30 });
   voice.reapplyScreenBitrate();
   assert.ok(sent().every(value => value === 1_000_000));
 });
@@ -101,7 +113,11 @@ test('a viewer reached through the relay gets the smaller of its profile and its
   const { voice, sent } = makeSharer(loadVoiceManager(), { viewers: 4 });
   voice._relayPeers = new Set([2]);
   voice.reapplyScreenBitrate();
-  assert.deepEqual(sent(), [2_000_000, 2_000_000, 2_000_000, 2_000_000], 'the 3 Mbps relay profile is above a quarter of the cap');
+  assert.deepEqual(sent(), [3_000_000, 6_000_000, 6_000_000, 6_000_000], 'the 3 Mbps relay profile is below this viewer\'s share');
+  const crowd = makeSharer(loadVoiceManager(), { viewers: 12 });
+  crowd.voice._relayPeers = new Set([2]);
+  crowd.voice.reapplyScreenBitrate();
+  assert.equal(crowd.sent()[0], 2_000_000, 'and in a crowd the share is the smaller one');
   const alone = makeSharer(loadVoiceManager(), { viewers: 1 });
   alone.voice._relayPeers = new Set([2]);
   alone.voice.reapplyScreenBitrate();
@@ -114,11 +130,11 @@ test('the split is worked out again when someone leaves', async () => {
   voice.peers.delete(5);
   voice._rebalanceScreenShare();
   await new Promise(setImmediate);
-  assert.deepEqual(sent().slice(0, 3), [2_666_667, 2_666_667, 2_666_667]);
+  assert.deepEqual(sent().slice(0, 3), [8_000_000, 8_000_000, 8_000_000]);
   voice.isScreenSharing = false;
   voice.peers.delete(4);
   voice._rebalanceScreenShare();
-  assert.deepEqual(sent().slice(0, 2), [2_666_667, 2_666_667], 'nothing is touched when no screen is shared');
+  assert.deepEqual(sent().slice(0, 2), [8_000_000, 8_000_000], 'nothing is touched when no screen is shared');
 });
 
 test('a camera carries a ceiling for the quality picked', () => {
@@ -139,13 +155,18 @@ function snapshot(ids, streamId = 'capture') {
   return [{ sharerId: 1, streamId, viewers: ids.map(id => ({ id })) }];
 }
 
-test('only the three watchers share the cap among nine peers and a bitrate change keeps six paused', async () => {
+test('the split counts only the watchers among nine peers and a bitrate change keeps the rest paused', async () => {
   const { voice, senders } = makeSharer(loadVoiceManager(), { viewers: 9, bitrate: 9000 });
   voice.updateScreenViewers(voice.currentChannel, snapshot([2, 5, 9]));
   for (const [i, sender] of senders.entries()) {
     assert.equal(sender.applied.encodings[0].active, [2, 5, 9].includes(i + 2));
-    assert.equal(sender.applied.encodings[0].maxBitrate, 3_000_000);
+    assert.equal(sender.applied.encodings[0].maxBitrate, 9_000_000, 'three watchers: the full picture each');
   }
+  voice.updateScreenViewers(voice.currentChannel, snapshot([2, 3, 4, 5, 6, 9]));
+  await new Promise(setImmediate);
+  assert.equal(senders[0].applied.encodings[0].maxBitrate, 4_500_000, 'six watchers share three caps');
+  voice.updateScreenViewers(voice.currentChannel, snapshot([2, 5, 9]));
+  await new Promise(setImmediate);
   voice.setScreenBitrate(0);
   await new Promise(setImmediate);
   assert.equal(senders[1].applied.encodings[0].active, false);
@@ -260,4 +281,91 @@ test('the viewer-list socket handler pauses the sharer and only asks for shares 
   otherShare.viewers = [{ id: 1 }];
   broadcast();
   assert.deepEqual(watched, [2, 2], 'an acknowledged watch yields no further requests');
+});
+
+// What a browser says it can receive, in the order browsers list it: VP8 first.
+const BROWSER_CODECS = [
+  { mimeType: 'video/VP8' }, { mimeType: 'video/rtx' },
+  { mimeType: 'video/H264', sdpFmtpLine: 'packetization-mode=1;profile-level-id=42e01f' },
+  { mimeType: 'video/H264', sdpFmtpLine: 'packetization-mode=0;profile-level-id=42e01f' },
+  { mimeType: 'video/AV1' }, { mimeType: 'video/VP9' }, { mimeType: 'video/red' }
+];
+
+function videoLine(kind = 'video') {
+  return {
+    receiver: { track: { kind } }, sender: { track: null }, order: null,
+    // Array.from: the list comes from the page's own realm.
+    setCodecPreferences(list) { this.order = Array.from(list, codec => codec.mimeType + (codec.sdpFmtpLine ? `;${codec.sdpFmtpLine}` : '')); }
+  };
+}
+
+test('H.264, the codec hardware handles, goes first on every video line and nothing is dropped', () => {
+  const VoiceManager = loadVoiceManager({}, { RTCRtpReceiver: { getCapabilities: () => ({ codecs: BROWSER_CODECS }) } });
+  const voice = Object.create(VoiceManager.prototype);
+  const screen = videoLine();
+  const camera = videoLine();
+  const microphone = videoLine('audio');
+  const stopped = Object.assign(videoLine(), { stopped: true });
+  voice._preferHardwareVideo({ getTransceivers: () => [microphone, screen, camera, stopped] });
+  assert.deepEqual(screen.order.slice(0, 3), [
+    'video/H264;packetization-mode=1;profile-level-id=42e01f',
+    'video/H264;packetization-mode=0;profile-level-id=42e01f',
+    'video/VP8'
+  ], 'both H.264 profiles lead, in the browser\'s own order, and VP8 is next');
+  assert.equal(screen.order.length, BROWSER_CODECS.length, 'every other codec stays as a fallback');
+  assert.deepEqual(camera.order, screen.order);
+  assert.equal(microphone.order, null, 'the voice line is left alone');
+  assert.equal(stopped.order, null);
+});
+
+test('a browser without H.264, or without codec preferences, keeps its own order', () => {
+  const noH264 = loadVoiceManager({}, { RTCRtpReceiver: { getCapabilities: () => ({ codecs: BROWSER_CODECS.filter(c => !/H264/.test(c.mimeType)) }) } });
+  const line = videoLine();
+  Object.create(noH264.prototype)._preferHardwareVideo({ getTransceivers: () => [line] });
+  assert.equal(line.order, null);
+  const old = loadVoiceManager();
+  assert.doesNotThrow(() => Object.create(old.prototype)._preferHardwareVideo({ getTransceivers: () => [videoLine()] }));
+  const refusing = loadVoiceManager({}, { RTCRtpReceiver: { getCapabilities: () => ({ codecs: BROWSER_CODECS }) } });
+  const strict = Object.assign(videoLine(), { setCodecPreferences() { throw new Error('InvalidModificationError'); } });
+  assert.doesNotThrow(() => Object.create(refusing.prototype)._preferHardwareVideo({ getTransceivers: () => [strict] }));
+});
+
+const OFFER = [
+  'v=0', 'o=- 1 2 IN IP4 127.0.0.1', 's=-', 't=0 0',
+  'm=audio 9 UDP/TLS/RTP/SAVPF 111', 'a=rtpmap:111 opus/48000/2', 'a=fmtp:111 minptime=10;useinbandfec=1',
+  'm=video 9 UDP/TLS/RTP/SAVPF 96 97 102 103', 'a=rtpmap:96 VP8/90000', 'a=rtpmap:97 rtx/90000', 'a=fmtp:97 apt=96',
+  'a=rtpmap:102 H264/90000', 'a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f',
+  'a=rtpmap:103 rtx/90000', 'a=fmtp:103 apt=102', ''
+].join('\r\n');
+
+test('the other side\'s description gets a starting rate on its video codecs, and nothing else changes', () => {
+  const VoiceManager = loadVoiceManager();
+  const voice = Object.create(VoiceManager.prototype);
+  voice.peers = new Map([[2, {}]]);
+  voice.screenResolution = 1440;
+  voice.screenBitrate = 10000;
+  const out = voice._videoStartSdp({ type: 'answer', sdp: OFFER });
+  assert.equal(out.type, 'answer');
+  const lines = out.sdp.split('\r\n');
+  assert.ok(lines.includes('a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f;x-google-start-bitrate=4000'),
+    'H.264 keeps its own settings and gains the rate, capped at 4 Mbps');
+  assert.equal(lines[lines.indexOf('a=rtpmap:96 VP8/90000') + 1], 'a=fmtp:96 x-google-start-bitrate=4000', 'a codec with no settings line gets one');
+  assert.ok(lines.includes('a=fmtp:97 apt=96') && lines.includes('a=fmtp:103 apt=102'), 'retransmission lines are left alone');
+  assert.ok(lines.includes('a=fmtp:111 minptime=10;useinbandfec=1'), 'and so is the voice');
+  assert.equal(lines.length, OFFER.split('\r\n').length + 1, 'one line added, none lost');
+  // Applying it to a description that already has it does not stack.
+  assert.equal(voice._videoStartSdp(out).sdp, out.sdp);
+  // In a crowd each viewer starts lower, and never under 1 Mbps.
+  for (let id = 3; id <= 31; id++) voice.peers.set(id, {});
+  assert.match(voice._videoStartSdp({ type: 'answer', sdp: OFFER }).sdp, /a=fmtp:102 [^\r\n]*x-google-start-bitrate=1000/);
+});
+
+test('a description without video, or none at all, passes through untouched', () => {
+  const VoiceManager = loadVoiceManager();
+  const voice = Object.create(VoiceManager.prototype);
+  voice.peers = new Map();
+  const audioOnly = { type: 'offer', sdp: OFFER.split('m=video')[0] };
+  assert.equal(voice._videoStartSdp(audioOnly), audioOnly);
+  assert.equal(voice._videoStartSdp(null), null);
+  assert.equal(voice._videoStartSdp({ type: 'offer' }).sdp, undefined);
 });

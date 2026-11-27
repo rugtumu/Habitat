@@ -168,10 +168,10 @@ class HabitatLayout {
 
     try {
       this._buildAccountTools(account, actions);
-      this._buildMenu(header, account, actions);
+      this._buildMenu(header, account, actions, mode);
       this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
-      this._buildNavigation();
+      this._buildNavigation(mode);
       this._buildVoiceRooms();
       this._buildChannelTools();
       this._buildMemberPreview();
@@ -191,7 +191,7 @@ class HabitatLayout {
   }
 
   // Switch the list without switching conversations or marking anything read.
-  _buildNavigation() {
+  _buildNavigation(mode) {
     const split = document.getElementById('sidebar-split');
     const channels = this._region('channels');
     const dms = this._region('direct-messages');
@@ -203,49 +203,49 @@ class HabitatLayout {
     jump.appendChild(this._icon('M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0'));
     this._make('span', {}, jump).textContent = this._text('find');
     this._on(jump, 'click', () => window.app?._openQuickSwitcher?.());
-    const choices = this._make('div', { 'data-habitat-lists': '' }, nav);
     const rail = this._region('server-rail');
     const home = document.getElementById('home-server');
-    let inbox;
-    if (home && rail?.contains(home)) {
-      const label = dms.querySelector('.section-label-text')?.textContent || this._text('messages');
-      inbox = this._make('button', { type: 'button', class: 'server-icon', 'data-habitat-inbox': '', 'aria-label': label, title: label });
-      inbox.appendChild(this._icon('M4 4h16v12H9l-5 4zM8 8h8M8 12h5'));
-      rail.insertBefore(inbox, home);
-    }
-    const openInbox = this._buildInbox(dms);
-    const buttons = {};
-    const select = (name) => {
-      inbox?.setAttribute('aria-pressed', String(name === 'messages'));
-      this._list = name;
-      split.setAttribute('data-habitat-list', name);
-      for (const [key, button] of Object.entries(buttons)) {
-        button.setAttribute('aria-pressed', String(name === key));
-      }
+    const label = dms.querySelector('.section-label-text')?.textContent || this._text('messages');
+    const inbox = this._make('button', {
+      type: 'button', class: 'server-icon', 'data-habitat-inbox': '', 'aria-controls': dms.id,
+      'aria-label': label, title: label
+    });
+    inbox.appendChild(this._icon('M4 4h16v12H9l-5 4zM8 8h8M8 12h5'));
+    // Haven hides the vertical rail when the phone drawer opens.
+    if (mode === 'desktop' && rail && home?.parentNode === rail) rail.insertBefore(inbox, home);
+    else nav.insertBefore(inbox, jump);
+    const select = name => {
+      this._list = document.body.classList.contains('is-guest') ? 'channels' : name;
+      inbox.setAttribute('aria-pressed', String(this._list === 'messages'));
+      split.setAttribute('data-habitat-list', this._list);
     };
-    for (const [key, region] of [['channels', channels], ['messages', dms]]) {
-      const button = this._make('button', { type: 'button', 'aria-controls': region.id }, choices);
-      button.textContent = region.querySelector('.section-label-text')?.textContent || this._text(key);
-      buttons[key] = button;
-      this._on(button, 'click', () => {
-        select(key);
-        if (key === 'messages') openInbox();
-      });
-    }
-    if (inbox) {
-      this._on(inbox, 'click', () => { select('messages'); openInbox(); });
+    this._on(inbox, 'click', () => select(this._list === 'messages' ? 'channels' : 'messages'));
+    if (home) {
       this._on(home, 'click', () => select('channels'));
+      this._setAttr(home, 'role', 'button');
+      this._setAttr(home, 'tabindex', '0');
+      this._on(home, 'keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          home.click();
+        }
+      });
     }
     this._selectList = select;
     const badge = document.getElementById('dm-unread-badge');
     if (badge) {
-      const count = this._make('span', { 'data-habitat-count': '' }, buttons.messages);
-      const sync = () => { count.textContent = badge.style.display === 'none' ? '' : badge.textContent; };
+      const count = this._make('span', { 'data-habitat-count': '' }, inbox);
+      const sync = () => {
+        count.textContent = badge.style.display === 'none' ? '' : badge.textContent;
+        inbox.setAttribute('aria-label', count.textContent ? label + ' · ' + count.textContent : label);
+      };
       this._badgeObserver = new MutationObserver(sync);
       this._badgeObserver.observe(badge, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style'] });
       sync();
     }
-    this._make('p', { 'data-habitat-dm-empty': '' }, split).textContent = this._text('noDM');
+    const empty = this._make('p', { 'data-habitat-dm-empty': '' });
+    empty.textContent = this._text('noDM');
+    split.appendChild(empty);
     this._watchDmAvatars();
     this._setAttr(split, 'data-habitat-list', '');
     select(this._list || (document.body.classList.contains('viewing-dm') ? 'messages' : 'channels'));
@@ -304,60 +304,6 @@ class HabitatLayout {
       face.appendChild(frame);
     }
     return face;
-  }
-
-  // Read the existing sidebar order, names and unread badges. Browsing the
-  // inbox never enters a conversation until the reader picks a recipient.
-  _buildInbox(dms) {
-    const dialog = this._make('dialog', { 'data-habitat-inbox-page': '', 'aria-labelledby': 'habitat-inbox-title' });
-    document.body.appendChild(dialog);
-    const top = this._make('header', {}, dialog);
-    const title = this._make('h2', { id: 'habitat-inbox-title' }, top);
-    const close = this._make('button', { type: 'button', 'aria-label': this._text('close') }, top);
-    close.appendChild(this._icon('M6 6l12 12M18 6 6 18'));
-    const input = this._make('input', { type: 'search', 'aria-label': this._text('find'), placeholder: this._text('find') }, dialog);
-    const results = this._make('div', { 'data-habitat-conversations': '' }, dialog);
-    const empty = this._make('p', {}, dialog);
-    const render = () => {
-      if (!dialog.open) return;
-      const term = input.value.trim().toLocaleLowerCase();
-      const activeCode = document.activeElement?.dataset.habitatDmCode;
-      const rows = document.createDocumentFragment();
-      for (const native of dms.querySelectorAll('.dm-item')) {
-        const name = native.querySelector('.channel-name')?.textContent || '';
-        if (!name.toLocaleLowerCase().includes(term)) continue;
-        const row = this._make('button', { type: 'button', 'data-habitat-dm-code': native.dataset.code }, rows);
-        const face = native.querySelector('[data-habitat-dm-avatar], .channel-hash');
-        if (face) row.appendChild(face.cloneNode(true));
-        this._make('span', {}, row).textContent = name;
-        const badge = native.querySelector('.channel-badge');
-        if (badge) row.appendChild(badge.cloneNode(true));
-      }
-      empty.hidden = Boolean(rows.childElementCount);
-      empty.textContent = term ? window.t('header.search_no_results') : this._text('noDM');
-      results.replaceChildren(rows);
-      if (activeCode) (results.querySelector(`[data-habitat-dm-code="${CSS.escape(activeCode)}"]`) || input).focus();
-    };
-    this._inboxObserver = new MutationObserver(render);
-    this._inboxObserver.observe(dms, { childList: true, subtree: true, characterData: true });
-    this._on(input, 'input', render);
-    this._on(close, 'click', () => dialog.close());
-    this._on(results, 'click', event => {
-      const code = event.target.closest('button')?.dataset.habitatDmCode;
-      if (!window.app?.channels.some(ch => ch.is_dm && ch.code === code)) return;
-      dialog.close();
-      window.app._closeDMPiP?.();
-      window.app.switchChannel(code);
-      window.app._closeMobilePanels?.();
-    });
-    return () => {
-      if (window.app?.user?.isGuest) return;
-      title.textContent = dms.querySelector('.section-label-text')?.textContent || this._text('messages');
-      input.value = '';
-      dialog.showModal();
-      render();
-      input.focus();
-    };
   }
 
   _buildMemberPreview() {
@@ -545,6 +491,12 @@ class HabitatLayout {
       const item = document.getElementById(id);
       if (item && box.contains(item)) this._move(item, panel, null);
     }
+    // On a phone Haven's way into a text channel's call is a button in the
+    // voice roster block of the members drawer. That block is not shown in
+    // this layout, so the button comes here, first in the channel's menu.
+    // Haven still decides when it shows; on a desktop the header has its own.
+    const join = document.getElementById('voice-join-mobile');
+    if (join) this._move(join, panel, panel.children[0] || null);
     this._on(document, 'pointerdown', event => {
       if (details.open && !details.contains(event.target)) details.open = false;
     }, true);
@@ -584,13 +536,16 @@ class HabitatLayout {
       const app = window.app;
       const channel = HavenApi.currentChannel;
       const connected = app?.voice?.inVoice && app.voice.currentChannel === channel;
-      join.hidden = !header.hasAttribute('data-habitat-voice-title') || !app?._canUseVoice?.() || connected;
+      const voiceRoom = header.hasAttribute('data-habitat-voice-title');
+      intro.hidden = voiceRoom && !!connected;
+      join.hidden = !voiceRoom || !app?._canUseVoice?.() || intro.hidden;
     };
+    this._syncJoin = syncJoin;
     const sync = () => {
       const name = header.textContent.trim();
       const dm = document.body.classList.contains('viewing-dm');
       const channel = HavenApi.currentChannel;
-      if (channel && channel !== this._lastConversation) {
+      if (channel !== this._lastConversation) {
         this._lastConversation = channel;
         this._selectList?.(dm ? 'messages' : 'channels');
       }
@@ -658,9 +613,12 @@ class HabitatLayout {
     });
     indicator.parentNode.insertBefore(button, indicator);
     button.appendChild(this._icon('M3 4h8v7H3zM14 4h7v7h-7zM3 14h8v6H3zM14 14h7v6h-7z'));
-    const close = document.getElementById('mobile-right-close');
-    const closeParent = close?.parentNode;
-    const closeNext = close?.nextSibling;
+    // The members drawer on a phone is closed with a button that lives in the
+    // voice roster's header. The roster itself is not shown in the drawer in
+    // this layout (the people in a call are under the room and on the stage),
+    // so the button moves to the placeholder for as long as the layout is on.
+    const close = mode === 'compact' ? document.getElementById('mobile-right-close') : null;
+    if (close) this._move(close, anchor, null);
     const users = document.getElementById('voice-users');
     const stage = this._make('div', { 'data-habitat-call-stage': '' });
     const media = [this._region('webcams'), this._region('screen-shares')].filter(box => box?.parentNode === area);
@@ -965,7 +923,6 @@ class HabitatLayout {
     const setOpen = (open) => {
       if (open === roster.hasAttribute('data-habitat-stage')) return;
       if (open) {
-        if (close) anchor.appendChild(close);
         area.insertBefore(stage, area.firstChild);
         carry(roster, stage, null);
         roster.setAttribute('data-habitat-stage', '');
@@ -1019,7 +976,6 @@ class HabitatLayout {
         }
         homes.clear();
         carry(roster, anchor.parentNode, anchor.nextSibling);
-        if (closeParent) closeParent.insertBefore(close, closeNext?.parentNode === closeParent ? closeNext : null);
         roster.removeAttribute('data-habitat-stage');
         stage.remove();
         stage.removeAttribute('data-habitat-focus');
@@ -1066,22 +1022,21 @@ class HabitatLayout {
       this._mediaObserver = new MutationObserver(followMedia);
       for (const box of media) this._mediaObserver.observe(box, { childList: true, subtree: true });
     }
-    // Haven shows the indicator only on the channel the call is in, so the
-    // button, and with it the stage, never outlives a move to another channel.
     let stageRoom = null;
     const sync = () => {
-      button.hidden = indicator.style.display === 'none';
-      if (button.hidden) closedByHand = false;
       const app = window.app;
-      const connectedHere = !button.hidden && app?.voice?.inVoice && app.voice.currentChannel === app.currentChannel;
-      const room = connectedHere && app._isVoiceOnlyChannel?.(app.currentChannel) ? app.currentChannel : null;
+      const voice = app?.voice;
+      button.hidden = voice ? !(voice.inVoice && voice.currentChannel === app.currentChannel) : indicator.style.display === 'none';
+      if (button.hidden) closedByHand = false;
+      const room = !button.hidden && app?._isVoiceOnlyChannel?.(app.currentChannel) ? app.currentChannel : null;
+      flag(stage, 'data-habitat-voice-room', !!room);
       if (room && room !== stageRoom) setOpen(true);
       else if (button.hidden || (!room && stageRoom)) setOpen(false);
-      flag(stage, 'data-habitat-voice-room', !!room);
+      if (room !== stageRoom) arrange();
       stageRoom = room;
       followMedia();
-      arrange();
     };
+    this._syncStage = sync;
     this._closeStage = () => { setOpen(false); stage.removeAttribute('data-habitat-voice-room'); };
     this._on(button, 'click', () => {
       closedByHand = roster.hasAttribute('data-habitat-stage');
@@ -1283,7 +1238,14 @@ class HabitatLayout {
           if (report.type === 'outbound-rtp') {
             sentBytes += report.bytesSent || 0;
             if (report.kind === 'video' && report.frameHeight && (!out.video || report.frameHeight > out.video.height)) {
-              out.video = { height: report.frameHeight, fps: report.framesPerSecond, limit: report.qualityLimitationReason };
+              out.video = {
+                height: report.frameHeight, fps: report.framesPerSecond, limit: report.qualityLimitationReason,
+                // Which codec, and whether the graphics hardware is doing the
+                // work: a software encoder per viewer is what makes a whole
+                // machine stutter during a share.
+                codec: String(byId.get(report.codecId)?.mimeType || '').replace(/^video\//i, ''),
+                hardware: report.powerEfficientEncoder
+              };
             }
           }
           if (report.type === 'inbound-rtp' && report.kind === 'audio') {
@@ -1354,6 +1316,8 @@ class HabitatLayout {
       cells.video.textContent = !call.video ? '–' : [
         `${call.video.height}p`,
         Number.isFinite(call.video.fps) ? `${Math.round(call.video.fps)} fps` : '',
+        call.video.codec,
+        call.video.hardware === true ? this._text('hardware') : call.video.hardware === false ? this._text('software') : '',
         held ? this._text(call.video.limit === 'cpu' ? 'limitCpu' : 'limitBandwidth') : ''
       ].filter(Boolean).join(' · ');
       cells.route.textContent = call.sfu ? this._text('sfu')
@@ -1433,6 +1397,9 @@ class HabitatLayout {
       const inCall = bar.style.display !== 'none' && bar.children.length > 0;
       if (inCall) document.documentElement.setAttribute('data-habitat-in-voice', '');
       else document.documentElement.removeAttribute('data-habitat-in-voice');
+      // Haven redraws the bar after voice.join resolves, on moves and on leave.
+      this._syncJoin?.();
+      this._syncStage?.();
       this._signalSync?.(inCall);
     };
     this._voiceObserver = new MutationObserver(sync);
@@ -1441,7 +1408,7 @@ class HabitatLayout {
   }
 
   // ── Server name menu ───────────────────────────────────────
-  _buildMenu(header, account, actions) {
+  _buildMenu(header, account, actions, mode) {
     const button = this._make('button', {
       type: 'button',
       'data-habitat-menu-button': '',
@@ -1456,6 +1423,12 @@ class HabitatLayout {
     header.appendChild(menu);
 
     this._move(actions, menu, null);
+    const invitePanel = document.getElementById('sidebar-invite-panel');
+    const invite = invitePanel?.querySelector('#right-btn-invite-popout');
+    if (mode === 'desktop' && invite) {
+      this._move(invite, menu, null);
+      this._setAttr(invitePanel, 'data-habitat-emptied', '');
+    }
     // The floating debug tab otherwise covers Send on narrow screens.
     const statusTab = document.getElementById('status-bar-toggle');
     if (statusTab) this._move(statusTab, menu, null);
@@ -1637,7 +1610,8 @@ class HabitatLayout {
     this._selectList = null;
     this._badgeObserver?.disconnect();
     this._dmAvatarObserver?.disconnect();
-    this._inboxObserver?.disconnect();
+    this._syncJoin = null;
+    this._syncStage = null;
     this._voiceFaces?.disconnect();
     this._voiceCreateObserver?.disconnect();
     this._memberObserver?.disconnect();
@@ -1701,7 +1675,7 @@ HabitatLayout.TEXT = Object.freeze({
   en: Object.freeze({
     menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters',
     joinRoom: 'Join voice', moveMember: 'Move to voice channel…', permissions: 'Roles & permissions', speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
-    callView: 'Call view', find: 'Find a conversation', channels: 'Channels', messages: 'Messages',
+    callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
     channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.',
     volume: 'User volume', mute: 'Mute', unmute: 'Unmute', connection: 'Connection details',
@@ -1713,12 +1687,12 @@ HabitatLayout.TEXT = Object.freeze({
     aloneTitle: 'You are the first one here', aloneHint: 'People appear here as they join.', invite: 'Invite people',
     upload: 'Upload', download: 'Download', video: 'Picture you send',
     limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer',
-    sfu: 'Through the server (voice relay)'
+    sfu: 'Through the server (voice relay)', hardware: 'hardware', software: 'software'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
     joinRoom: 'Ses odasına katıl', moveMember: 'Ses odasına taşı…', permissions: 'Roller ve yetkiler', speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
-    callView: 'Arama görünümü', find: 'Sohbet bul', channels: 'Kanallar', messages: 'Mesajlar',
+    callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
     channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.',
     volume: 'Ses düzeyi', mute: 'Sustur', unmute: 'Sesini aç', connection: 'Bağlantı ayrıntıları',
@@ -1730,7 +1704,7 @@ HabitatLayout.TEXT = Object.freeze({
     aloneTitle: 'Buraya ilk gelen sensin', aloneHint: 'Katılanlar burada görünür.', invite: 'Davet et',
     upload: 'Yükleme', download: 'İndirme', video: 'Gönderdiğin görüntü',
     limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor',
-    sfu: 'Sunucu üzerinden (ses aktarıcısı)'
+    sfu: 'Sunucu üzerinden (ses aktarıcısı)', hardware: 'donanım', software: 'yazılım'
   })
 });
 
@@ -1911,6 +1885,10 @@ html[data-habitat-layout] [data-habitat-menu] button::after {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Haven still sets invite permission on the original panel. The button already has a text label. */
+html[data-habitat-layout]:has(#sidebar-invite-panel[style*="none"]) [data-habitat-menu] > #right-btn-invite-popout,
+[data-habitat-menu] > #right-btn-invite-popout::after { display: none; }
+#sidebar-invite-panel[data-habitat-emptied] { padding: 0; border: 0; }
 html[data-habitat-layout] [data-habitat-menu] .status-bar-toggle-tab {
   position: static; opacity: 1;
 }
@@ -2076,13 +2054,14 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 [data-habitat-dialog-body] > :where([data-haven-region]) + :where([data-haven-region]) {
   border-top: 1px solid var(--border);
 }
-[data-habitat-roster-home]:empty, [data-habitat-call-view][hidden] { display: none; }
+html[data-habitat-layout] [data-haven-region="context-sidebar"] > [data-haven-region="voice-roster"],
+[data-habitat-roster-home], [data-habitat-call-view][hidden] { display: none; }
 [data-habitat-call-view] {
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none;
   border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; cursor: pointer;
 }
 [data-habitat-call-view][aria-pressed="true"] { background: var(--bg-active); color: var(--accent); }
-[data-habitat-roster-home]:not(:empty) { position: relative; min-height: 2.5rem; }
+html[data-habitat-layout="compact"] [data-habitat-roster-home]:not(:empty) { display: block; position: relative; min-height: 2.5rem; }
 [data-habitat-roster-home]:not(:empty) #mobile-right-close { margin-inline-start: auto; }
 [data-habitat-call-stage] {
   --hb-stage-gap: .5rem; --hb-stage-pad: .75rem; --hb-stage-top: var(--hb-stage-pad);
@@ -2097,6 +2076,9 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
    get a row of their own so they never sit on someone's picture. */
 html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice-header-actions > :not([style*="none"])) { --hb-stage-top: 2.75rem; }
 [data-habitat-call-stage][data-habitat-focus] { height: clamp(14rem, 60dvh, 44rem); align-content: end; }
+/* Closing the stage brings back any history from before the room became voice-only. */
+[data-haven-region="message-area"] > [data-habitat-call-stage][data-habitat-voice-room] { flex: 1 1 auto; height: auto; }
+[data-haven-region="message-area"]:has(> [data-habitat-call-stage][data-habitat-voice-room]) > [data-haven-region="message-list"] { display: none; }
 [data-habitat-call-bar] {
   flex: none; justify-content: center; gap: .5rem; overflow-x: auto;
   padding: .5rem .75rem calc(.5rem + env(safe-area-inset-bottom, 0px));
@@ -2120,7 +2102,7 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 [data-habitat-call-stage] [data-habitat-focused] { position: absolute; z-index: 1; }
 [data-habitat-call-stage] > [data-habitat-leave] { position: absolute; z-index: 0; pointer-events: none; }
 [data-habitat-alone] {
-  position: absolute; inset: auto 1rem 5.5rem; z-index: 2; display: grid; justify-items: center; gap: .25rem;
+  position: absolute; inset: auto 1rem clamp(5.5rem, 20%, 12rem); z-index: 2; display: grid; justify-items: center; gap: .25rem;
   color: var(--text-secondary); font-size: .875rem; text-align: center; pointer-events: none;
 }
 [data-habitat-alone][hidden], [data-habitat-alone] > [hidden] { display: none; }
@@ -2215,10 +2197,18 @@ html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
 .channel-voice-user.talking [data-habitat-speaking] {
   display: inline; position: absolute; width: .0625rem; height: .0625rem; overflow: hidden; clip-path: inset(50%);
 }
-[data-habitat-call-avatar] > [data-habitat-call-photo] { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+/* The picture is pinned to the face rather than sized as a grid item: there a
+   percentage height has nothing definite to measure against, and a photo that
+   is not square kept its own shape and hung out of the circle as an oval. */
+[data-habitat-call-avatar] > [data-habitat-call-photo] {
+  position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover;
+}
 [data-habitat-call-stage] .user-item-name { flex: none; max-width: 100%; font-weight: 650; }
-body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-controls="dm-pane"] { display: none; }
-[data-habitat-inbox] { margin-block-end: .375rem; }
+body.is-guest [data-habitat-inbox] { display: none; }
+[data-habitat-inbox] { color: var(--text-secondary); border: 0; }
+[data-habitat-inbox] svg { width: 1.375rem; height: 1.375rem; }
+[data-habitat-nav] > [data-habitat-inbox] { width: 2.75rem; height: 2.75rem; }
+[data-habitat-nav]:has(> [data-habitat-inbox]) { display: flex; align-items: center; }
 [data-habitat-inbox][aria-pressed="true"] {
   background: var(--accent); color: var(--accent-text); border-radius: 1rem;
 }
@@ -2245,31 +2235,10 @@ body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-con
   background: var(--bg-tertiary);
   text-align: start;
 }
-[data-habitat-inbox-page] {
-  box-sizing: border-box; width: min(36rem, 94vw); max-height: 86dvh;
-  margin: auto; padding: 1.5rem; border: .0625rem solid var(--border-light);
-  border-radius: 1rem; background: var(--bg-secondary); color: var(--text-primary);
-}
-[data-habitat-inbox-page][open] { display: flex; flex-direction: column; gap: 1rem; }
-[data-habitat-inbox-page]::backdrop { background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent); }
-[data-habitat-inbox-page] header { display: flex; align-items: center; justify-content: space-between; }
-[data-habitat-inbox-page] h2 { margin: 0; font: 750 1.65rem/1.2 var(--font-heading); }
-[data-habitat-inbox-page] header button, [data-habitat-room-members] {
+[data-habitat-room-members] {
   display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
   border: 0; padding: .375rem; border-radius: .5rem; color: var(--text-secondary); background: var(--bg-hover);
 }
-[data-habitat-inbox-page] input {
-  width: 100%; min-height: 2.5rem; border: .0625rem solid var(--border-light);
-  border-radius: .5rem; background: var(--bg-input); color: var(--text-primary); padding-inline: .75rem; font: inherit;
-}
-[data-habitat-conversations] { overflow-y: auto; min-height: 0; }
-[data-habitat-conversations] button {
-  display: flex; align-items: center; gap: .75rem; width: 100%; min-height: 3rem;
-  padding: .5rem; border: 0; border-radius: .5rem; background: transparent; color: var(--text-primary); font: 600 1rem var(--font-main); text-align: start;
-}
-[data-habitat-conversations] button:hover, [data-habitat-conversations] button:focus-visible { background: var(--bg-active); }
-[data-habitat-conversations] button > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
-[data-habitat-conversations] .channel-badge { margin-inline-start: auto; }
 [data-habitat-room-members] { flex: none; font: 650 .875rem/1 var(--font-main); cursor: pointer; }
 [data-habitat-room-members][hidden] { display: none; }
 /* Haven forces its mobile button visible even when the roster already has a trigger. */
@@ -2278,9 +2247,7 @@ body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-con
 [data-habitat-stack] [data-habitat-face] { width: 1.5rem; height: 1.5rem; margin-inline-start: -.25rem; box-shadow: 0 0 0 .125rem var(--bg-hover); }
 @media (max-width: 480px) {
   [data-habitat-stack] [data-habitat-face]:not(:first-child) { display: none; }
-  [data-habitat-inbox-page] { width: 100%; height: 100dvh; max-width: 100%; max-height: 100dvh; border-radius: 0; padding: 1rem; }
 }
-[data-habitat-lists] { display: flex; gap: .25rem; }
 [data-habitat-face] {
   position: relative; display: inline-grid; place-items: center; flex: none;
   width: 1.875rem; height: 1.875rem; overflow: hidden; border-radius: 50%;
@@ -2295,17 +2262,13 @@ html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden]
 [data-habitat-rooms] .channel-item[data-habitat-drop] { outline: .125rem solid var(--accent); outline-offset: -.125rem; }
 [data-habitat-face] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dm-item > [data-habitat-dm-avatar] + .channel-hash { display: none; }
-[data-habitat-lists] button {
-  flex: 1; min-width: 0; min-height: 2.125rem;
-  padding: .25rem; border: 0; border-radius: var(--radius-sm);
-  background: transparent; font-size: .875rem; font-weight: 600;
-}
-[data-habitat-lists] button[aria-pressed="true"], [data-habitat-lists] button:hover {
-  background: var(--bg-active); color: var(--text-primary);
-}
 [data-habitat-count]:not(:empty) {
-  margin-inline-start: .25rem; border-radius: 1rem;
+  position: absolute; inset: auto 0 0 auto; border-radius: 1rem; font-size: .6875rem;
   padding: .0625rem .3125rem; background: var(--danger); color: var(--danger-text);
+}
+/* A single pane uses the whole split, even when Haven saved a fractional flex for it. */
+@media (min-height: 551px) {
+  [data-channel-scroll="separate"] #sidebar-split[data-habitat-list] { display: grid; grid-template-rows: minmax(0, 1fr); }
 }
 #sidebar-split[data-habitat-list="channels"] > [data-haven-region="direct-messages"],
 #sidebar-split[data-habitat-list="messages"] > [data-haven-region="channels"],
@@ -2334,11 +2297,22 @@ html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden]
   width: 100%; height: auto; min-height: 2.25rem; opacity: 1; text-align: start;
 }
 [data-habitat-channel-menu] > button::after { content: attr(aria-label); font: 500 .875rem/1.25 var(--font-main); }
+/* The way into the channel's call, moved here from the members drawer on a
+   phone. It carries its own words, and the header's icon-only rule for voice
+   buttons must not blank them. */
+html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile {
+  justify-content: start; align-items: center; width: 100%; min-height: 2.25rem; margin: 0; padding: .5rem .625rem;
+  border: 0; border-radius: var(--radius-sm); color: var(--accent); background: transparent; font: 600 .875rem/1.25 var(--font-main);
+}
+html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile > span {
+  display: inline-flex; align-items: center; gap: .625rem; font-size: inherit;
+}
 [data-habitat-channel-menu] .channel-code-tag:not(:empty) { margin: .25rem .5rem; width: fit-content; }
 [data-habitat-channel-menu] .channel-code-tag:empty, html[data-habitat-layout] .header-actions-divider { display: none; }
 html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; overflow: visible; }
 [data-habitat-intro] { display: none; }
-[data-haven-region="message-list"]:not(:has(> :not(#msg-more-btn))) + [data-habitat-intro] {
+[data-habitat-intro="voice"]:not([hidden]),
+[data-haven-region="message-list"]:not(:has(> :not(#msg-more-btn))) + [data-habitat-intro]:not([hidden]) {
   display: block; flex: none; padding: 1rem 1.5rem; color: var(--text-primary);
 }
 [data-habitat-intro] > span {
@@ -2351,7 +2325,6 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
 [data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
 @media (min-width: 901px) {
   html[data-habitat-layout-desktop] #voice-join-mobile { display: none; }
-  html[data-habitat-layout-desktop] #right-sidebar-voice:has(#voice-join-mobile:not([style*="none"])):has(#voice-users > .muted-text:only-child) { display: none; }
 }
 /* A voice room has nothing to search, and on a phone its name needs the
    room, so the search button is only brought back for text channels. */

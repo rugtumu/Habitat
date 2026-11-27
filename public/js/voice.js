@@ -897,8 +897,9 @@ class VoiceManager {
             peer._queuedIceRestart = true;
           }
         }
-        await conn.setRemoteDescription(new RTCSessionDescription(this._stereoSdp(offer)));
+        await conn.setRemoteDescription(new RTCSessionDescription(this._videoStartSdp(this._stereoSdp(offer))));  // Habitat fork: see _videoStartSdp
         if (typeof data.offerId === 'string') peer._supportsOfferIds = true;
+        this._preferHardwareVideo(conn);  // Habitat fork: see _preferHardwareVideo
         const answer = this._stereoSdp(await conn.createAnswer());
         await conn.setLocalDescription(answer);
 
@@ -953,7 +954,7 @@ class VoiceManager {
           // Only accept answer if we're actually waiting for one
           // (we may have rolled back our offer due to glare)
           if (peer.connection.signalingState === 'have-local-offer') {
-            await peer.connection.setRemoteDescription(new RTCSessionDescription(this._stereoSdp(data.answer)));
+            await peer.connection.setRemoteDescription(new RTCSessionDescription(this._videoStartSdp(this._stereoSdp(data.answer))));  // Habitat fork: see _videoStartSdp
             this._clearOfferAnswerTimer(peer);
             peer._awaitingAnswer = false;
             peer._activeOfferId = null;
@@ -2326,6 +2327,10 @@ class VoiceManager {
       // Habitat fork: each capture starts with fresh viewer decisions and the chosen content hint.
       this._pausedScreenPeers = new Set();
       this._applyScreenContentHint();
+      // Habitat fork: a share used to start with whatever the capture gave it
+      // and only took the chosen size and frame rate when a setting was next
+      // changed. The start now applies them the same way a change does.
+      await this._applyLiveQualityChange();
 
       // When user clicks browser "Stop sharing" button
       this.screenStream.getVideoTracks()[0].onended = () => {
@@ -2900,13 +2905,76 @@ class VoiceManager {
   _screenShareOf(cap) {
     if (!cap) return cap;
     const active = this.peers.size - (this._pausedScreenPeers?.size || 0);
-    return Math.max(Math.min(cap, 1_000_000), Math.round(cap / Math.max(1, active)));
+    // Habitat fork: up to three viewers each get the picture the sharer asked
+    // for; past that the whole share is held to three times the cap and split.
+    // The first version held it to one cap, which in a six-person room left
+    // each viewer a fifth of the setting, and a 1440p share looked like 540p.
+    return Math.max(Math.min(cap, 1_000_000), Math.min(cap, Math.round(cap * 3 / Math.max(1, active))));
   }
 
   _rebalanceScreenShare() {
     if (!this.isScreenSharing) return;
     const cap = this._screenBitrateFor(this.screenResolution);
     for (const [userId, peer] of this.peers) this._applyScreenBitrate(peer.connection, cap, userId);
+  }
+
+  // Habitat fork: browsers list VP8 first for a call, and VP8 is encoded and
+  // decoded in software. In a mesh the sharer runs one encoder per viewer, so
+  // a shared screen in a six-person room meant five software 1080p encoders
+  // on one machine and a software decoder on each of the others: fans on, and
+  // every hover and drag on the page stuttering with them. H.264 is the codec
+  // graphics hardware encodes and decodes, so it goes first wherever the
+  // browser has it. Both ends do this before every offer and answer, which
+  // keeps the choice from flipping when the other side renegotiates. A peer
+  // without H.264 still gets whatever the two have in common.
+  _preferHardwareVideo(connection) {
+    try {
+      const source = typeof RTCRtpReceiver !== 'undefined' && RTCRtpReceiver.getCapabilities
+        ? RTCRtpReceiver.getCapabilities('video') : null;
+      if (!source || !Array.isArray(source.codecs) || !connection.getTransceivers) return;
+      const first = source.codecs.filter(codec => /^video\/h264$/i.test(codec.mimeType));
+      if (!first.length) return;
+      const order = [...first, ...source.codecs.filter(codec => !first.includes(codec))];
+      for (const transceiver of connection.getTransceivers()) {
+        const kind = transceiver.receiver?.track?.kind || transceiver.sender?.track?.kind;
+        if (kind !== 'video' || transceiver.stopped || typeof transceiver.setCodecPreferences !== 'function') continue;
+        try { transceiver.setCodecPreferences(order); } catch { /* this browser rejects the list: its own order stands */ }
+      }
+    } catch { /* no codec preferences here: the browser's own order stands */ }
+  }
+
+  // Habitat fork: a browser starts every call guessing the line carries about
+  // half a megabit and feels its way up from there. For a voice that is
+  // plenty. For a 1440p screen it means the first half minute goes out at a
+  // quarter of the size, and people conclude the share ignores their settings
+  // until they touch them. A sender takes its codec settings from the other
+  // side's description, so the starting rate is written into the video lines
+  // there before it is applied. Chromium reads it; a browser that does not
+  // know the setting ignores it.
+  _videoStartKbps() {
+    const share = this._screenShareOf(this._screenBitrateFor(this.screenResolution, false));
+    return Math.max(1000, Math.min(4000, share ? Math.round(share / 2000) : 3000));
+  }
+
+  _videoStartSdp(desc) {
+    if (!desc || typeof desc.sdp !== 'string' || !/^m=video /m.test(desc.sdp)) return desc;
+    const start = `x-google-start-bitrate=${this._videoStartKbps()}`;
+    const sections = desc.sdp.split(/^(?=m=)/m).map((section) => {
+      if (!section.startsWith('m=video ')) return section;
+      const codecs = new Set([...section.matchAll(/^a=rtpmap:(\d+) (?:H264|VP8|VP9|AV1|H265)\//gim)].map(m => m[1]));
+      for (const pt of codecs) {
+        const fmtp = new RegExp(`^(a=fmtp:${pt} )([^\\r\\n]*)`, 'm');
+        if (fmtp.test(section)) {
+          section = section.replace(fmtp, (all, head, params) => head + [
+            ...params.split(';').map(p => p.trim()).filter(p => p && !/^x-google-start-bitrate=/i.test(p)), start
+          ].join(';'));
+        } else {
+          section = section.replace(new RegExp(`^(a=rtpmap:${pt} [^\\r\\n]*)(\\r?\\n)`, 'm'), `$1$2a=fmtp:${pt} ${start}$2`);
+        }
+      }
+      return section;
+    });
+    return { type: desc.type, sdp: sections.join('') };
   }
 
   // Habitat fork: a camera had no ceiling, so everyone on camera sent whatever
@@ -3365,6 +3433,7 @@ class VoiceManager {
           return false;
         }
       }
+      this._preferHardwareVideo(connection);  // Habitat fork: see _preferHardwareVideo
       let offer = await connection.createOffer(iceRestart ? { iceRestart: true } : undefined);
       if (connection.signalingState !== 'stable') {
         // Another incoming offer won the race while createOffer() was in flight.
