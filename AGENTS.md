@@ -83,9 +83,11 @@ server's owner; the steps, checks and rollback are in
 
 ## Open work
 
-1. **Voice.** The Habitat layout can show the live call roster above the
-   conversation. A separate voice channel type still needs core work. Camera,
-   screen sharing and the speaking indicator need a real multi-device check.
+1. **Voice.** The Voice room template sets voice on and text and media off.
+   Habitat groups these rooms in the sidebar and opens the call grid on join.
+   Speaking, mute and room changes have been checked with two browser accounts
+   and generated microphone audio. Camera, screen sharing and physical devices
+   still need a real call.
 2. **Light theme.** Habitat Grafit is dark only.
 3. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.

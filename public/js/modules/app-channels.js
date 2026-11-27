@@ -1,6 +1,11 @@
 // Channels: switching to one, the topic bar and welcome screen, drawing the
 // channel and DM sidebar, and moving between channels from the keyboard.
 
+// Habitat fork: the renderer already has each channel record while grouping the sidebar.
+function voiceOnly(ch) {
+  return !!ch && !ch.is_dm && ch.voice_enabled !== 0 && ch.text_enabled === 0 && ch.media_enabled === 0;
+}
+
 export default {
 
 // ── Channel Management ────────────────────────────────
@@ -463,7 +468,13 @@ _showWelcome() {
 
 _renderChannels() {
   const list = document.getElementById('channel-list');
+  // Habitat fork: keep native channel rows and their menus in the layout's voice section.
+  const voiceSection = list.querySelector('[data-habitat-voice-section]');
+  const voiceRooms = voiceSection?.querySelector('[data-habitat-rooms]');
+  voiceRooms?.replaceChildren();
   list.innerHTML = '';
+  if (voiceSection) voiceSection.hidden = !!this._arranging;
+  const roomTarget = ch => voiceRooms && !this._arranging && (voiceOnly(ch) || (ch.is_temp_voice && ch.voice_enabled !== 0)) ? voiceRooms : list;
 
   // (#5409) Admin-hidden channels are dropped from the sidebar, except the one
   // we're actively viewing (so a freshly-hidden current channel doesn't vanish
@@ -622,6 +633,7 @@ _renderChannels() {
     const isAnnouncement = ch.notification_type === 'announcement';
     const isTemporary = !!ch.expires_at;
     const isTempVoice = !!ch.is_temp_voice;
+    const voiceRow = roomTarget(ch) === voiceRooms;
     const hashIcon = isSub ? (ch.is_private ? '🔒' : '↳') : (isTempVoice ? '🔊' : (isTemporary ? '⏱️' : (isAnnouncement ? '📢' : (ch.is_forum ? '🗂️' : (ch.is_nsfw ? '🔞' : '#')))));
     // NSFW channels stay out of sight when the user asked for that (phone in
     // public), except the one they are actually in.
@@ -650,7 +662,7 @@ _renderChannels() {
     el.innerHTML = `
       ${hasSubs ? `<span class="channel-collapse-arrow${isCollapsed ? ' collapsed' : ''}" title="${t('channels.expand_collapse')}">▾</span>` : ''}
       <span class="channel-hash"${expiryTitle}>${hashIcon}</span>
-      <span class="channel-name">${this._escapeHtml(ch.name)}</span>
+      ${voiceRow ? '<button type="button" class="channel-name">' : '<span class="channel-name">'}${this._escapeHtml(ch.name)}${voiceRow ? '</button>' : '</span>'}
       ${indicators}
       <button class="channel-more-btn" title="${t('channels.channel_options')}">⋯</button>
     `;
@@ -718,9 +730,10 @@ _renderChannels() {
       this.switchChannel(ch.code);
       // A voice-only channel has nothing else to do there, so one click joins.
       // Not from its ... button, which is there to change the channel (#5846).
-      if (!e.target.closest('.channel-more-btn') && this._isVoiceOnlyChannel(ch.code) && this._canUseVoice() &&
+      if (!e.target.closest('.channel-more-btn') && (voiceRow || this._isVoiceOnlyChannel(ch.code)) && this._canUseVoice() &&
           !(this.voice?.inVoice && this.voice.currentChannel === ch.code)) {
-        setTimeout(() => this._joinVoice(), 300);
+        // Habitat fork: join the room that was clicked even while the microphone prompt is open.
+        this._joinVoice();
       }
     });
     // Double-click to join voice in the channel (blocked for text-only;
@@ -728,7 +741,7 @@ _renderChannels() {
     el.addEventListener('dblclick', () => {
       const _dblCh = this.channels.find(c => c.code === ch.code);
       if (_dblCh && _dblCh.voice_enabled === 0) return;
-      if (this._isVoiceOnlyChannel(ch.code)) return;
+      if (voiceRow || this._isVoiceOnlyChannel(ch.code)) return;
       if (!this.user?.isAdmin && !this.user?.isGuest && !this._hasPerm('use_voice')) return;
       this.switchChannel(ch.code);
       setTimeout(() => this._joinVoice(), 300);
@@ -886,7 +899,7 @@ _renderChannels() {
         chEl.dataset.catGroup = cat;
         if (catCollapsed) chEl.style.display = 'none';
       }
-      list.appendChild(chEl);
+      roomTarget(ch).appendChild(chEl);
       const subs = subChannelMap[ch.id] || [];
       const isSubCollapsed = localStorage.getItem(`haven_subs_collapsed_${ch.code}`) === 'true';
       const subHasTags = subs.some(s => s.category);
@@ -932,7 +945,7 @@ _renderChannels() {
           if (localStorage.getItem(subTagKey) === 'true') subEl.style.display = 'none';
         }
         if (isSubCollapsed || catCollapsed) subEl.style.display = 'none';
-        list.appendChild(subEl);
+        roomTarget(sub).appendChild(subEl);
       });
 
       // If collapsed and sub-channels have unreads, bubble a badge onto the parent
@@ -973,6 +986,8 @@ _renderChannels() {
       }
     }
   }
+
+  if (voiceSection) list.appendChild(voiceSection);
 
   // ── "Create Temp Channel" button (visible if user has create_temp_channel perm) ──
   if (this.user?.isAdmin || this._hasPerm('create_temp_channel')) {
@@ -1257,8 +1272,7 @@ _renderChannels() {
  */
 // Voice on, and text and media both off under Channel Functions.
 _isVoiceOnlyChannel(code) {
-  const ch = this.channels?.find(c => c.code === code);
-  return !!ch && !ch.is_dm && ch.voice_enabled !== 0 && ch.text_enabled === 0 && ch.media_enabled === 0;
+  return voiceOnly(this.channels?.find(c => c.code === code));
 },
 
 // The same checks _joinVoice makes, without its error toasts.
@@ -1271,7 +1285,7 @@ _getVisualChannelOrder() {
   const codes = [];
   // Channels section
   document.querySelectorAll('#channel-list .channel-item:not([style*="display: none"])').forEach(el => {
-    if (el.dataset.code) codes.push(el.dataset.code);
+    if (el.dataset.code && !el.closest('[data-habitat-rooms][hidden]')) codes.push(el.dataset.code);
   });
   // DM section
   document.querySelectorAll('#dm-list .channel-item:not([style*="display: none"])').forEach(el => {

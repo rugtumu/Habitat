@@ -249,9 +249,13 @@ module.exports = function register(socket, ctx) {
     }
 
     try {
+      // Habitat fork: persist the room's functions together so it opens with the right type.
+      const textEnabled = data.textEnabled === false && !data.isForum ? 0 : 1;
+      const mediaEnabled = data.mediaEnabled === false ? 0 : 1;
+      const voiceEnabled = data.voiceEnabled === false ? 0 : 1;
       const result = db.prepare(
-        'INSERT INTO channels (name, code, created_by, is_private, expires_at, is_forum) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(name.trim(), code, socket.user.id, isPrivate, expiresAt, data.isForum ? 1 : 0);
+        'INSERT INTO channels (name, code, created_by, is_private, expires_at, is_forum, text_enabled, media_enabled, voice_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(name.trim(), code, socket.user.id, isPrivate, expiresAt, data.isForum ? 1 : 0, textEnabled, mediaEnabled, voiceEnabled);
 
       // Channel templates send the rest of the setup along with the name, so
       // an "Announcements" channel comes out read-only and in announcement
@@ -263,8 +267,6 @@ module.exports = function register(socket, ctx) {
       if (data.readOnly) extras.push(['read_only', 1]);
       if (data.announcement) extras.push(['notification_type', 'announcement']);
       if (isInt(data.slowMode) && data.slowMode > 0) extras.push(['slow_mode_interval', Math.min(3600, data.slowMode)]);
-      if (data.mediaEnabled === false) extras.push(['media_enabled', 0]);
-      if (data.voiceEnabled === false) extras.push(['voice_enabled', 0]);
       if (extras.length) {
         db.prepare(`UPDATE channels SET ${extras.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`)
           .run(...extras.map(([, v]) => v), result.lastInsertRowid);
@@ -316,7 +318,8 @@ module.exports = function register(socket, ctx) {
         expires_at: expiresAt,
         // The creator's sidebar renders from this stub until the enriched
         // list lands, so a forum has to say so here or it shows up as #.
-        is_forum: data.isForum ? 1 : 0
+        is_forum: data.isForum ? 1 : 0,
+        text_enabled: textEnabled, media_enabled: mediaEnabled, voice_enabled: voiceEnabled
       };
 
       socket.join(`channel:${code}`);

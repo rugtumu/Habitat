@@ -231,6 +231,7 @@
         "team": "Private team",
         "event": "Event (24h)",
         "slow": "Slow chat",
+        "voice_room": "Voice room",
         "text_only": "Text only",
         "delete_title": "Delete template",
         "delete_prompt": "Delete the saved template \"{{name}}\"?"

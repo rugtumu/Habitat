@@ -53,9 +53,10 @@ async _joinVoice() {
   let success = false;
   try {
   // voice.join() auto-leaves old channel if connected
-  success = await this.voice.join(this.currentChannel);
+  // Habitat fork: browsing a text room while microphone permission is pending must not move the roster.
+  const joinedCode = this.currentChannel;
+  success = await this.voice.join(joinedCode);
   if (success) {
-    const joinedCode = this.currentChannel;
     const joinedUser = {
       id: this.user.id,
       username: this.user.displayName || this.user.username,
@@ -64,7 +65,7 @@ async _joinVoice() {
       isDeafened: !!this.voice.isDeafened
     };
 
-    this._renderVoiceUsers([joinedUser], joinedCode);
+    if (this.currentChannel === joinedCode) this._renderVoiceUsers([joinedUser], joinedCode);
     this.voiceCounts[joinedCode] = Math.max(1, this.voiceCounts[joinedCode] || 0);
     this.voiceChannelUsers[joinedCode] = [
       joinedUser,

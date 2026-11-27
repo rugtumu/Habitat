@@ -151,6 +151,8 @@ export default {
   _builtinChannelTemplates() {
     return [
       { key: 'chat', emoji: '💬', fields: {} },
+      // Habitat fork: use the existing channel functions for a permanent voice room.
+      { key: 'voice_room', emoji: '🔊', fields: { textEnabled: false, mediaEnabled: false } },
       { key: 'announcements', emoji: '📢', fields: { readOnly: true, announcement: true, addAllMembers: true } },
       { key: 'forum', emoji: '🗂️', fields: { isForum: true } },
       { key: 'team', emoji: '🔒', fields: { isPrivate: true } },
@@ -218,6 +220,7 @@ export default {
       topic: (el('new-channel-topic')?.value || '').trim().slice(0, 256),
       readOnly: !!el('new-channel-readonly')?.checked, announcement: !!f.announcement,
       slowMode: parseInt(el('new-channel-slowmode')?.value, 10) || 0,
+      textEnabled: el('new-channel-text') ? el('new-channel-text').checked : true,
       mediaEnabled: el('new-channel-media') ? el('new-channel-media').checked : true,
       voiceEnabled: el('new-channel-voice') ? el('new-channel-voice').checked : true
     };
@@ -232,6 +235,7 @@ export default {
       const want = String(parseInt(f.slowMode, 10) || 0);
       slow.value = [...slow.options].some(o => o.value === want) ? want : '0';
     }
+    if (el('new-channel-text')) el('new-channel-text').checked = f.textEnabled !== false;
     if (el('new-channel-media')) el('new-channel-media').checked = f.mediaEnabled !== false;
     if (el('new-channel-voice')) el('new-channel-voice').checked = f.voiceEnabled !== false;
     // Opened when a template sets anything there, so it is not hidden.
@@ -260,7 +264,7 @@ export default {
     const fields = {
       isPrivate: !!ch.is_private, isForum: ch.is_forum === 1, readOnly: ch.read_only === 1,
       announcement: ch.notification_type === 'announcement', slowMode: ch.slow_mode_interval || 0,
-      mediaEnabled: ch.media_enabled !== 0, voiceEnabled: ch.voice_enabled !== 0, topic: ch.topic || ''
+      textEnabled: ch.text_enabled !== 0, mediaEnabled: ch.media_enabled !== 0, voiceEnabled: ch.voice_enabled !== 0, topic: ch.topic || ''
     };
     const list = this._savedChannelTemplates().filter(x => x.name !== clean);
     list.push({ name: clean, fields });

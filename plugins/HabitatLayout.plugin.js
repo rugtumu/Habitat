@@ -2,7 +2,7 @@
  * @name Habitat Layout
  * @description The layout people already know from other chat apps: your account, mute, deafen and settings sit bottom-left with the call controls above them, joining and creating a channel open from a + button instead of filling the sidebar, and the rest of the sidebar tools fold into the server name menu. On a phone the message box tools fold into one + button. Reversible, picked in Settings, Layout.
  * @author Habitat
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 // Habitat fork: this layout only moves complete public regions and a few
@@ -172,6 +172,7 @@ class HabitatLayout {
       this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
       this._buildNavigation();
+      this._buildVoiceRooms();
       this._buildChannelTools();
       this._buildMemberPreview();
       this._buildConversationIntro();
@@ -388,6 +389,59 @@ class HabitatLayout {
     sync();
   }
 
+  _buildVoiceRooms() {
+    const list = document.getElementById('channel-list');
+    const create = this._region('create-channel');
+    if (!list || !window.app?._renderChannels) return;
+    const section = this._make('section', { 'data-habitat-voice-section': '', 'aria-label': this._text('voiceRooms') });
+    const header = this._make('div', { 'data-habitat-room-heading': '' }, section);
+    const toggle = this._make('button', { type: 'button', 'aria-expanded': 'true', 'aria-controls': 'habitat-voice-rooms' }, header);
+    toggle.appendChild(this._icon('m6 9 6 6 6-6'));
+    this._make('span', {}, toggle).textContent = this._text('voiceRooms');
+    const rooms = this._make('div', { id: 'habitat-voice-rooms', 'data-habitat-rooms': '' }, section);
+    this._make('p', { 'data-habitat-no-rooms': '' }, section).textContent = this._text('emptyVoice');
+    this._on(toggle, 'click', () => {
+      rooms.hidden = !rooms.hidden;
+      toggle.setAttribute('aria-expanded', String(!rooms.hidden));
+    });
+    if (create) {
+      const add = this._make('button', { type: 'button', 'aria-label': this._text('addVoice'), title: this._text('addVoice') }, header);
+      add.appendChild(this._icon('M12 5v14M5 12h14'));
+      const syncCreate = () => { add.hidden = create.style.display === 'none'; };
+      this._voiceCreateObserver = new MutationObserver(syncCreate);
+      this._voiceCreateObserver.observe(create, { attributes: true, attributeFilter: ['style'] });
+      syncCreate();
+      this._on(add, 'click', () => {
+        this._toggleDialog(true);
+        const form = document.getElementById('create-section-body');
+        if (form?.style.display === 'none') document.getElementById('create-section-toggle')?.click();
+        const picker = document.getElementById('new-channel-template');
+        if (picker) {
+          picker.value = 'b:voice_room';
+          picker.dispatchEvent(new Event('change'));
+        }
+        document.getElementById('new-channel-name')?.focus();
+      });
+    }
+    // The renderer keeps the original room buttons, moderation actions and live user rows.
+    list.appendChild(section);
+    this._voiceDirectory = section;
+    window.app._renderChannels();
+    const paint = () => {
+      for (const row of list.querySelectorAll('.channel-voice-user:not(:has([data-habitat-face]))')) {
+        const id = row.dataset.userId;
+        const code = row.parentElement.previousElementSibling?.dataset.code;
+        const member = window.app._onlineByChannel?.get(code)?.find(user => String(user.id) === id)
+          || window.app._memberById?.(id) || { id };
+        row.prepend(this._memberFace(member, row.dataset.username));
+        this._make('span', { 'data-habitat-speaking': '' }, row).textContent = this._text('speaking');
+      }
+    };
+    this._voiceFaces = new MutationObserver(paint);
+    this._voiceFaces.observe(list, { childList: true, subtree: true });
+    paint();
+  }
+
   // The original buttons keep their handlers and permission-dependent visibility.
   _buildChannelTools() {
     const box = document.getElementById('header-actions-box');
@@ -510,14 +564,24 @@ class HabitatLayout {
       }
       button.setAttribute('aria-pressed', String(open));
     };
+    let stageRoom = null;
     const sync = () => {
       button.hidden = indicator.style.display === 'none';
-      if (button.hidden) setOpen(false);
+      const app = window.app;
+      const connectedHere = !button.hidden && app?.voice?.inVoice && app.voice.currentChannel === app.currentChannel;
+      const room = connectedHere && app._isVoiceOnlyChannel?.(app.currentChannel) ? app.currentChannel : null;
+      if (room && room !== stageRoom) setOpen(true);
+      else if (button.hidden || (!room && stageRoom)) setOpen(false);
+      if (room) roster.setAttribute('data-habitat-voice-room', '');
+      else roster.removeAttribute('data-habitat-voice-room');
+      stageRoom = room;
     };
-    this._closeStage = () => setOpen(false);
+    this._closeStage = () => { setOpen(false); roster.removeAttribute('data-habitat-voice-room'); };
     this._on(button, 'click', () => setOpen(!roster.hasAttribute('data-habitat-stage')));
     this._indicatorObserver = new MutationObserver(sync);
     this._indicatorObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+    const title = document.getElementById('channel-header-name');
+    if (title) this._indicatorObserver.observe(title, { childList: true, characterData: true, subtree: true });
     sync();
   }
 
@@ -774,6 +838,8 @@ class HabitatLayout {
     this._badgeObserver?.disconnect();
     this._dmAvatarObserver?.disconnect();
     this._inboxObserver?.disconnect();
+    this._voiceFaces?.disconnect();
+    this._voiceCreateObserver?.disconnect();
     this._memberObserver?.disconnect();
     this._drawerObserver?.disconnect();
     for (const face of document.querySelectorAll('[data-habitat-dm-avatar]')) face.remove();
@@ -807,6 +873,10 @@ class HabitatLayout {
     this._placements = [];
     for (const element of this._built) element.remove();
     this._built = [];
+    if (this._voiceDirectory) {
+      this._voiceDirectory = null;
+      window.app?._renderChannels?.();
+    }
     for (const labelled of document.querySelectorAll('[data-habitat-label]')) {
       labelled.removeAttribute('data-habitat-label');
     }
@@ -824,12 +894,14 @@ class HabitatLayout {
 HabitatLayout.TEXT = Object.freeze({
   en: Object.freeze({
     menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters',
+    speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
     callView: 'Call view', find: 'Find a conversation', channels: 'Channels', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
     channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
+    speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
     callView: 'Arama görünümü', find: 'Sohbet bul', channels: 'Kanallar', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
     channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.'
@@ -1197,6 +1269,12 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 [data-habitat-call-avatar] {
   display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%;
   overflow: hidden; color: var(--accent-text); background: var(--accent); font: 700 1.25rem/1 var(--font-main);
+}
+[data-habitat-rooms]:not(:empty) + [data-habitat-no-rooms],
+[data-habitat-rooms][hidden] + [data-habitat-no-rooms],
+[data-habitat-speaking] { display: none; }
+.channel-voice-user.talking [data-habitat-speaking] {
+  display: inline; position: absolute; width: .0625rem; height: .0625rem; overflow: hidden; clip-path: inset(50%);
 }
 [data-habitat-call-avatar] img { width: 100%; height: 100%; object-fit: cover; }
 [data-habitat-stage] .user-item-name { font-weight: 650; }

@@ -1429,6 +1429,81 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   html[data-habitat-layout] #settings-modal .settings-body { padding-inline: clamp(1rem, 4vw, 3.5rem); }
 }
 
+/* A room stays on one row, with the people connected to it directly underneath. */
+[data-habitat-voice-section] {
+  margin-block: .75rem .375rem;
+  padding-block-start: .625rem;
+  border-block-start: .0625rem solid var(--border);
+}
+[data-habitat-no-rooms] { margin: .125rem .875rem .5rem; color: var(--text-muted); font-size: .8125rem; }
+[data-habitat-rooms] [data-voice-connected] .channel-hash,
+[data-habitat-rooms] [data-voice-connected] .channel-voice-indicator { color: var(--success); }
+[data-habitat-room-heading] { display: flex; align-items: center; padding-inline: .5rem; }
+[data-habitat-room-heading] button {
+  display: inline-flex; align-items: center; gap: .375rem; min-height: 2rem;
+  padding: .25rem; border: 0; background: transparent; color: var(--text-secondary);
+  font: 700 .8125rem/1.25 var(--font-main); cursor: pointer;
+}
+[data-habitat-room-heading] button:first-child { flex: 1; }
+[data-habitat-room-heading] button:hover { color: var(--text-primary); }
+[data-habitat-room-heading] button[hidden] { display: none; }
+html[data-habitat-layout] [data-habitat-room-heading] svg { width: 1rem; height: 1rem; }
+[data-habitat-room-heading] button[aria-expanded="false"] svg { rotate: -90deg; }
+[data-habitat-rooms] .channel-item .channel-name {
+  border: 0; padding: 0; text-align: start; background: transparent; color: inherit; font: inherit; cursor: pointer;
+}
+[data-habitat-rooms] .channel-item .channel-hash {
+  height: 1.375rem; width: 1.375rem; flex: none; font-size: 0; background-color: currentColor; mask: var(--hb-icon-voice) center / 1.125rem no-repeat;
+}
+[data-habitat-rooms] .channel-voice-indicator .voice-icon { display: none; }
+html[data-habitat-layout] #channel-list .channel-voice-users {
+  margin: .125rem .5rem .375rem 1.25rem; padding: 0 0 0 .625rem;
+  border-inline-start: .0625rem solid var(--border-light); gap: .125rem;
+}
+html[data-habitat-layout] #channel-list .channel-item[style*="display: none"] + .channel-voice-users { display: none; }
+html[data-habitat-layout] #channel-list .channel-voice-user {
+  gap: .5rem; min-height: 1.875rem; padding: .1875rem .375rem; font-size: .875rem;
+}
+html[data-habitat-layout] #channel-list .channel-voice-user:has([data-habitat-face])::before { content: none; }
+html[data-habitat-layout] #channel-list .channel-voice-user [data-habitat-face] {
+  width: 1.375rem; height: 1.375rem;
+}
+html[data-habitat-layout] #channel-list .channel-voice-user.talking {
+  color: var(--text-primary); background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+html[data-habitat-layout] #channel-list .channel-voice-user.talking [data-habitat-face] {
+  outline: .125rem solid var(--success); outline-offset: .0625rem;
+}
+html[data-habitat-layout] #channel-list .channel-voice-user.talking::after {
+  content: ''; width: .875rem; height: .875rem; margin-inline-start: auto; flex: none;
+  background: var(--success); mask: var(--hb-icon-voice) center / contain no-repeat;
+}
+html[data-habitat-layout] #channel-list .channel-voice-user .cvu-mic { animation: none; }
+
+/* An empty voice room gives its space to the call. Rooms with old messages
+   or active screen shares keep Haven's split view so those stay reachable. */
+#message-area:has(> [data-habitat-stage][data-habitat-voice-room]) > [data-habitat-intro] {
+  display: none;
+}
+[data-haven-region="message-area"]:not(:has(#messages > :not(#msg-more-btn), #webcam-grid video, #screen-share-grid video)) > [data-habitat-stage][data-habitat-voice-room] {
+  flex: 1 1 auto; max-height: none; display: grid; align-items: safe center; padding: clamp(.875rem, 3vw, 2.5rem);
+}
+[data-haven-region="message-area"]:has(> [data-habitat-stage][data-habitat-voice-room]) > #messages:not(:has(> :not(#msg-more-btn))) {
+  flex: 0 1 auto; min-height: 0; padding-block: 0;
+}
+[data-habitat-stage][data-habitat-voice-room] #voice-users {
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: .75rem;
+}
+[data-habitat-stage][data-habitat-voice-room] #voice-users .voice-user-item {
+  min-height: clamp(8rem, 22vh, 14rem); border: .0625rem solid var(--border-light);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--hb-face-bg, var(--accent)) 12%, var(--bg-secondary)), var(--bg-secondary));
+}
+[data-habitat-stage][data-habitat-voice-room] [data-habitat-call-avatar] { width: 4rem; height: 4rem; }
+[data-habitat-stage][data-habitat-voice-room] .talking [data-habitat-call-avatar] { outline: .1875rem solid var(--success); outline-offset: .125rem; }
+[data-habitat-stage][data-habitat-voice-room] .voice-status-icons { position: absolute; inset: .75rem auto auto .75rem; }
+[data-habitat-stage][data-habitat-voice-room] .voice-user-item .user-dot.voice { display: none; }
+[data-habitat-stage][data-habitat-voice-room] .user-item-name { flex: none; max-width: 100%; color: var(--text-primary); font-size: 1rem; }
+
 /* ═══ Part 3: Habitat icons ════════════════════════════════════════════ */
 
 /* HABITAT-ICONS:START (generated by scripts/habitat-icons.js, do not edit by hand) */

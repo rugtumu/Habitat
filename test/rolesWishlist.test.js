@@ -263,6 +263,14 @@ test('roles wishlist: gates, caps, menus, templates', async (t) => {
     assert.strictEqual(news.topic, 'Read me first');
     assert.strictEqual(news.slow_mode_interval, 15);
 
+    const created = next(A, 'channel-created', c => c.name === 'Lounge');
+    const listed = next(A, 'channels-list', rows => rows.some(c => c.name === 'Lounge'));
+    A.emit('create-channel', { name: 'Lounge', textEnabled: false, mediaEnabled: false });
+    const [initial, saved] = await Promise.all([created, listed]);
+    for (const room of [initial, saved.find(c => c.name === 'Lounge')]) {
+      assert.deepStrictEqual([room.voice_enabled, room.text_enabled, room.media_enabled], [1, 0, 0]);
+    }
+
     // Saved templates are a server setting behind manage_server.
     A.emit('update-server-setting', { key: 'channel_templates', value: JSON.stringify([{ name: 'Newsroom', fields: { readOnly: true, announcement: true } }]) });
     await wait(300);

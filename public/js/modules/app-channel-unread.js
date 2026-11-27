@@ -69,6 +69,8 @@ _setupChannelDragDrop() {
   // Check whether drag source and potential target are compatible
   const isCompatible = (src, tgt) => {
     if (!src || !tgt || src === tgt) return false;
+    // Habitat fork: dragging changes order or category, never a room's voice functions.
+    if (src.closest('[data-habitat-rooms]') !== tgt.closest('[data-habitat-rooms]')) return false;
     if (src.classList.contains('category-label'))
       return tgt.classList.contains('category-label');
     if (src.classList.contains('sub-tag-label'))
@@ -189,7 +191,9 @@ _saveDragDropOrder(el) {
 
   // Parent channel was dragged: determine its new category from preceding category label
   let newCategory = '';
-  if (list.querySelector(':scope > .category-tabs')) {
+  if (el.closest('[data-habitat-rooms]')) {
+    newCategory = el.dataset.catGroup || '';
+  } else if (list.querySelector(':scope > .category-tabs')) {
     // Category tabs (#5756): the headers are not among the channels, so a
     // channel takes the category of the channel it was dropped after (or
     // before, at the top of the list).
@@ -711,6 +715,8 @@ _updateChannelVoiceIndicators() {
     let indicator = el.querySelector('.channel-voice-indicator');
     const count = this.voiceCounts[code] || 0;
     const users = this.voiceChannelUsers[code] || [];
+    // Habitat fork: keep the connected room visible when the member browses another conversation.
+    el.toggleAttribute('data-voice-connected', !!this.voice?.inVoice && this.voice.currentChannel === code);
 
     if (count > 0) {
       if (!indicator) {

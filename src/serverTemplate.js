@@ -54,7 +54,8 @@ const CHANNEL_FIELDS = [
   ['codeVisibility', 'code_visibility', 'enum', ['public', 'private'], 'public'], ['codeMode', 'code_mode', 'enum', ['static', 'dynamic'], 'static'],
   ['codeRotationType', 'code_rotation_type', 'enum', ['time', 'joins'], 'time'], ['autoDeleteMode', 'auto_delete_mode', 'enum', ['delete', 'clear'], 'delete'],
 ];
-const TEMPLATE_FIELDS = { isPrivate: 'boolean', isForum: 'boolean', readOnly: 'boolean', announcement: 'boolean', mediaEnabled: 'boolean', voiceEnabled: 'boolean', addAllMembers: 'boolean', temporary: 'boolean', slowMode: 'number', duration: 'number', topic: 'string' };
+// Habitat fork: saved voice room templates carry the text permission across server exports.
+const TEMPLATE_FIELDS = { textEnabled: 'boolean', isPrivate: 'boolean', isForum: 'boolean', readOnly: 'boolean', announcement: 'boolean', mediaEnabled: 'boolean', voiceEnabled: 'boolean', addAllMembers: 'boolean', temporary: 'boolean', slowMode: 'number', duration: 'number', topic: 'string' };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const label = (v, max) => typeof v === 'string' && v.trim().length >= 1 && v.trim().length <= max && LABEL_RE.test(v.trim());
