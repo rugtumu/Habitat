@@ -418,15 +418,7 @@ class HabitatLayout {
       this._voiceCreateObserver.observe(create, { attributes: true, attributeFilter: ['style'] });
       syncCreate();
       this._on(add, 'click', () => {
-        this._toggleDialog(true);
-        const form = document.getElementById('create-section-body');
-        if (form?.style.display === 'none') document.getElementById('create-section-toggle')?.click();
-        const picker = document.getElementById('new-channel-template');
-        if (picker) {
-          picker.value = 'b:voice_room';
-          picker.dispatchEvent(new Event('change'));
-        }
-        document.getElementById('new-channel-name')?.focus();
+        this._toggleDialog(true, add, 'b:voice_room');
       });
     }
     // The renderer keeps the original room buttons, moderation actions and live user rows.
@@ -1473,8 +1465,7 @@ class HabitatLayout {
       if (window.app?._hasPerm?.('manage_roles')) window.app._openPermMatrix();
     });
     const create = this._menuAction(menu, 'createChannel', '+', () => {
-      this._toggleDialog(true);
-      document.getElementById('new-channel-name')?.focus();
+      this._toggleDialog(true, button);
     });
     this._menuAction(menu, 'notifications', '🔔', () => {
       document.getElementById('open-settings-btn')?.click();
@@ -1654,52 +1645,364 @@ class HabitatLayout {
       title: this._text('close')
     }, top);
     close.appendChild(this._icon('M6 6l12 12M18 6 6 18'));
+    const tabs = this._make('div', { role: 'tablist', 'aria-label': this._text('add') }, panel);
     const body = this._make('div', { 'data-habitat-dialog-body': '' }, panel);
     document.body.appendChild(dialog);
-
-    if (join) this._move(join, body, null);
-    if (create) this._move(create, body, null);
-
     this._dialog = dialog;
     this._addButton = button;
-    this._on(button, 'click', (event) => {
-      // The heading it sits in collapses the channel list on click.
+    if (join) this._move(join, body);
+    if (create) this._move(create, body);
+    this._addForms = {};
+    for (const [kind, region] of [['create', create], ['join', join]]) {
+      if (!region) continue;
+      this._addForms[kind] = this._buildChannelForm(kind, region, tabs);
+    }
+    this._bindAddChoices(tabs, 'tab');
+    const syncPermission = () => {
+      if (!create) return;
+      const item = this._addForms.create;
+      item.tab.hidden = create.style.display === 'none' || create.hidden;
+      if (item.tab.hidden && this._activeAddForm === item && !dialog.hidden) {
+        this._selectAddTab(this._addForms.join);
+        (this._addRequest ? close : this._addForms.join?.field)?.focus();
+      }
+    };
+    if (create) {
+      this._addPermissionObserver = new MutationObserver(syncPermission);
+      this._addPermissionObserver.observe(create, { attributes: true, attributeFilter: ['style', 'hidden'] });
+    }
+    this._openAdd = (opener, template) => {
+      syncPermission();
+      const { create, join } = this._addForms;
+      const first = create && !create.tab.hidden ? create : join;
+      if (!first) return;
+      this._addOpener = opener;
+      this._restoreAddDraft = this._saveAddDraft();
+      for (const item of Object.values(this._addForms)) {
+        item.form.reset();
+        this._showAddError(item, '');
+      }
+      if (create) {
+        create.choose(template);
+        create.expand(false);
+      }
+      dialog.hidden = false;
+      this._selectAddTab(first);
+      first.field.focus();
+    };
+    this._on(button, 'click', event => {
+      event.stopPropagation();
+      this._toggleDialog(true, button);
+    });
+    this._on(channels, 'click', event => {
+      if (!event.target.closest('.temp-channel-create-btn') || !create || create.hidden || create.style.display === 'none') return;
       event.stopPropagation();
       this._toggleDialog(true);
-    });
+      const temp = document.getElementById('new-channel-temporary');
+      temp.checked = true;
+      temp.dispatchEvent(new Event('change'));
+      this._addForms.create.expand(true);
+    }, true);
     this._on(close, 'click', () => this._toggleDialog(false));
-    this._on(dialog, 'pointerdown', (event) => {
+    this._on(dialog, 'pointerdown', event => {
       if (event.target === dialog) this._toggleDialog(false);
     });
-    this._on(document, 'keydown', (event) => {
-      if (event.key !== 'Escape') return;
-      if (this._dialog && !this._dialog.hidden) { event.stopPropagation(); this._toggleDialog(false); }
-    }, true);
-    // Joining or creating closes the dialog, but only when there was
-    // something to submit: an empty field keeps it open for the error.
-    // Both listen in the capture phase, because the app's own handler on the
-    // button empties the field before the event would bubble up to here.
-    this._on(body, 'click', (event) => {
-      const submit = event.target.closest('#join-channel-btn, #create-channel-btn');
-      if (!submit) return;
-      const field = submit.parentElement?.querySelector('input[type="text"]');
-      if (field && field.value.trim()) setTimeout(() => this._toggleDialog(false), 0);
-    }, true);
-    this._on(body, 'keydown', (event) => {
-      if (event.key !== 'Enter' || !event.target.matches?.('input[type="text"]')) return;
-      if (event.target.value.trim()) setTimeout(() => this._toggleDialog(false), 0);
+    this._on(document, 'keydown', event => {
+      if (dialog.hidden) return;
+      const confirm = document.getElementById('confirm-modal-ok')?.closest('.modal-overlay');
+      if (event.key === 'Escape' && !confirm) {
+        event.stopPropagation();
+        this._toggleDialog(false);
+      }
+      if (event.key !== 'Tab') return;
+      const stops = [...(confirm || panel).querySelectorAll('button, input, select, [tabindex]')].filter(el =>
+        !el.disabled && el.tabIndex !== -1 && !el.closest('[hidden], [disabled]') && el.getClientRects().length);
+      const first = stops[0], last = stops.at(-1);
+      const active = document.activeElement;
+      if (!stops.includes(active) || active === (event.shiftKey ? first : last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
     }, true);
   }
 
-  _toggleDialog(open) {
-    if (!this._dialog) return;
-    this._dialog.hidden = !open;
-    if (open) {
-      const field = this._dialog.querySelector('input[type="text"]');
-      (field || this._dialog.querySelector('[data-habitat-dialog-panel]')).focus();
-    } else {
-      this._addButton?.focus();
+  _buildChannelForm(kind, region, tabs) {
+    const create = kind === 'create';
+    const tabId = 'habitat-tab-' + kind;
+    const panelId = 'habitat-panel-' + kind;
+    const tab = this._make('button', {
+      type: 'button', role: 'tab', id: tabId, 'aria-controls': panelId
+    }, tabs);
+    tab.textContent = this._text(create ? 'create' : 'joinCode');
+    // Keep the sidebar headers and their collapsed state intact for Mod Mode.
+    const sidebar = this._make('div', { hidden: '' });
+    for (const child of [...region.children]) this._move(child, sidebar);
+    region.appendChild(sidebar);
+    const form = this._make('form', { id: panelId, role: 'tabpanel', 'data-habitat-channel-form': '', 'aria-labelledby': tabId, novalidate: '' });
+    region.appendChild(form);
+    const fields = this._make('fieldset', {}, form);
+    const field = region.querySelector(create ? '#new-channel-name' : '#channel-code-input');
+    const nativeButton = region.querySelector(create ? '#create-channel-btn' : '#join-channel-btn');
+    const item = { kind, tab, form, fields, field, nativeButton };
+
+    if (create) this._buildChannelKinds(item);
+    this._make('label', { for: field.id }, fields).textContent = this._text(create ? 'channelName' : 'channelCode');
+    const entry = this._make('div', { 'data-habitat-entry': '' }, fields);
+    if (create) {
+      item.icon = this._make('span', { 'aria-hidden': 'true' }, entry);
     }
+    this._move(field, entry);
+    const hintId = 'habitat-join-hint';
+    if (!create) this._make('small', { id: hintId }, fields).textContent = this._text('joinHint');
+    item.error = this._make('small', { id: panelId + '-error', role: 'alert', hidden: '' }, fields);
+    this._setAttr(field, 'aria-describedby', (create ? '' : hintId + ' ') + item.error.id);
+    this._setAttr(field, 'aria-invalid', null);
+    if (create) this._buildChannelOptions(item, sidebar);
+
+    const footer = this._make('footer', {}, form);
+    const cancel = this._make('button', { type: 'button' }, footer);
+    cancel.textContent = this._text('cancel');
+    this._on(cancel, 'click', () => this._toggleDialog(false));
+    item.submit = this._make('button', { type: 'submit', class: 'btn-accent' }, footer);
+    this._on(tab, 'click', () => this._selectAddTab(item));
+    this._on(form, 'submit', event => {
+      event.preventDefault();
+      if (this._activeAddForm === item && !this._dialog.hidden && !tab.hidden) this._submitAdd(item);
+    });
+    return item;
+  }
+
+  _buildChannelKinds(item) {
+    const select = document.getElementById('new-channel-template');
+    const group = this._make('div', { role: 'radiogroup', 'aria-label': this._text('channelKind') }, item.fields);
+    const hash = 'M10 3 6 21M18 3l-4 18M4 9h17M3 15h17';
+    const speaker = 'M4 9h4l5-4v14l-5-4H4zM16 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14';
+    const cards = [];
+    for (const [value, title, hint, path] of [
+      ['b:chat', 'textChannel', 'textHint', hash], ['b:voice_room', 'voiceRoom', 'voiceHint', speaker]
+    ]) {
+      const card = this._make('button', { type: 'button', role: 'radio', value }, group);
+      card.appendChild(this._icon(path));
+      this._make('strong', {}, card).textContent = this._text(title);
+      this._make('small', {}, card).textContent = this._text(hint);
+      this._on(card, 'click', () => item.choose(value));
+      cards.push(card);
+    }
+    item.choose = value => {
+      if (!select.options.length) window.app?._renderChannelTemplates?.();
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const sync = () => {
+      for (const card of cards) {
+        const checked = card.value === select.value;
+        card.setAttribute('aria-checked', String(checked));
+        card.tabIndex = checked || (card === cards[0] && select.value !== 'b:voice_room') ? 0 : -1;
+      }
+      const voice = select.value === 'b:voice_room';
+      item.icon.replaceChildren(this._icon(voice ? speaker : hash));
+      item.submitKey = voice ? 'createRoom' : 'createChannel';
+      this._paintAddSubmit(item);
+    };
+    this._bindAddChoices(group, 'radio');
+    this._on(select, 'change', sync);
+    // Deleting a saved template rebuilds the options without firing change.
+    this._addTemplateObserver = new MutationObserver(sync);
+    this._addTemplateObserver.observe(select, { childList: true });
+  }
+
+  _bindAddChoices(group, role) {
+    this._on(group, 'keydown', event => {
+      const options = [...group.querySelectorAll('[role="' + role + '"]')].filter(el => !el.hidden && !el.disabled);
+      const i = options.indexOf(event.target);
+      if (i === -1) return;
+      const keys = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: options.length - 1 };
+      if (role === 'radio') Object.assign(keys, { ArrowUp: i - 1, ArrowDown: i + 1 });
+      if (!(event.key in keys)) return;
+      event.preventDefault();
+      const next = options[(keys[event.key] + options.length) % options.length];
+      next.click();
+      next.focus();
+    });
+  }
+
+  _buildChannelOptions(item, sidebar) {
+    const original = sidebar.querySelector('#create-section-body');
+    const privateRow = original.querySelector('#new-channel-private').parentElement;
+    this._move(privateRow, item.fields);
+    const toggle = this._make('button', {
+      type: 'button', 'data-habitat-advanced': '', 'aria-controls': 'habitat-channel-options'
+    }, item.fields);
+    this._make('span', {}, toggle).textContent = this._text('advanced');
+    toggle.appendChild(this._icon('m6 9 6 6 6-6'));
+    const options = this._make('div', { id: 'habitat-channel-options' }, item.fields);
+    item.expand = open => {
+      options.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    };
+    this._on(toggle, 'click', () => item.expand(options.hidden));
+
+    const more = original.querySelector('#new-channel-more');
+    const template = original.querySelector('#new-channel-template-row');
+    this._make('label', { for: 'new-channel-template' }, options).textContent = this._text('template');
+    this._move(template, options);
+    const duration = original.querySelector('#temp-channel-duration-row');
+    this._setAttr(duration.querySelector('input'), 'aria-label', this._text('expiryHours'));
+    for (const row of [...original.children]) {
+      if (row === more || row === duration || row.contains(item.nativeButton)) continue;
+      this._move(row, options);
+      if (row.querySelector('#new-channel-temporary')) this._move(duration, options);
+    }
+    for (const row of [...more.children]) {
+      if (row.matches('summary')) continue;
+      if (row.id === 'new-channel-topic') {
+        this._make('label', { for: row.id }, options).textContent = this._text('channelTopic');
+      }
+      this._move(row, options);
+    }
+    const hints = {
+      'new-channel-private': 'privateHint', 'new-channel-temporary': 'temporaryHint',
+      'new-channel-text': 'messagesHint', 'new-channel-media': 'uploadsHint', 'new-channel-voice': 'callsHint',
+      'new-channel-slowmode': 'slowHint'
+    };
+    for (const label of item.fields.querySelectorAll('.checkbox-row')) {
+      const caption = label.querySelector('span');
+      const control = label.querySelector('input, select');
+      if (!control || !caption) continue;
+      if (control.matches('input[type="checkbox"]')) this._setAttr(control, 'role', 'switch');
+      const copy = this._make('span', { 'data-habitat-switch-copy': '' });
+      label.appendChild(copy);
+      this._move(caption, copy);
+      const hint = hints[control.id] ? this._text(hints[control.id]) : label.title;
+      if (hint) this._make('small', {}, copy).textContent = hint;
+    }
+  }
+
+  // A dialog starts fresh even if someone had a draft in Haven's sidebar.
+  // Keep that draft, including the template-only announcement flag, for their return.
+  _saveAddDraft() {
+    const inputs = [...this._dialog.querySelectorAll('input, select')].map(el => [el, el.value, el.checked]);
+    const template = window.app?._pendingChannelTemplate;
+    const attrs = [];
+    for (const [id, attr] of [['new-channel-more', 'open'], ['new-channel-template-del', 'style'],
+      ['temp-channel-duration-row', 'style']]) {
+      const el = document.getElementById(id);
+      if (el) attrs.push([el, attr, el.getAttribute(attr)]);
+    }
+    return () => {
+      for (const [el, value, checked] of inputs) {
+        if (el.matches('input[type="checkbox"]')) el.checked = checked;
+        else el.value = value;
+      }
+      for (const [el, attr, value] of attrs) {
+        if (value === null) el.removeAttribute(attr);
+        else el.setAttribute(attr, value);
+      }
+      if (window.app) window.app._pendingChannelTemplate = template;
+      const picker = document.getElementById('new-channel-template');
+      if (picker?.options.length && !picker.value) this._addForms.create.choose('b:chat');
+    };
+  }
+
+  _selectAddTab(item) {
+    if (!item) return;
+    this._activeAddForm = item;
+    for (const other of Object.values(this._addForms)) {
+      const active = other === item;
+      other.tab.setAttribute('aria-selected', String(active));
+      other.tab.tabIndex = active ? 0 : -1;
+      other.form.hidden = !active;
+      this._paintAddSubmit(other);
+    }
+  }
+
+  _paintAddSubmit(item) {
+    const waiting = !!this._addRequest;
+    item.tab.disabled = waiting && item !== this._activeAddForm && !this._addRequest.dismissed;
+    item.form.setAttribute('aria-busy', String(waiting));
+    item.submit.disabled = waiting;
+    item.fields.disabled = waiting && !this._addRequest.dismissed;
+    let key = item.submitKey || 'join';
+    if (waiting) key = this._addRequest.dismissed ? 'waiting' : (this._addRequest.kind === 'join' ? 'joining' : 'creating');
+    item.submit.textContent = this._text(key);
+  }
+
+  _showAddError(item, message) {
+    item.error.textContent = message;
+    item.error.hidden = !message;
+    if (message) {
+      item.field.setAttribute('aria-invalid', 'true');
+      item.field.focus();
+    } else item.field.removeAttribute('aria-invalid');
+  }
+
+  _submitAdd(item) {
+    if (this._addRequest) return;
+    const value = item.field.value.trim();
+    if (!value) return this._showAddError(item, this._text(item.kind === 'join' ? 'needCode' : 'needName'));
+    const socket = window.app?.socket;
+    if (!socket?.connected) return this._showAddError(item, this._text('connectionLost'));
+    this._showAddError(item, '');
+    const create = item.kind === 'create';
+    const request = { kind: item.kind };
+    const app = window.app;
+    const done = message => {
+      request.cleanup();
+      this._addRequest = null;
+      for (const other of Object.values(this._addForms)) this._paintAddSubmit(other);
+      if (request.dismissed || this._dialog.hidden || item !== this._activeAddForm) return false;
+      if (message) this._showAddError(item, message);
+      else this._toggleDialog(false);
+      return true;
+    };
+    // channel-created also goes to members added by someone else. A join may
+    // rotate its own code, and server-wide invites only send a textual receipt.
+    app._habitatAddError = msg => {
+      if (!create && /^Server code accepted: joined \d+ channels?$/.test(msg)) return done();
+      const refused = create
+        ? /^(Channel name |Failed to create channel|You don't have permission to create channels)/
+        : /^(Invalid channel code|This invite link |Guests cannot join channels by code)/;
+      if (refused.test(msg) || msg === 'Slow down: too many requests') return done(msg);
+      return false;
+    };
+    const listeners = { disconnect: () => done(this._text('connectionLost')) };
+    if (create) {
+      listeners['channel-created'] = ch => {
+        if (ch.name === value && ch.created_by === app.user.id) done();
+      };
+    } else {
+      let rotatedCode;
+      listeners['user-joined'] = data => {
+        if (data.user?.id === app.user.id) rotatedCode = data.channelCode;
+      };
+      listeners['channel-joined'] = ch => { if (ch.code === value || ch.code === rotatedCode) done(); };
+      listeners.toast = data => {
+        if (data?.type === 'success' && /^Invite accepted: joined \d+ channels?$/.test(data.message)) done();
+      };
+    }
+    // The rate limiter can silently drop a repeated request. Keep the draft
+    // available and let the member check the channel list before trying again.
+    const timer = setTimeout(() => done(this._text('noReply')), 30000);
+    request.cleanup = () => {
+      clearTimeout(timer);
+      delete app._habitatAddError;
+      for (const [event, handler] of Object.entries(listeners)) socket.off(event, handler);
+    };
+    this._addRequest = request;
+    for (const [event, handler] of Object.entries(listeners)) socket.on(event, handler);
+    for (const other of Object.values(this._addForms)) this._paintAddSubmit(other);
+    item.nativeButton.click();
+  }
+
+  _toggleDialog(open, opener = this._addButton, template = 'b:chat') {
+    if (!this._dialog) return;
+    if (open && this._dialog.hidden) return this._openAdd(opener, template);
+    if (open) return;
+    this._dialog.hidden = true;
+    this._restoreAddDraft?.();
+    this._restoreAddDraft = null;
+    if (this._addRequest) this._addRequest.dismissed = true;
+    this._addOpener?.focus();
   }
 
   // ── Bookkeeping ────────────────────────────────────────────
@@ -1738,6 +2041,13 @@ class HabitatLayout {
   }
 
   _restoreDesktop() {
+    this._restoreAddDraft?.();
+    this._restoreAddDraft = null;
+    this._addRequest?.cleanup();
+    this._addRequest = null;
+    this._addPermissionObserver?.disconnect();
+    this._addTemplateObserver?.disconnect();
+    this._addTemplateObserver = this._addPermissionObserver = null;
     this._mode = null;
     this._indicatorObserver?.disconnect();
     this._mediaObserver?.disconnect();
@@ -1794,6 +2104,7 @@ class HabitatLayout {
       this._voiceDirectory = null;
       window.app?._renderChannels?.();
     }
+    this._addForms = this._activeAddForm = this._openAdd = this._addOpener = null;
     this._dialog = null;
     this._addButton = null;
     HavenApi.Layout?.release('HabitatLayout');
@@ -1805,6 +2116,18 @@ class HabitatLayout {
 
 HabitatLayout.TEXT = Object.freeze({
   en: Object.freeze({
+    create: 'Create', joinCode: 'Join with a code', join: 'Join', cancel: 'Cancel', advanced: 'Advanced',
+    textChannel: 'Text channel', voiceRoom: 'Voice room', textHint: 'Messages, files and threads',
+    voiceHint: 'Talk, camera and screen share', channelKind: 'Channel kind', channelName: 'Channel name',
+    channelCode: 'Channel code', joinHint: 'Ask a member for the code of the channel you want to join.',
+    messagesHint: 'Allow members to send messages.', uploadsHint: 'Allow files and images.',
+    callsHint: 'Allow members to join a call.', slowHint: 'Minimum time between messages.',
+    expiryHours: 'Expiry in hours', temporaryHint: 'Expires after the time you choose.', waiting: 'Waiting for the server…',
+    privateHint: 'Only invited members can join.', template: 'Template', channelTopic: 'Topic',
+    createRoom: 'Create room', joining: 'Joining…', creating: 'Creating…',
+    noReply: 'No reply yet. Check the channel list before trying again.',
+    needCode: 'Enter a channel code.', needName: 'Enter a channel name.',
+    connectionLost: 'Connection lost. Reconnect to check the channel and try again.',
     menu: 'Server menu', add: 'Add a channel', close: 'Close', accountMenu: 'Account menu', editProfile: 'Edit profile',
     serverActions: 'Server list actions', serverSettings: 'Server settings', createChannel: 'Create channel',
     notifications: 'Server notifications', topic: 'Set or edit topic', rotate: 'Rotate channel code',
@@ -1825,6 +2148,18 @@ HabitatLayout.TEXT = Object.freeze({
     sfu: 'Through the server (voice relay)', hardware: 'hardware', software: 'software'
   }),
   tr: Object.freeze({
+    create: 'Oluştur', joinCode: 'Kodla katıl', join: 'Katıl', cancel: 'İptal', advanced: 'Gelişmiş',
+    textChannel: 'Metin kanalı', voiceRoom: 'Ses odası', textHint: 'Mesajlar, dosyalar ve konu dizileri',
+    voiceHint: 'Sesli sohbet, kamera ve ekran paylaşımı', channelKind: 'Kanal türü', channelName: 'Kanal adı',
+    channelCode: 'Kanal kodu', joinHint: 'Katılmak istediğin kanalın kodunu bir üyeden iste.',
+    messagesHint: 'Üyeler mesaj gönderebilir.', uploadsHint: 'Dosya ve resim paylaşılabilir.',
+    callsHint: 'Üyeler sesli sohbete katılabilir.', slowHint: 'İki mesaj arasındaki en kısa süre.',
+    expiryHours: 'Sona erme süresi (saat)', temporaryHint: 'Seçtiğin süre dolunca silinir.', waiting: 'Sunucudan yanıt bekleniyor…',
+    privateHint: 'Yalnızca davet edilen üyeler katılabilir.', template: 'Şablon', channelTopic: 'Konu',
+    createRoom: 'Oda oluştur', joining: 'Katılınıyor…', creating: 'Oluşturuluyor…',
+    noReply: 'Henüz yanıt gelmedi. Tekrar denemeden önce kanal listesine bak.',
+    needCode: 'Bir kanal kodu gir.', needName: 'Bir kanal adı gir.',
+    connectionLost: 'Bağlantı kesildi. Yeniden bağlanıp kanalı kontrol ettikten sonra tekrar dene.',
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', accountMenu: 'Hesap menüsü', editProfile: 'Profili düzenle',
     serverActions: 'Sunucu listesi işlemleri', serverSettings: 'Sunucu ayarları', createChannel: 'Kanal oluştur',
     notifications: 'Sunucu bildirimleri', topic: 'Kanal konusunu düzenle', rotate: 'Kanal kodunu yenile',
@@ -2179,54 +2514,129 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
 }
 
 /* ── Add a channel dialog ── */
-/* Above Haven's phone drawers: the navigation drawer the + button lives in is
-   a fixed overlay at 100000, and the dialog has to open over it. */
 [data-habitat-dialog] {
   position: fixed;
   inset: 0;
-  z-index: 100020;
+  /* Between the navigation drawer and Haven's saved-template confirmation. */
+  z-index: 100001;
   display: grid;
   place-items: center;
   padding: 1rem;
   background: var(--hb-scrim);
 }
-[data-habitat-dialog][hidden] {
-  display: none;
-}
+[data-habitat-dialog][hidden], [data-habitat-dialog] [hidden] { display: none; }
 [data-habitat-dialog-panel] {
   box-sizing: border-box;
   width: min(30rem, 100%);
-  max-height: calc(100vh - 4rem);
-  overflow-y: auto;
-  padding: 1.25rem 1.5rem 1.5rem;
-  border: 1px solid var(--border);
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 1.25rem;
+  border: .0625rem solid var(--border);
   border-radius: var(--hb-radius-lg);
   background: var(--bg-card);
   color: var(--text-primary);
+  font-size: .875rem;
   box-shadow: var(--hb-elev-dialog);
 }
-[data-habitat-dialog-panel]:focus {
-  outline: none;
-}
-[data-habitat-dialog-top] {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
+[data-habitat-dialog-top], [data-habitat-dialog] footer, [data-habitat-advanced] {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
 }
 [data-habitat-dialog-top] > h2 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: 1.375rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  margin: 0; font: 600 1.5rem/1.25 var(--font-heading); letter-spacing: -.02em;
 }
-[data-habitat-dialog-body] > :where([data-haven-region]) {
-  padding: 0.75rem 0;
-  border: 0;
+[data-habitat-dialog] [role="tablist"] {
+  display: flex; gap: .25rem; padding: .25rem; margin: 1rem 0;
+  border-radius: var(--radius); background: var(--bg-tertiary);
 }
-[data-habitat-dialog-body] > :where([data-haven-region]) + :where([data-haven-region]) {
-  border-top: 1px solid var(--border);
+[data-habitat-dialog] :is([role="tab"], [role="radio"], [data-habitat-advanced], footer button) {
+  font-family: inherit; font-size: .875rem; line-height: 1.4; cursor: pointer;
+}
+[data-habitat-dialog] [role="tab"] {
+  flex: 1; padding: .5rem; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+}
+[data-habitat-dialog] [role="tab"][aria-selected="true"] {
+  background: var(--bg-card); color: var(--text-primary); font-weight: 600;
+}
+[data-habitat-dialog-body] > [data-haven-region] { margin: 0; padding: 0; border: 0; }
+[data-habitat-dialog] fieldset {
+  display: grid; gap: .5rem; min-width: 0; border: 0; padding: 0; margin: 0;
+}
+[data-habitat-dialog] [role="radiogroup"] {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin-bottom: .5rem;
+}
+[data-habitat-dialog] [role="radio"] {
+  display: grid; align-content: start; justify-items: start; gap: .25rem;
+  padding: .75rem; text-align: start; border: .0625rem solid var(--border);
+  border-radius: var(--radius); background: var(--bg-secondary); color: var(--text-primary);
+}
+[data-habitat-dialog] [role="radio"] > svg { margin-bottom: .25rem; color: var(--text-secondary); }
+[data-habitat-dialog] [role="radio"]:hover { border-color: var(--border-light); }
+[data-habitat-dialog] [role="radio"][aria-checked="true"] {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+}
+[data-habitat-dialog] [role="radio"][aria-checked="true"] > svg { color: var(--accent); }
+[data-habitat-dialog] small {
+  font-size: .75rem; line-height: 1.4; color: var(--text-secondary);
+}
+[data-habitat-dialog] label[for] { font-weight: 600; }
+[data-habitat-entry] { position: relative; }
+[data-habitat-entry] > span {
+  position: absolute; inset-inline-start: .75rem; inset-block: 0;
+  display: grid; align-items: center; color: var(--text-muted); pointer-events: none;
+}
+[data-habitat-dialog] :is(input[type="text"], select, input[type="number"]) {
+  min-width: 0; box-sizing: border-box; padding: .625rem .75rem;
+  border: .0625rem solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-input); color: var(--text-primary); font: inherit;
+}
+[data-habitat-dialog] input[type="text"] { width: 100%; }
+[data-habitat-entry] > span + input[type="text"] { padding-inline-start: 2.5rem; }
+[data-habitat-dialog] input[aria-invalid="true"] { border-color: var(--danger); }
+[data-habitat-dialog] [role="alert"] { color: var(--danger); }
+[data-habitat-dialog] :is(button, input, select):focus-visible {
+  outline: .125rem solid var(--accent); outline-offset: .125rem;
+}
+[data-habitat-dialog] .checkbox-row { min-height: 2.5rem; }
+[data-habitat-switch-copy] { flex: 1; display: grid; gap: .125rem; }
+[data-habitat-switch-copy] > span:has([data-i18n]) { font-size: 0; }
+[data-habitat-switch-copy] .haven-glyph { display: none; }
+[data-habitat-switch-copy] [data-i18n] { font-size: .875rem; color: var(--text-primary); }
+[data-habitat-dialog] .checkbox-row > :is(input[role="switch"], select) {
+  order: 1; margin-inline-start: auto; accent-color: var(--accent);
+}
+[data-habitat-advanced] {
+  width: 100%; padding: .625rem 0; border: 0; border-top: .0625rem solid var(--border);
+  background: transparent; color: var(--text-secondary); font-weight: 600;
+}
+[data-habitat-advanced] > svg { transition: rotate var(--hb-fast) var(--hb-ease); }
+[data-habitat-advanced][aria-expanded="true"] > svg { rotate: 180deg; }
+#habitat-channel-options:not([hidden]) { display: grid; gap: .375rem; }
+#habitat-channel-options > label[for]:not(:first-child) { margin-top: .5rem; }
+[data-habitat-dialog] footer {
+  justify-content: flex-end; border-top: .0625rem solid var(--border);
+  margin-top: .75rem; padding-top: 1rem;
+}
+[data-habitat-dialog] footer button {
+  min-height: 2.5rem; padding: .5rem 1rem; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+}
+[data-habitat-dialog] footer button:hover { background: var(--bg-hover); }
+[data-habitat-dialog] footer button[type="submit"] {
+  background: var(--accent); color: var(--accent-text); font-weight: 600;
+}
+[data-habitat-dialog] footer button[type="submit"]:hover { background: var(--accent-hover); }
+[data-habitat-dialog] footer button:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 479px) {
+  [data-habitat-dialog] { align-items: end; padding: .5rem; }
+  [data-habitat-dialog-panel] { width: 100%; padding: 1rem; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  [data-habitat-dialog] [role="radiogroup"] { grid-template-columns: 1fr; }
+  [data-habitat-dialog] [role="radio"] {
+    grid-template-columns: auto 1fr; align-items: center; column-gap: .75rem;
+  }
+  [data-habitat-dialog] [role="radio"] > svg { grid-row: span 2; margin: 0; }
 }
 html[data-habitat-layout] [data-haven-region="context-sidebar"] > [data-haven-region="voice-roster"],
 [data-habitat-roster-home], [data-habitat-call-view][hidden] { display: none; }

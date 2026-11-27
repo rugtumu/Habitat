@@ -358,7 +358,11 @@ async switchChannel(code) {
                      || window.matchMedia('(pointer: coarse)').matches
                      || 'ontouchstart' in window
                      || navigator.maxTouchPoints > 0;
-  if (msgInput && !isTouchDevice) setTimeout(() => msgInput.focus(), 50);
+  // Habitat fork: a join or create reply returns focus to the channel dialog's opener.
+  const addDialog = document.querySelector('[data-habitat-dialog]');
+  if (msgInput && !isTouchDevice && (!addDialog || addDialog.hidden)) {
+    setTimeout(() => { if (!addDialog || addDialog.hidden) msgInput.focus(); }, 50);
+  }
 
   // Show E2E encryption menu only in DM channels
   const e2eWrapper = document.getElementById('e2e-menu-wrapper');
@@ -1056,7 +1060,8 @@ _renderChannels() {
       const form = document.getElementById('create-section-body');
       const nameInput = document.getElementById('new-channel-name');
       const tmp = document.getElementById('new-channel-temporary');
-      if (form && nameInput && tmp) {
+      // Habitat fork: the layout opens its form from this shortcut. Temp-only members use the prompt below.
+      if (form && nameInput && tmp && !nameInput.form?.hasAttribute('data-habitat-channel-form')) {
         form.style.display = '';
         const arrow = document.getElementById('create-section-arrow');
         if (arrow) arrow.textContent = '▾';

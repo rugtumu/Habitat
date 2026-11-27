@@ -28,7 +28,7 @@ function storage() {
 
 // Drive the real switch, channel-list and history listeners. Only the other
 // UI modules and the transport are replaced.
-function client({ localStorage = storage(), search = '', user = { id: 7 } } = {}) {
+function client({ localStorage = storage(), search = '', user = { id: 7 }, touch = true, addDialog = null } = {}) {
   const noop = () => {};
   const events = new Map(), elements = new Map(), timers = new Map();
   const sent = [], rendered = [];
@@ -44,8 +44,8 @@ function client({ localStorage = storage(), search = '', user = { id: 7 } } = {}
   const sessionStorage = storage();
   const location = { search, pathname: '/app' };
   const context = vm.createContext({
-    document: { getElementById: el, querySelector: () => null, querySelectorAll: () => [] },
-    window: { location, history: { replaceState: () => { location.search = ''; } }, matchMedia: () => ({ matches: true }) },
+    document: { getElementById: el, querySelector: selector => selector === '[data-habitat-dialog]' ? addDialog : null, querySelectorAll: () => [] },
+    window: { location, history: { replaceState: () => { location.search = ''; } }, matchMedia: () => ({ matches: touch }) },
     navigator: {}, localStorage, sessionStorage, URLSearchParams, t: key => key, console,
     setTimeout(fn, ms) { const id = Symbol(); timers.set(id, { fn, ms }); return id; },
     clearTimeout: id => timers.delete(id),
@@ -98,6 +98,21 @@ test('reopening selects only the saved member conversation, including a DM or vo
     other.list([rotated]);
     assert.equal(other.app.currentChannel, null);
   }
+});
+
+test('switching channels preserves the dialog opener’s focus after a server reply', async () => {
+  const addDialog = { hidden: false };
+  const c = client({ touch: false, addDialog });
+  c.list([room, voice]);
+  let composerFocus = 0;
+  c.el('message-input').focus = () => { composerFocus++; };
+  await c.app.switchChannel(room.code);
+  addDialog.hidden = true;
+  c.tick(50);
+  assert.equal(composerFocus, 0);
+  await c.app.switchChannel(voice.code);
+  c.tick(50);
+  assert.equal(composerFocus, 1);
 });
 
 test('the last floating DM lands in the main pane, and closing it remembers the channel underneath', async () => {

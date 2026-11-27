@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { EventEmitter } = require('node:events');
 
 const ROOT = path.join(__dirname, '..');
 const FILE = 'HabitatLayout.plugin.js';
@@ -21,7 +22,7 @@ class FakeTarget {
   removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); }
   listenerCount() { return [...this.listeners.values()].reduce((sum, set) => sum + set.size, 0); }
   fire(type, init = {}) {
-    const event = { type, target: this, stopped: false, stopPropagation() { this.stopped = true; }, stopImmediatePropagation() { this.immediate = true; }, ...init };
+    const event = { type, target: this, stopped: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; }, stopImmediatePropagation() { this.immediate = true; }, ...init };
     const listeners = [...(this.listeners.get(type) || [])];
     listeners.sort((a, b) => Number(this.captureListeners.has(b)) - Number(this.captureListeners.has(a)));
     for (const listener of listeners) {
@@ -83,6 +84,26 @@ class FakeElement extends FakeTarget {
     this.clientHeight = 0;
   }
   get parentElement() { return this.parentNode; }
+  get form() { return this.closest('form'); }
+  get options() { return this.querySelectorAll('option'); }
+  get value() {
+    return this.getAttribute('type') === 'checkbox' ? this.getAttribute('value') ?? 'on' : this._value;
+  }
+  set value(value) {
+    if (this.getAttribute('type') === 'checkbox') this.attributes.set('value', value);
+    else this._value = value;
+  }
+  reset() {
+    for (const input of this.querySelectorAll('input, select')) {
+      if (input.matches('input[type="checkbox"]')) input.checked = input.hasAttribute('checked');
+      else input.value = input.getAttribute('value') || '';
+    }
+  }
+  dispatchEvent(event) { this.fire(event.type); }
+  replaceChildren(...children) {
+    for (const node of [...this.children]) node.remove();
+    for (const node of children) this.appendChild(node);
+  }
   get nextSibling() {
     if (!this.parentNode) return null;
     return this.parentNode.children[this.parentNode.children.indexOf(this) + 1] || null;
@@ -95,7 +116,11 @@ class FakeElement extends FakeTarget {
   get hidden() { return this.attributes.has('hidden'); }
   set hidden(value) { if (value) this.attributes.set('hidden', ''); else this.attributes.delete('hidden'); }
   get title() { return this.attributes.get('title') || ''; }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+    if (name === 'value') this.value = String(value);
+    if (name === 'tabindex') this.tabIndex = Number(value);
+  }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   hasAttribute(name) { return this.attributes.has(name); }
   removeAttribute(name) { this.attributes.delete(name); }
@@ -163,7 +188,7 @@ class FakeElement extends FakeTarget {
         if (inside) found.add(node);
       }
     }
-    return [...found];
+    return selector.includes(',') ? this.descendants().filter(node => found.has(node)) : [...found];
   }
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
@@ -215,9 +240,25 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     button('logout-btn', 'Logout')
   ]);
   const header = el(doc, 'div', { id: 'sidebar-header' }, [el(doc, 'div', { id: 'brand' }), account]);
-  const field = () => el(doc, 'input', { type: 'text' });
-  const join = region(doc, 'join-channel', [el(doc, 'div', {}, [field(), button('join-channel-btn')])]);
-  const create = region(doc, 'create-channel', [el(doc, 'div', {}, [field(), button('create-channel-btn')])]);
+  const input = (id, type = 'text', attrs = {}) => el(doc, 'input', { id, type, ...attrs });
+  const row = (id, children) => el(doc, 'div', id ? { id } : {}, children);
+  const switchRow = (name, title = '') => el(doc, 'label', {
+    class: 'checkbox-row', title, ...(name === 'add-all' ? { id: 'new-channel-add-all-row' } : {})
+  }, [input('new-channel-' + name, 'checkbox'), el(doc, 'span')]);
+  const join = region(doc, 'join-channel', [el(doc, 'h5'), row('join-section-body', [
+    row(null, [input('channel-code-input'), button('join-channel-btn')])
+  ])]);
+  const create = region(doc, 'create-channel', [el(doc, 'h5'), row('create-section-body', [
+    row('new-channel-template-row', [el(doc, 'select', { id: 'new-channel-template' }), button('new-channel-template-del')]),
+    row(null, [input('new-channel-name'), button('create-channel-btn')]),
+    switchRow('private'), switchRow('temporary', 'Auto-deletes when empty'), switchRow('forum'), switchRow('add-all'),
+    el(doc, 'details', { id: 'new-channel-more' }, [
+      el(doc, 'summary'), input('new-channel-topic'), switchRow('readonly'),
+      el(doc, 'label', { class: 'checkbox-row' }, [el(doc, 'select', { id: 'new-channel-slowmode' }, [el(doc, 'option', { value: '0' })])]),
+      switchRow('text'), switchRow('media'), switchRow('voice'), el(doc, 'small')
+    ]),
+    row('temp-channel-duration-row', [input('new-channel-duration', 'number', { value: '24' })])
+  ])]);
   const channels = region(doc, 'channels', [el(doc, 'h5', { id: 'channels-toggle' }), el(doc, 'div', { id: 'channel-list' })]);
   channels.setAttribute('id', 'channels-pane');
   const badge = el(doc, 'span', { id: 'dm-unread-badge' });
@@ -640,45 +681,251 @@ test('server menu rows keep their names while the tooltip code holds the title',
   plugin.stop();
 });
 
-test('the add channel dialog opens from +, and closes on Escape or a real submit', async () => {
-  const app = buildApp({ lang: 'tr' });
+// Use Haven's actual template application and submit handlers. Only the transport
+// is simulated, so requests and server replies can be asserted independently.
+function channelDialog({ canCreate = true, prepare, ...options } = {}) {
+  const app = buildApp(options);
+  const byId = id => app.doc.getElementById(id);
+  app.create.style.display = canCreate ? 'block' : 'none';
+  const socket = Object.assign(new EventEmitter(), { connected: true });
+  function methods(file) {
+    const source = fs.readFileSync(path.join(ROOT, 'public/js/modules', file), 'utf8');
+    return Function('t', source.replace('export default', 'return'))(key => key);
+  }
+  const toasts = [];
+  const haven = Object.assign(window.app, methods('app-role-tools.js'), methods('app-channel-menu.js'),
+    methods('app-socket-channels.js'), {
+      socket, user: { id: 17, isAdmin: canCreate }, _escapeHtml: x => x, channels: [],
+      _revertPendingChannelToggle() {}, _restoreRefusedDraft() {}, switchChannel() {},
+      _showToast: (msg, type) => toasts.push({ msg, type })
+    });
+  haven._listenChannelsAndMessages();
+  haven._listenPresenceAndVoice();
+  haven._renderChannelTemplates();
+  haven._bindChannelForms();
+  prepare?.(byId, haven);
+  const before = snapshot(app.doc.documentElement);
   const plugin = new HabitatLayout();
   plugin.start();
-  const dialog = app.doc.querySelector('[data-habitat-dialog]');
+  haven._renderChannels = () => {};
   const add = app.channels.querySelector('[data-habitat-add-button]');
-  const body = app.doc.querySelector('[data-habitat-dialog-body]');
-  const codeField = app.join.querySelector('input[type="text"]');
-  assert.equal(add.getAttribute('aria-label'), 'Kanal ekle');
-  assert.equal(add.parentNode.getAttribute('id'), 'channels-toggle');
+  const dialog = app.doc.querySelector('[data-habitat-dialog]');
+  add.click();
+  const create = byId('habitat-panel-create'), join = byId('habitat-panel-join');
+  return { ...app, plugin, socket, dialog, add, byId, create, join, before, toasts,
+    createTab: byId('habitat-tab-create'), joinTab: byId('habitat-tab-join'),
+    name: byId('new-channel-name'), code: byId('channel-code-input') };
+}
 
-  const click = add.fire('click');
-  assert.ok(click.stopped, 'the click must not also collapse the channel list');
-  assert.equal(dialog.hidden, false);
-  assert.equal(app.doc.activeElement, codeField);
+test('Create opens first with keyboard tabs, template cards and the original advanced controls', () => {
+  const a = channelDialog();
+  const { doc, dialog, byId, create, join } = a;
+  assert.equal(doc.activeElement, a.name);
+  assert.equal(a.createTab.getAttribute('aria-selected'), 'true');
+  assert.ok(join.hidden && !create.hidden);
+  const tabs = dialog.querySelector('[role="tablist"]');
+  tabs.fire('keydown', { key: 'ArrowRight', target: a.createTab });
+  assert.ok(create.hidden && !join.hidden);
+  assert.equal(doc.activeElement, a.joinTab);
+  tabs.fire('keydown', { key: 'ArrowLeft', target: a.joinTab });
+  const group = create.querySelector('[role="radiogroup"]');
+  const [chat, voice] = group.querySelectorAll('[role="radio"]');
+  const template = byId('new-channel-template');
+  assert.equal(template.value, 'b:chat');
+  assert.equal(chat.getAttribute('aria-checked'), 'true');
+  group.fire('keydown', { key: 'ArrowRight', target: chat });
+  assert.equal(doc.activeElement, voice);
+  assert.equal(template.value, 'b:voice_room');
+  assert.equal(voice.getAttribute('aria-checked'), 'true');
+  assert.equal(byId('new-channel-text').checked, false);
+  assert.equal(byId('new-channel-media').checked, false);
+  assert.equal(byId('new-channel-voice').checked, true);
+  assert.equal(create.querySelector('[type="submit"]').textContent, 'Create room');
+  const options = byId('habitat-channel-options');
+  assert.ok(options.hidden);
+  const toggle = create.querySelector('[data-habitat-advanced]');
+  toggle.click();
+  assert.ok(!options.hidden);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  for (const id of ['new-channel-template', 'new-channel-template-del', 'new-channel-temporary',
+    'new-channel-duration', 'new-channel-forum', 'new-channel-add-all', 'new-channel-topic',
+    'new-channel-readonly', 'new-channel-slowmode', 'new-channel-text', 'new-channel-media', 'new-channel-voice']) {
+    assert.ok(options.contains(byId(id)), id);
+  }
+  assert.ok(!options.contains(byId('new-channel-private')) && create.contains(byId('new-channel-private')));
+  template.value = 'b:announcements';
+  template.fire('change');
+  assert.equal(voice.getAttribute('aria-checked'), 'false');
+  assert.equal(chat.getAttribute('aria-checked'), 'false');
+  assert.ok(byId('new-channel-readonly').checked);
+  a.name.value = 'draft';
+  const escape = doc.fire('keydown', { key: 'Escape' });
+  assert.ok(dialog.hidden && escape.stopped);
+  assert.equal(doc.activeElement, a.add);
+  a.add.click();
+  assert.equal(template.value, 'b:chat');
+  assert.equal(a.name.value, '');
+  assert.ok(options.hidden && join.hidden);
+  a.plugin._disengage();
+  assert.equal(snapshot(doc.documentElement), a.before);
+  a.plugin.stop();
+});
 
-  const escape = app.doc.fire('keydown', { key: 'Escape' });
-  assert.ok(dialog.hidden);
-  assert.ok(escape.stopped);
-  assert.equal(app.doc.activeElement, add, 'focus returns to the button that opened it');
+test('members without create permission only see Join, including after permissions change', () => {
+  const a = channelDialog({ canCreate: false, desktop: false, phone: true, lang: 'tr' });
+  assert.equal(a.add.getAttribute('aria-label'), 'Kanal ekle');
+  assert.ok(a.createTab.hidden && a.create.hidden && !a.joinTab.hidden && !a.join.hidden);
+  assert.equal(a.doc.activeElement, a.code);
+  a.dialog.querySelector('[role="tablist"]').fire('keydown', { key: 'ArrowLeft', target: a.joinTab });
+  assert.equal(a.doc.activeElement, a.joinTab);
+  a.join.fire('submit');
+  assert.equal(a.doc.activeElement, a.code);
+  assert.equal(a.join.querySelector('[role="alert"]').textContent, 'Bir kanal kodu gir.');
+  const close = a.dialog.querySelector('[data-habitat-dialog-close]');
+  const submit = a.join.querySelector('[type="submit"]');
+  submit.focus();
+  assert.ok(a.doc.fire('keydown', { key: 'Tab' }).defaultPrevented);
+  assert.equal(a.doc.activeElement, close);
+  a.doc.fire('keydown', { key: 'Tab', shiftKey: true });
+  assert.equal(a.doc.activeElement, submit);
+  close.click();
+  assert.equal(a.doc.activeElement, a.add);
+  const gate = a.doc.querySelector('[data-haven-region="create-channel"]');
+  gate.style.display = 'block';
+  a.add.click();
+  assert.equal(a.doc.activeElement, a.name);
+  gate.style.display = 'none';
+  FakeMutationObserver.notify(gate);
+  assert.ok(a.create.hidden && a.createTab.hidden);
+  assert.equal(a.doc.activeElement, a.code);
+  a.plugin.stop();
+});
 
-  add.fire('click');
-  body.fire('click', { target: app.doc.getElementById('join-channel-btn') });
-  await tick();
-  assert.equal(dialog.hidden, false, 'an empty code keeps the dialog open');
+test('a refused create keeps the settings for retry and only the creator’s matching success closes it', () => {
+  const a = channelDialog();
+  const calls = [];
+  a.socket.on('create-channel', data => calls.push(data));
+  a.create.querySelectorAll('[role="radio"]')[1].click();
+  a.name.value = 'studio';
+  a.create.fire('submit');
+  a.create.fire('submit');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'studio');
+  assert.equal(calls[0].textEnabled, false);
+  const submit = a.create.querySelector('[type="submit"]');
+  assert.ok(submit.disabled && !a.dialog.hidden);
+  assert.equal(submit.textContent, 'Creating…');
+  a.socket.emit('channel-created', { name: 'studio', created_by: 21 });
+  a.socket.emit('error-msg', 'Message not found');
+  assert.ok(submit.disabled);
+  const error = 'Channel name contains invalid characters';
+  a.socket.emit('error-msg', error);
+  assert.equal(a.create.querySelector('[role="alert"]').textContent, error);
+  assert.ok(!a.dialog.hidden && !submit.disabled);
+  assert.equal(a.doc.activeElement, a.name);
+  assert.equal(a.name.value, 'studio');
+  assert.equal(a.byId('new-channel-template').value, 'b:voice_room');
+  a.create.fire('submit');
+  a.socket.emit('channel-created', { name: 'studio', created_by: 17 });
+  assert.ok(a.dialog.hidden);
+  assert.equal(a.doc.activeElement, a.add);
+  assert.equal(window.app._habitatAddError, undefined);
+  a.plugin.stop();
+});
 
-  codeField.value = 'a1b2c3d4';
-  body.fire('click', { target: app.doc.getElementById('join-channel-btn') });
-  await tick();
-  assert.ok(dialog.hidden);
-  // The app's own handler empties the field as it submits, so the dialog has
-  // to read it first: in the capture phase, on the way down to the button.
-  assert.ok(body.captured.has('click'), 'the submit click is read before the app clears the field');
-  assert.ok(body.captured.has('keydown'), 'Enter is read before the app clears the field');
+test('join handles code refusal, rotation and the two server invite receipts', () => {
+  const a = channelDialog({ canCreate: false });
+  const submitted = [];
+  a.socket.on('join-channel', ({ code }) => submitted.push(code));
+  a.socket.emit('error-msg', 'Message not found');
+  a.code.value = 'deadbeef';
+  a.join.fire('submit');
+  assert.equal(a.join.querySelector('[type="submit"]').textContent, 'Joining…');
+  a.socket.emit('channel-joined', { code: 'another' });
+  assert.ok(!a.dialog.hidden);
+  a.socket.emit('error-msg', 'Invalid channel code. Double-check it');
+  assert.equal(a.join.querySelector('[role="alert"]').textContent, 'Invalid channel code. Double-check it');
+  assert.deepEqual(a.toasts, [{ msg: 'Message not found', type: 'error' }]);
+  assert.equal(a.doc.activeElement, a.code);
+  assert.equal(a.code.value, 'deadbeef');
+  a.join.fire('submit');
+  a.socket.emit('user-joined', { user: { id: 17 }, channelCode: 'feedcafe' });
+  a.socket.emit('channel-joined', { code: 'feedcafe' });
+  assert.ok(a.dialog.hidden);
+  for (const [event, receipt] of [['toast', { message: 'Invite accepted: joined 2 channels', type: 'success' }],
+    ['error-msg', 'Server code accepted: joined 1 channel']]) {
+    a.add.click();
+    a.code.value = 'cafefeed';
+    a.join.fire('submit');
+    a.socket.emit(event, receipt);
+    assert.ok(a.dialog.hidden);
+  }
+  assert.deepEqual(submitted, ['deadbeef', 'deadbeef', 'cafefeed', 'cafefeed']);
+  a.plugin.stop();
+});
 
-  add.fire('click');
-  dialog.fire('pointerdown', { target: dialog });
-  assert.ok(dialog.hidden, 'a press on the backdrop closes it');
-  plugin.stop();
+test('disengaging mid-request returns the original draft, controls and native Enter handler', () => {
+  const a = channelDialog({ prepare(byId, haven) {
+    byId('new-channel-template').value = 'b:announcements';
+    haven._applyChannelTemplate('b:announcements');
+    byId('new-channel-name').value = 'sidebar draft';
+    byId('new-channel-topic').value = 'sidebar topic';
+  } });
+  assert.equal(a.name.value, '');
+  const submitted = [];
+  a.socket.on('create-channel', data => submitted.push(data));
+  a.name.value = 'dialog draft';
+  a.name.fire('keydown', { key: 'Enter' });
+  a.create.fire('submit'); // The browser's implicit submit follows the keydown.
+  assert.equal(submitted.length, 1);
+  a.plugin._disengage();
+  assert.equal(snapshot(a.doc.documentElement), a.before);
+  assert.equal(a.byId('new-channel-name'), a.name);
+  assert.equal(a.name.value, 'sidebar draft');
+  assert.equal(a.byId('new-channel-topic').value, 'sidebar topic');
+  assert.equal(a.byId('new-channel-template').value, 'b:announcements');
+  assert.equal(window.app._habitatAddError, undefined);
+  a.socket.emit('error-msg', 'Failed to create channel');
+  assert.deepEqual(a.toasts.at(-1), { msg: 'Failed to create channel', type: 'error' });
+  a.name.fire('keydown', { key: 'Enter' });
+  assert.equal(submitted.length, 2);
+  assert.equal(submitted[1].announcement, true);
+  assert.equal(a.name.value, '');
+  a.plugin.stop();
+});
+
+test('a dismissed submission cannot close a fresh opening and a lost connection allows retry', () => {
+  const a = channelDialog();
+  a.name.value = 'studio';
+  a.create.fire('submit');
+  const cancel = a.create.querySelector('footer [type="button"]');
+  cancel.click();
+  assert.equal(a.doc.activeElement, a.add);
+  a.add.click();
+  assert.equal(a.name.value, '');
+  a.socket.emit('channel-created', { name: 'studio', created_by: 17 });
+  assert.ok(!a.dialog.hidden);
+  a.name.value = 'next';
+  a.create.fire('submit');
+  a.socket.emit('disconnect');
+  assert.ok(!a.dialog.hidden && !a.create.querySelector('[type="submit"]').disabled);
+  assert.equal(a.doc.activeElement, a.name);
+  assert.equal(a.name.value, 'next');
+  a.plugin.stop();
+});
+
+test('the sidebar temporary shortcut opens its expiry options in the Create tab', () => {
+  const a = channelDialog();
+  a.doc.fire('keydown', { key: 'Escape' });
+  const shortcut = el(a.doc, 'div', { class: 'temp-channel-create-btn' });
+  a.channels.appendChild(shortcut);
+  const click = a.channels.fire('click', { target: shortcut });
+  assert.ok(click.stopped);
+  assert.ok(!a.dialog.hidden && !a.create.hidden);
+  assert.ok(!a.byId('habitat-channel-options').hidden && a.byId('new-channel-temporary').checked);
+  assert.equal(a.byId('temp-channel-duration-row').style.display, '');
+  assert.equal(a.doc.activeElement, a.name);
+  a.plugin.stop();
 });
 
 test('in a call, mute and deafen show beside the account, and go again afterwards', () => {

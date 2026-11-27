@@ -14,15 +14,21 @@ _syncAddAllMembersRow() {
   if (!can) { const box = document.getElementById('new-channel-add-all'); if (box) box.checked = false; }
 },
 
-_bindChannelMenu() {
+// Habitat fork: the sidebar and the dialog share these submit and template controls.
+_bindChannelForms() {
+  const inDialog = field => field.form?.hasAttribute('data-habitat-channel-form');
   // Join channel
   const joinBtn = document.getElementById('join-channel-btn');
   const codeInput = document.getElementById('channel-code-input');
   joinBtn.addEventListener('click', () => {
     const code = codeInput.value.trim();
-    if (code) { this.socket.emit('join-channel', { code }); codeInput.value = ''; }
+    if (code) {
+      this.socket.emit('join-channel', { code });
+      // Habitat fork: the dialog keeps the code for a retry and handles Enter through its form.
+      if (!inDialog(codeInput)) codeInput.value = '';
+    }
   });
-  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinBtn.click(); });
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !inDialog(codeInput)) joinBtn.click(); });
 
   // Create channel (admin)
   this._syncAddAllMembersRow();
@@ -38,6 +44,8 @@ _bindChannelMenu() {
       const isForum = document.getElementById('new-channel-forum')?.checked || false;
       if (name) {
         this.socket.emit('create-channel', { name, isPrivate, temporary, duration, addAllMembers, isForum, ...this._channelTemplateExtras() });
+        // Habitat fork: keep the dialog's template and settings until the server answers.
+        if (inDialog(nameInput)) return;
         this._resetChannelTemplate();
         nameInput.value = '';
         const pvt = document.getElementById('new-channel-private');
@@ -50,7 +58,7 @@ _bindChannelMenu() {
         if (durRow) durRow.style.display = 'none';
       }
     });
-    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') createBtn.click(); });
+    nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !inDialog(nameInput)) createBtn.click(); });
   }
 
   // Toggle temporary channel duration row
@@ -61,6 +69,10 @@ _bindChannelMenu() {
       if (durRow) durRow.style.display = tempCheckbox.checked ? '' : 'none';
     });
   }
+},
+
+_bindChannelMenu() {
+  this._bindChannelForms();
 
   // Copy code
   document.getElementById('copy-code-btn').addEventListener('click', () => {
