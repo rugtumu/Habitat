@@ -75,6 +75,12 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   they click the real button and copy its icon, name and state. Do not move
   the real ones there.
 
+- A server banner larger than a 4K frame is shown, and uploaded, as a copy
+  scaled down to one (`_showBanner` and `_bannerCopy` in
+  `public/js/modules/app-branding.js`). Chrome decodes an oversized picture
+  again on every repaint over it: a 70 megapixel banner held a live server
+  to six frames a second while the page's own code sat idle.
+
 ## Running and testing
 
 ```bash

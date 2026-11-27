@@ -652,7 +652,8 @@ _applyServerSettings() {
   if (bannerNavItem) bannerNavItem.style.display = hasBanner ? '' : 'none';
   if (bannerDisplay && bannerImg) {
     if (hasBanner) {
-      bannerImg.src = this.serverSettings.server_banner;
+      // Habitat fork: an oversized banner is swapped for a light copy.
+      this._showBanner(bannerImg, this.serverSettings.server_banner);
       bannerDisplay.style.display = '';
       bannerDisplay.style.height = bannerHeight + 'px';
       bannerImg.style.objectPosition = 'center ' + bannerOffset + '%';
@@ -663,7 +664,7 @@ _applyServerSettings() {
       }
     } else {
       bannerDisplay.style.display = 'none';
-      bannerImg.src = '';
+      this._showBanner(bannerImg, '');
       mainEl?.classList.remove('has-banner', 'banner-mode-shaded', 'banner-mode-minimal', 'banner-mode-transparent');
     }
   }

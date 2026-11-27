@@ -133,6 +133,56 @@ _bannerDisplayPrefs() {
   };
 },
 
+// Habitat fork: a banner far larger than any screen is decoded again by
+// Chrome each time something over it repaints. One live server had a 70
+// megapixel PNG, and dragging a sidebar there ran at six frames a second
+// while the page's own code sat idle. Past a 4K frame the banner is shown,
+// and uploaded, as a copy scaled down to one.
+_bannerCopySize(width, height) {
+  const most = 3840 * 2160;
+  if (!(width > 0 && height > 0) || width * height <= most) return null;
+  const scale = Math.sqrt(most / (width * height));
+  return [Math.max(1, Math.floor(width * scale)), Math.max(1, Math.floor(height * scale))];
+},
+
+// Resolves with the scaled copy, or with null when the picture is small
+// enough, is animated (a copy would freeze it) or cannot be read.
+_bannerCopy(url, animated) {
+  return new Promise((resolve) => {
+    if (!url || animated) return resolve(null);
+    const source = new Image();
+    source.onerror = () => resolve(null);
+    source.onload = () => {
+      const size = this._bannerCopySize(source.naturalWidth, source.naturalHeight);
+      if (!size) return resolve(null);
+      try {
+        const canvas = document.createElement('canvas');
+        [canvas.width, canvas.height] = size;
+        const pen = canvas.getContext('2d');
+        pen.imageSmoothingQuality = 'high';
+        pen.drawImage(source, 0, 0, size[0], size[1]);
+        canvas.toBlob(resolve, 'image/webp', 0.92);
+      } catch { resolve(null); }
+    };
+    source.src = url;
+  });
+},
+
+_showBanner(img, url) {
+  const wanted = url || '';
+  if (img.dataset.bannerSource === wanted) return;
+  img.dataset.bannerSource = wanted;
+  if (this._bannerCopyUrl) URL.revokeObjectURL(this._bannerCopyUrl);
+  this._bannerCopyUrl = null;
+  img.src = wanted;
+  this._bannerCopy(wanted, /\.gif($|\?)/i.test(wanted)).then((blob) => {
+    // The banner may have been changed or removed while the copy was made.
+    if (!blob || img.dataset.bannerSource !== wanted) return;
+    this._bannerCopyUrl = URL.createObjectURL(blob);
+    img.src = this._bannerCopyUrl;
+  });
+},
+
 _syncBannerDefaultControls(prefs) {
   const reset = document.getElementById('banner-use-default-btn');
   if (reset) reset.style.display = prefs.own ? '' : 'none';
@@ -186,7 +236,14 @@ _initServerBranding() {
     const fileInput = document.getElementById('server-banner-file');
     if (!fileInput || !fileInput.files[0]) return this._showToast(t('settings.admin.select_image_first'), 'error');
     const form = new FormData();
-    form.append('image', fileInput.files[0]);
+    // Habitat fork: an oversized banner is uploaded as its scaled copy, so
+    // nobody has to download and shrink the original on every visit.
+    const file = fileInput.files[0];
+    const fileUrl = URL.createObjectURL(file);
+    const copy = await this._bannerCopy(fileUrl, file.type === 'image/gif');
+    URL.revokeObjectURL(fileUrl);
+    if (copy) form.append('image', copy, 'banner.' + (copy.type.split('/')[1] || 'png'));
+    else form.append('image', file);
     try {
       const res = await fetch('/api/upload-server-banner', {
         method: 'POST',

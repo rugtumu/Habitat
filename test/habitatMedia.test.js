@@ -369,3 +369,24 @@ test('a description without video, or none at all, passes through untouched', ()
   assert.equal(voice._videoStartSdp(null), null);
   assert.equal(voice._videoStartSdp({ type: 'offer' }).sdp, undefined);
 });
+
+test('a banner past a 4K frame is copied down to one; a smaller one is left alone', async () => {
+  const { pathToFileURL } = require('node:url');
+  const file = path.join(__dirname, '..', 'public/js/modules/app-branding.js');
+  const { default: branding } = await import(pathToFileURL(file).href);
+  const most = 3840 * 2160;
+
+  assert.equal(branding._bannerCopySize(1600, 800), null);
+  assert.equal(branding._bannerCopySize(3840, 2160), null);
+  assert.equal(branding._bannerCopySize(0, 0), null);
+
+  // The banner that made a live server crawl: 70 megapixels.
+  const [width, height] = branding._bannerCopySize(11811, 5906);
+  assert.ok(width * height <= most);
+  assert.ok(width * height > most * 0.99);
+  assert.ok(Math.abs(width / height - 11811 / 5906) < 0.001);
+
+  // An animated banner would freeze in a copy, so it is never made.
+  assert.equal(await branding._bannerCopy('/uploads/huge.gif', true), null);
+  assert.equal(await branding._bannerCopy('', false), null);
+});
