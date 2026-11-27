@@ -2006,6 +2006,20 @@ html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn:active { sc
 html[data-habitat-layout] [data-haven-region="server-rail"] > :is(#manage-servers-btn, #sync-servers-btn) { margin: 0; }
 html[data-habitat-layout] [data-haven-region="server-rail"] > #server-list:empty { display: none; }
 
+/* A glyph is drawn on the text baseline of a line taller than the icon, so
+   in the rail's round buttons the gear and sync marks sat about 3px above
+   the middle. Here the glyph box is the icon, and the button centres it. */
+[data-haven-page="app"] [data-haven-region="server-rail"] .server-icon .haven-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+[data-haven-page="app"] [data-haven-region="server-rail"] .server-icon .haven-glyph::before {
+  display: block;
+  vertical-align: 0;
+}
+
 /* Notices drop in under the channel header instead of over its buttons. */
 html[data-habitat-layout] #toast-container { top: calc(3.75rem + env(safe-area-inset-top, 0px)); }
 /* On a phone the header is taller than that and every pixel of it is a
