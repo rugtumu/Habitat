@@ -105,8 +105,9 @@ Unit tests do not prove the interface. Open the app and look: screenshots at
 
 ## The live server
 
-`https://habitat.umutgur.com` is in use by real people. Look, do not touch: no
-messages, no channels, no saved settings, and do not open a channel that shows
+The live server is in use by real people; its address is kept out of this
+repository. Look, do not touch: no messages, no channels, no saved settings,
+and do not open a channel that shows
 an unread count (that marks it read for the account). Deploying is done by the
 server's owner; the steps, checks and rollback are in
 `docs/examples/habitat-caddy-coturn/UPDATING.md`.

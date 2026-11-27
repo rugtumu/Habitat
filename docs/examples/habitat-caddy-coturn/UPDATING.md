@@ -1,7 +1,7 @@
 # Repo güncellendikten sonra sunucuda yapılacaklar
 
 Bu doküman, `main` dalına yeni bir commit gönderildikten sonra değişikliğin
-`https://habitat.umutgur.com` adresinde yayına girmesi için sunucuda
+`https://habitat.example.com` adresinde yayına girmesi için sunucuda
 yapılması gerekenleri anlatır. İlk kurulum için [README.md](README.md)'ye bakın.
 
 Sunucu kodu GitHub'dan çeker ve imajı kendisi derler. `main`'e gönderilen bir
@@ -10,11 +10,11 @@ değişiklik, aşağıdaki adımlar yapılana kadar sitede görünmez.
 ## Kısa hâli
 
 ```bash
-ssh root@SUNUCU_IP
+ssh KULLANICI@SUNUCU_IP
 ```
 
 ```bash
-cd /root/Habitat && git pull --ff-only
+cd ~/Habitat && git pull --ff-only
 ```
 
 ```bash
@@ -52,10 +52,10 @@ Büyük bir değişiklikten ya da upstream birleştirmesinden önce veriyi yedek
 Tüm veri (veritabanı, yüklenen dosyalar) `habitat_data` biriminde durur:
 
 ```bash
-docker run --rm -v habitat-caddy-coturn_habitat_data:/data -v /root:/backup alpine tar czf /backup/habitat-data-$(date +%F).tgz -C /data .
+docker run --rm -v habitat-caddy-coturn_habitat_data:/data -v "$HOME":/backup alpine tar czf /backup/habitat-data-$(date +%F).tgz -C /data .
 ```
 
-Birimin adı farklıysa `docker volume ls` ile bakın. Yedek `/root` altına yazılır;
+Birimin adı farklıysa `docker volume ls` ile bakın. Yedek ev klasörünüze yazılır;
 sunucu bozulursa işe yaraması için başka bir yere de kopyalayın.
 
 ## Güncellemeden sonra kontrol
@@ -69,13 +69,13 @@ sunucu bozulursa işe yaraması için başka bir yere de kopyalayın.
 2. Site yanıt veriyor mu (çıktıda `"status":"online"` görünmeli):
 
    ```bash
-   curl -s https://habitat.umutgur.com/api/health
+   curl -s https://habitat.example.com/api/health
    ```
 
 3. Sunucu doğru commit'te mi:
 
    ```bash
-   git -C /root/Habitat log --oneline -1
+   git -C ~/Habitat log --oneline -1
    ```
 
 4. Canlıdaki dosyanın çekilen sürümle eşleştiğini doğrulayın. Örneğin ses
@@ -83,8 +83,8 @@ sunucu bozulursa işe yaraması için başka bir yere de kopyalayın.
    o commit’te değişen bir istemci dosyasını seçin.
 
    ```bash
-   sha256sum /root/Habitat/public/js/voice.js
-   curl -fsS https://habitat.umutgur.com/js/voice.js -o /tmp/habitat-voice-live.js && sha256sum /tmp/habitat-voice-live.js
+   sha256sum ~/Habitat/public/js/voice.js
+   curl -fsS https://habitat.example.com/js/voice.js -o /tmp/habitat-voice-live.js && sha256sum /tmp/habitat-voice-live.js
    ```
 
 5. Konteyner sağlıklı, dışarıdan sağlık kontrolü başarılı ve dosya eşleşiyorsa
@@ -109,19 +109,19 @@ sunucu bozulursa işe yaraması için başka bir yere de kopyalayın.
 Güncelleme bir şeyi bozduysa önceki çalışan commit'e dönün. Önce commit'i bulun:
 
 ```bash
-git -C /root/Habitat log --oneline -5
+git -C ~/Habitat log --oneline -5
 ```
 
 Sonra o commit'e geçip yeniden derleyin (`COMMIT` yerine kısa kimliği yazın):
 
 ```bash
-cd /root/Habitat && git checkout COMMIT && cd docs/examples/habitat-caddy-coturn && docker compose up -d --build habitat
+cd ~/Habitat && git checkout COMMIT && cd docs/examples/habitat-caddy-coturn && docker compose up -d --build habitat
 ```
 
 Sorun repoda düzeltildikten sonra `main`'e geri dönmek için:
 
 ```bash
-cd /root/Habitat && git checkout main && git pull --ff-only
+cd ~/Habitat && git checkout main && git pull --ff-only
 ```
 
 Veritabanı şemasını değiştiren bir güncellemeden geri dönerken eski kod yeni

@@ -6,7 +6,7 @@ Tek bir VPS üzerinde üç konteyner çalışır:
 - **caddy**: HTTPS sertifikasını Let's Encrypt'ten otomatik alır ve yeniler
 - **coturn**: ses, kamera ve ekran paylaşımı için TURN aktarıcısı
 
-Varsayılan adres `habitat.umutgur.com`. Farklı bir adres isterseniz yalnızca
+Varsayılan adres `habitat.example.com`. Farklı bir adres isterseniz yalnızca
 `.env` içindeki `DOMAIN` değerini değiştirin.
 
 ## 1. DNS
@@ -65,7 +65,7 @@ Son komutun çıktısını `.env` içinde `TURN_SECRET` karşısına yazın,
 docker compose up -d --build
 ```
 
-İlk derleme birkaç dakika sürer. Bittiğinde `https://habitat.umutgur.com`
+İlk derleme birkaç dakika sürer. Bittiğinde `https://habitat.example.com`
 açılmalıdır.
 
 ## 4. İlk açılışta yapılacaklar
