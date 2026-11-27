@@ -565,7 +565,6 @@ _setupNotifications() {
   // both. It used to be ignored on Desktop, so the switch sat unticked while
   // the bar stayed up (#5647).
   const showStatusBarToggle = document.getElementById('show-status-bar');
-  const statusBarToggleTab = document.getElementById('status-bar-toggle');
   if (showStatusBarToggle) {
     showStatusBarToggle.checked = this._statusBarWanted();
     const applyStatusBar = () => {
@@ -590,21 +589,7 @@ _setupNotifications() {
     });
     applyStatusBar();
   }
-  // Toggle tab (visible when bar is hidden): click to show bar
-  if (statusBarToggleTab) {
-    statusBarToggleTab.addEventListener('click', () => {
-      if (showStatusBarToggle) {
-        showStatusBarToggle.checked = true;
-        showStatusBarToggle.dispatchEvent(new Event('change'));
-      } else {
-        // Fallback: toggle directly
-        document.documentElement.removeAttribute('data-hide-statusbar');
-        const sb = document.getElementById('status-bar');
-        if (sb) sb.style.setProperty('display', 'flex', 'important');
-        localStorage.setItem('haven_show_statusbar', 'true');
-      }
-    });
-  }
+  // Habitat fork: Settings owns the footer switch; the status nodes stay live.
 
   // Hide the Send button for people who only ever press Enter (#5654).
   const hideSendToggle = document.getElementById('hide-send-btn');

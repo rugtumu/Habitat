@@ -311,7 +311,7 @@ _setupModalExpand() {
       // header close button); they're not regular modals (#5352)
       if (modal.classList.contains('android-beta-promo') ||
           modal.classList.contains('desktop-promo') ||
-          modal.classList.contains('donors-modal-box') ||
+          // Habitat fork: the upstream credit has no modal.
           modal.classList.contains('media-gallery-modal')) return;
       // Idempotent: skip already-injected
       if (modal.dataset.modalControlsInjected === '1') return;

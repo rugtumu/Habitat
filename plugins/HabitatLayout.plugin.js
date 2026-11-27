@@ -9,7 +9,7 @@
 // named buttons, records where each one came from, and puts everything back
 // while Mod Mode edits the layout and when it is switched off. Nothing is
 // hidden without staying reachable: the buttons that leave the sidebar are
-// the same elements, in the server name menu.
+// the same elements in the server, account and rail menus.
 //
 // It has two shapes. 'desktop' (901px and wider) is the whole arrangement.
 // 'compact' (tablet and phone) is the same sidebar inside Haven's own
@@ -168,7 +168,9 @@ class HabitatLayout {
 
     try {
       this._buildAccountTools(account, actions);
-      this._buildMenu(header, account, actions, mode);
+      this._buildMenu(header, actions);
+      this._buildAccountMenu(account);
+      this._buildRailMenu(mode);
       this._dockAccount(account, footer, mode === 'desktop');
       this._buildAddPanel(channels);
       this._buildNavigation(mode);
@@ -488,16 +490,36 @@ class HabitatLayout {
     const trigger = this._make('summary', { 'aria-label': label, title: label }, details);
     trigger.appendChild(this._icon('M4 12h2m5 0h2m5 0h2'));
     const panel = this._make('div', { 'data-habitat-channel-menu': '' }, details);
-    for (const id of ['channel-code-display', 'copy-code-btn', 'channel-code-settings-btn', 'pinned-toggle-btn', 'gallery-toggle-btn', 'threads-toggle-btn', 'move-select-btn']) {
+    const move = (id, parent) => {
       const item = document.getElementById(id);
-      if (item && box.contains(item)) this._move(item, panel, null);
-    }
-    // On a phone Haven's way into a text channel's call is a button in the
-    // voice roster block of the members drawer. That block is not shown in
-    // this layout, so the button comes here, first in the channel's menu.
-    // Haven still decides when it shows; on a desktop the header has its own.
+      if (item && box.contains(item)) this._move(item, parent);
+    };
+    for (const id of ['pinned-toggle-btn', 'gallery-toggle-btn', 'threads-toggle-btn']) move(id, panel);
     const join = document.getElementById('voice-join-mobile');
-    if (join) this._move(join, panel, panel.children[0] || null);
+    if (join) this._move(join, panel);
+    const channelSelected = () => {
+      const channel = window.app?.channels?.find(ch => ch.code === window.app.currentChannel);
+      return channel && !channel.is_dm;
+    };
+    const canEdit = () => channelSelected() && (window.app.user?.isAdmin || window.app._hasPerm?.('set_channel_topic'));
+    const topic = this._menuAction(panel, 'topic', '✎', () => {
+      if (canEdit()) window.app._editTopic();
+    });
+    const group = this._make('div', { 'data-habitat-channel-management': '' }, panel);
+    move('channel-code-display', group);
+    move('copy-code-btn', group);
+    const canRotate = () => channelSelected() && window.app.user?.isAdmin;
+    const rotate = this._menuAction(group, 'rotate', '↻', () => {
+      if (canRotate()) document.getElementById('code-rotate-now-btn')?.click();
+    });
+    move('channel-code-settings-btn', group);
+    move('move-select-btn', group);
+    const sync = () => {
+      topic.hidden = !canEdit();
+      rotate.hidden = !canRotate();
+    };
+    this._on(details, 'toggle', sync);
+    sync();
     this._on(document, 'pointerdown', event => {
       if (details.open && !details.contains(event.target)) details.open = false;
     }, true);
@@ -1411,78 +1433,172 @@ class HabitatLayout {
   }
 
   // ── Server name menu ───────────────────────────────────────
-  _buildMenu(header, account, actions, mode) {
+  _buildMenu(header, actions) {
     const button = this._make('button', {
-      type: 'button',
-      'data-habitat-menu-button': '',
-      'aria-haspopup': 'true',
-      'aria-expanded': 'false',
-      'aria-label': this._text('menu'),
-      title: this._text('menu')
+      type: 'button', 'data-habitat-menu-button': '', 'aria-label': this._text('menu')
     });
     button.appendChild(this._icon('M6 9.5l6 6 6-6'));
-    const menu = this._make('div', { 'data-habitat-menu': '', hidden: '' });
     header.appendChild(button);
-    header.appendChild(menu);
-
-    this._move(actions, menu, null);
+    const menu = this._newMenu(header, 'server');
+    this._move(actions, menu);
     const invitePanel = document.getElementById('sidebar-invite-panel');
     const invite = invitePanel?.querySelector('#right-btn-invite-popout');
-    if (mode === 'desktop' && invite) {
-      this._move(invite, menu, null);
+    if (invite) {
+      this._move(invite, menu);
       this._setAttr(invitePanel, 'data-habitat-emptied', '');
     }
-    // The floating debug tab otherwise covers Send on narrow screens.
-    const statusTab = document.getElementById('status-bar-toggle');
-    if (statusTab) this._move(statusTab, menu, null);
-    for (const id of ['rename-btn', 'logout-btn']) {
-      const item = document.getElementById(id);
-      if (item && account.contains(item)) this._move(item, menu, null);
-    }
-    // A row is labelled by its button's name, so one without a name gets one.
-    const donors = document.getElementById('donors-btn');
-    if (donors && menu.contains(donors) && !donors.title && !donors.getAttribute('aria-label')) {
-      this._setAttr(donors, 'aria-label', this._text('supporters'));
-    }
-
-    const permissions = this._make('button', { type: 'button', 'data-habitat-permissions': '', 'aria-label': this._text('permissions') }, menu);
-    permissions.appendChild(this._icon('M12 3l8 3v6c0 5-5 8-8 10-3-2-8-5-8-10V6z M8.5 12l2.5 2.5 4.5-5'));
-    this._on(permissions, 'click', () => {
+    const admin = this._menuAction(menu, 'serverSettings', '⚙', () => {
+      if (!window.app?._hasAnyAdminSettingsAccess?.()) return;
+      document.getElementById('open-settings-btn')?.click();
+      document.querySelector('.settings-tab-admin')?.click();
+    });
+    const permissions = this._menuAction(menu, 'permissions', '🛡', () => {
       if (window.app?._hasPerm?.('manage_roles')) window.app._openPermMatrix();
     });
-    this._menu = menu;
-    this._menuButton = button;
-    this._on(button, 'click', () => this._toggleMenu());
-    // The row has done its job once clicked; let its own handler run first.
-    this._on(menu, 'click', (event) => {
-      if (event.target.closest('button')) setTimeout(() => this._toggleMenu(false), 0);
+    const create = this._menuAction(menu, 'createChannel', '+', () => {
+      this._toggleDialog(true);
+      document.getElementById('new-channel-name')?.focus();
     });
-    this._on(document, 'pointerdown', (event) => {
-      if (this._menu?.hidden) return;
-      if (!this._menu.contains(event.target) && !this._menuButton.contains(event.target)) this._toggleMenu(false);
+    this._menuAction(menu, 'notifications', '🔔', () => {
+      document.getElementById('open-settings-btn')?.click();
+      document.querySelector('.settings-nav-item[data-target="section-sounds"]')?.click();
+      document.getElementById('notif-server-mute-mode')?.focus();
+    });
+    this._bindMenu(button, menu, () => {
+      admin.hidden = !window.app?._hasAnyAdminSettingsAccess?.();
+      permissions.hidden = !window.app?._hasPerm?.('manage_roles');
+      const region = this._region('create-channel');
+      create.hidden = !region || region.style.display === 'none';
+    });
+  }
+
+  _newMenu(parent, name) {
+    const menu = this._make('div', { id: 'habitat-menu-' + name, 'data-habitat-menu': name, hidden: '' });
+    parent.appendChild(menu);
+    return menu;
+  }
+
+  _menuAction(menu, key, icon, action) {
+    const button = this._make('button', { type: 'button', 'aria-label': this._text(key) }, menu);
+    button.setAttribute('class', 'icon-btn small');
+    button.textContent = icon;
+    this._on(button, 'click', action);
+    return button;
+  }
+
+  _bindMenu(button, menu, prepare, alternate) {
+    this._setAttr(button, 'aria-controls', menu.id);
+    this._setAttr(button, 'aria-expanded', 'false');
+    const labelled = new WeakSet();
+    const close = () => {
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    };
+    const toggle = () => {
+      if (!menu.hidden) { close(); return; }
+      menu.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      prepare?.();
+      // Haven's tooltip borrows title on hover. Copy the current name before
+      // focus moves, including a translation applied since the last opening.
+      for (const row of menu.querySelectorAll('button')) {
+        const name = row.getAttribute('aria-label') || row.title;
+        if (labelled.has(row)) row.setAttribute('data-habitat-label', name || '');
+        else {
+          this._setAttr(row, 'data-habitat-label', name || '');
+          labelled.add(row);
+        }
+      }
+      const first = [...menu.querySelectorAll('button')].find(row => !row.hidden && row.getClientRects().length);
+      first?.focus();
+    };
+    this._on(button, 'click', event => {
+      // The native avatar opens Edit Profile directly outside this layout.
+      if (button.id === 'user-bar-avatar') event.stopImmediatePropagation();
+      toggle();
+    }, true);
+    this._on(document, 'focusin', event => {
+      if (!menu.hidden && !menu.contains(event.target) && !button.contains(event.target)) close();
+    });
+    this._on(menu, 'click', event => {
+      if (!event.target.closest('button')) return;
+      // A dialog opened by the row may already own focus.
+      if (menu.contains(document.activeElement)) button.focus();
+      close();
+    });
+    this._on(document, 'keydown', event => {
+      if (!menu.hidden && event.key === 'Escape') {
+        event.stopPropagation();
+        close();
+        button.focus();
+      }
+    }, true);
+    this._on(document, 'pointerdown', event => {
+      if (!menu.hidden && !menu.contains(event.target) && !button.contains(event.target) && !alternate?.contains(event.target)) {
+        close();
+        button.focus();
+      }
     }, true);
   }
 
-  _toggleMenu(open = this._menu?.hidden) {
-    if (!this._menu) return;
-    if (open) {
-      const permissions = this._menu.querySelector('[data-habitat-permissions]');
-      if (permissions) permissions.hidden = !window.app?._hasPerm?.('manage_roles');
-      this._labelMenu();
+  _buildAccountMenu(account) {
+    const avatar = document.getElementById('user-bar-avatar');
+    if (!avatar) return;
+    const menu = this._newMenu(account, 'account');
+    // applyDOM may run again while the layout owns the avatar.
+    for (const attr of ['data-i18n-title', 'data-i18n-aria-label']) {
+      this._setAttr(avatar, attr, null);
     }
-    this._menu.hidden = !open;
-    this._menuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    this._setAttr(avatar, 'title', this._text('accountMenu'));
+    this._setAttr(avatar, 'aria-label', this._text('accountMenu'));
+    for (const id of ['rename-btn', 'logout-btn']) {
+      const item = document.getElementById(id);
+      if (item && account.contains(item)) this._move(item, menu);
+    }
+    const rename = document.getElementById('rename-btn');
+    if (rename) {
+      this._setAttr(rename, 'title', this._text('editProfile'));
+      this._setAttr(rename, 'aria-label', this._text('editProfile'));
+      this._setAttr(rename, 'data-i18n-title', 'users.edit_profile');
+    }
+    const names = account.querySelector('.user-names');
+    this._bindMenu(avatar, menu, null, names);
+    if (names) this._on(names, 'click', event => {
+      if (!event.target.closest('button')) avatar.click();
+    });
   }
 
-  // A row shows its button's name next to the icon. The name is copied when
-  // the menu opens rather than read live from title: the tooltip code takes
-  // title off a button while the pointer is over it, and a language change
-  // rewrites it.
-  _labelMenu() {
-    for (const button of this._menu.querySelectorAll('button')) {
-      const name = button.getAttribute('title') || button.getAttribute('aria-label');
-      if (name) button.setAttribute('data-habitat-label', name);
+  _buildRailMenu(mode) {
+    const rail = this._region('server-rail');
+    if (!rail) return;
+    const menu = this._newMenu(document.body, 'rail');
+    for (const id of ['add-server-btn', 'manage-servers-btn', 'sync-servers-btn']) {
+      const row = document.getElementById(id);
+      if (row && rail.contains(row)) this._move(row, menu);
     }
+    const button = this._make('button', {
+      type: 'button', 'data-habitat-servers-button': '', 'aria-label': this._text('serverActions')
+    });
+    this._make('span', { class: 'server-icon-text' }, button).textContent = '+';
+    const place = () => {
+      // Tablet widths still use the vertical rail. Phones have server bubbles
+      // in the navigation drawer and the exact same three actions follow them.
+      const bubbles = mode === 'compact' && this._phone.matches && document.getElementById('mobile-servers-row');
+      button.setAttribute('class', bubbles ? 'mobile-srv-add-btn' : 'server-icon add-server');
+      (bubbles || rail).appendChild(button);
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    };
+    place();
+    this._on(this._phone, 'change', place);
+    this._bindMenu(button, menu, () => {
+      // The rail and the bubbles both clip overflow. Anchor the menu outside
+      // them and keep its last item on screen when the server list is long.
+      const anchor = button.getBoundingClientRect();
+      const bounds = menu.getBoundingClientRect();
+      menu.style.left = Math.max(0, Math.min(anchor.right, window.innerWidth - bounds.width)) + 'px';
+      menu.style.top = Math.max(0, Math.min(anchor.top, window.innerHeight - bounds.height)) + 'px';
+    });
   }
 
   // ── Join or create a channel: a + button and a dialog ─────
@@ -1541,7 +1657,6 @@ class HabitatLayout {
     this._on(document, 'keydown', (event) => {
       if (event.key !== 'Escape') return;
       if (this._dialog && !this._dialog.hidden) { event.stopPropagation(); this._toggleDialog(false); }
-      else if (this._menu && !this._menu.hidden) this._toggleMenu(false);
     }, true);
     // Joining or creating closes the dialog, but only when there was
     // something to submit: an empty field keeps it open for the error.
@@ -1601,7 +1716,8 @@ class HabitatLayout {
   _setAttr(element, name, value) {
     if (!element) return;
     this._attrRestores.push([element, name, element.getAttribute(name)]);
-    element.setAttribute(name, value);
+    if (value === null) element.removeAttribute(name);
+    else element.setAttribute(name, value);
   }
 
   _restoreDesktop() {
@@ -1660,11 +1776,6 @@ class HabitatLayout {
       this._voiceDirectory = null;
       window.app?._renderChannels?.();
     }
-    for (const labelled of document.querySelectorAll('[data-habitat-label]')) {
-      labelled.removeAttribute('data-habitat-label');
-    }
-    this._menu = null;
-    this._menuButton = null;
     this._dialog = null;
     this._addButton = null;
     HavenApi.Layout?.release('HabitatLayout');
@@ -1676,7 +1787,9 @@ class HabitatLayout {
 
 HabitatLayout.TEXT = Object.freeze({
   en: Object.freeze({
-    menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters',
+    menu: 'Server menu', add: 'Add a channel', close: 'Close', accountMenu: 'Account menu', editProfile: 'Edit profile',
+    serverActions: 'Server list actions', serverSettings: 'Server settings', createChannel: 'Create channel',
+    notifications: 'Server notifications', topic: 'Set or edit topic', rotate: 'Rotate channel code',
     joinRoom: 'Join voice', moveMember: 'Move to voice channel…', permissions: 'Roles & permissions', speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
     callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
@@ -1693,7 +1806,9 @@ HabitatLayout.TEXT = Object.freeze({
     sfu: 'Through the server (voice relay)', hardware: 'hardware', software: 'software'
   }),
   tr: Object.freeze({
-    menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
+    menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', accountMenu: 'Hesap menüsü', editProfile: 'Profili düzenle',
+    serverActions: 'Sunucu listesi işlemleri', serverSettings: 'Sunucu ayarları', createChannel: 'Kanal oluştur',
+    notifications: 'Sunucu bildirimleri', topic: 'Kanal konusunu düzenle', rotate: 'Kanal kodunu yenile',
     joinRoom: 'Ses odasına katıl', moveMember: 'Ses odasına taşı…', permissions: 'Roller ve yetkiler', speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
     callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
@@ -1790,6 +1905,7 @@ html[data-habitat-layout] [data-habitat-header] > :where(.brand) {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  padding-inline-end: 2rem;
 }
 html[data-habitat-layout] :where([data-habitat-header] .brand-text) {
   font-family: var(--font-heading);
@@ -1829,10 +1945,17 @@ html[data-habitat-layout] :where([data-habitat-add-button]) [data-habitat-icon] 
   width: 1rem;
   height: 1rem;
 }
+/* Stretch the native button's hit area across the brand. The drawer close
+   button has its own higher stacking order. */
+html[data-habitat-layout] [data-habitat-menu-button] {
+  position: absolute; inset: 0; width: 100%; height: 100%; justify-content: end; padding-inline: .75rem;
+  background: transparent;
+}
 /* On a phone Haven's own close button sits in the header's top right corner. */
 @media (max-width: 768px) {
+  html[data-habitat-layout] [data-habitat-header] > .brand { padding-inline-end: 4.75rem; }
   html[data-habitat-layout] [data-habitat-menu-button] {
-    margin-right: 2.75rem;
+    width: calc(100% - 2.75rem);
   }
 }
 html[data-habitat-layout] [data-habitat-menu] {
@@ -1892,10 +2015,13 @@ html[data-habitat-layout] [data-habitat-menu] button::after {
 html[data-habitat-layout]:has(#sidebar-invite-panel[style*="none"]) [data-habitat-menu] > #right-btn-invite-popout,
 [data-habitat-menu] > #right-btn-invite-popout::after { display: none; }
 #sidebar-invite-panel[data-habitat-emptied] { padding: 0; border: 0; }
-html[data-habitat-layout] [data-habitat-menu] .status-bar-toggle-tab {
-  position: static; opacity: 1;
+html[data-habitat-layout] [data-habitat-menu="rail"] {
+  position: fixed; right: auto; width: min(14rem, 95vw); max-height: 90dvh; overflow: auto; z-index: 100001;
 }
-html[data-habitat-layout]:not([data-hide-statusbar]) [data-habitat-menu] .status-bar-toggle-tab { display: none; }
+html[data-habitat-layout] [data-haven-region="account"] { position: relative; }
+html[data-habitat-layout] [data-habitat-menu="account"] { top: auto; bottom: 100%; }
+html[data-habitat-layout] :is(#mobile-srv-add-btn, #mobile-server-add-btn, #mobile-settings-btn),
+html[data-habitat-layout] [data-habitat-menu] button[hidden] { display: none; }
 html[data-habitat-layout] [data-habitat-menu] button:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -2260,7 +2386,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-face]:has(> .pfp-border) { overflow: visible; }
 [data-habitat-face] > img { border-radius: inherit; }
 [data-habitat-move-member] { grid-column: 1 / -1; width: 100%; min-height: 2.5rem; }
-html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden] { display: none; }
+
 [data-habitat-rooms] .channel-voice-user[draggable="true"] { cursor: grab; }
 [data-habitat-rooms] .channel-item[data-habitat-drop] { outline: .125rem solid var(--accent); outline-offset: -.125rem; }
 [data-habitat-face] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -2280,6 +2406,9 @@ html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden]
 [data-habitat-list="messages"]:has(> #dm-pane[style*="display: none"]) > [data-habitat-dm-empty] {
   display: block; margin: .5rem 1rem; color: var(--text-secondary); line-height: 1.5;
 }
+/* Settings owns embed size and channel actions owns the empty topic editor. */
+html[data-habitat-layout] #channel-topic-bar[data-empty-topic],
+html[data-habitat-layout] .lp-header .lp-size { display: none; }
 [data-habitat-channel-tools] { position: relative; flex: none; }
 [data-habitat-channel-tools] summary {
   display: grid; place-items: center; list-style: none; width: 2rem; height: 2rem;
@@ -2295,11 +2424,15 @@ html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden]
   background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius);
   box-shadow: 0 .5rem 1.5rem #0005;
 }
-[data-habitat-channel-menu] > button.icon-btn {
+[data-habitat-channel-menu] button.icon-btn {
   justify-content: start; align-items: center; gap: .625rem; padding: .5rem .625rem;
   width: 100%; height: auto; min-height: 2.25rem; opacity: 1; text-align: start;
 }
-[data-habitat-channel-menu] > button::after { content: attr(aria-label); font: 500 .875rem/1.25 var(--font-main); }
+[data-habitat-channel-menu] button::after { content: attr(aria-label); font: 500 .875rem/1.25 var(--font-main); }
+/* Haven uses the pins button's trailing pseudo-element for its unread dot. */
+[data-habitat-channel-menu] #pinned-toggle-btn.has-pins::before {
+  content: attr(aria-label); order: 1; font: 500 .875rem/1.25 var(--font-main);
+}
 /* The way into the channel's call, moved here from the members drawer on a
    phone. It carries its own words, and the header's icon-only rule for voice
    buttons must not blank them. */
@@ -2310,6 +2443,12 @@ html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile {
 html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile > span {
   display: inline-flex; align-items: center; gap: .625rem; font-size: inherit;
 }
+[data-habitat-channel-management] {
+  display: grid; border-block-start: 1px solid var(--border); padding-block-start: .25rem; margin-block-start: .25rem;
+}
+[data-habitat-channel-management]:not(:has(button:not([hidden]):not([style*="none"]))),
+[data-habitat-channel-management]:has(#copy-code-btn[style*="none"]) .channel-code-tag,
+[data-habitat-channel-menu] button[hidden] { display: none; }
 [data-habitat-channel-menu] .channel-code-tag:not(:empty) { margin: .25rem .5rem; width: fit-content; }
 [data-habitat-channel-menu] .channel-code-tag:empty, html[data-habitat-layout] .header-actions-divider { display: none; }
 html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; overflow: visible; }

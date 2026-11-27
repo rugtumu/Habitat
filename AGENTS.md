@@ -53,11 +53,16 @@ badge run `node scripts/habitat-icons.js`; never edit between the
 - Messages on the desktop rail switches the sidebar to Haven's DM list. In
   compact it sits beside Find a conversation in the navigation sidebar. A
   second press or the server icon returns to channels. Guests see channels.
+  The + at the end of the rail (in the server bubbles on phones) opens Add,
+  Manage and Sync. The server name and chevron open server actions. The
+  avatar and name in the account bar open Edit profile and Log out. Status
+  and Settings have their own buttons there.
 - The right sidebar is Members only, in both shapes. Invite Users lives in the
   server menu when Haven allows it. The voice roster stays available on the
   stage and each room lists its participants on the left. In compact the
   roster's home holds the drawer close button, and the way into a text
-  channel's call (`#voice-join-mobile`) is the first item of the channel menu.
+  channel's call (`#voice-join-mobile`) follows pins, files and threads in
+  the channel menu. Topic editing lives there too, above code and move actions.
 - The connected voice bar, header title and voice indicator trigger a check
   of the live call's channel. Joining the displayed voice room hides its
   introduction and gives the open stage the full conversation area.

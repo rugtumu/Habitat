@@ -104,8 +104,7 @@ _initRoleManagement() {
   // Initialize centralized role assignment 3-pane modal
   this._initRoleAssignCenter();
 
-  // Donors "thank you" modal
-  this._initDonorsModal();
+  // Habitat fork: the Settings credit needs no startup request.
 },
 
 _loadRoles(cb) {

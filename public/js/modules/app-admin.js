@@ -526,7 +526,8 @@ _applyServerSettings() {
     const selfPurgeBlock = document.getElementById('self-purge-block');
     if (selfPurgeBlock) selfPurgeBlock.style.display = (this.serverSettings.allow_self_purge === 'true' && !this.user?.isGuest) ? '' : 'none';
     const hideDisabledBadges = document.getElementById('hide-disabled-badges');
-    if (hideDisabledBadges) hideDisabledBadges.checked = this.serverSettings.hide_disabled_channel_badges === 'true';
+    // Habitat fork: an unset server hides capability badges, including in the save/cancel snapshot.
+    if (hideDisabledBadges) hideDisabledBadges.checked = this.serverSettings.hide_disabled_channel_badges !== 'false';
     const categoryTabs = document.getElementById('category-layout-tabs');
     if (categoryTabs) categoryTabs.checked = this.serverSettings.category_layout === 'tabs';
     const defaultTheme = document.getElementById('default-theme-select');
@@ -942,7 +943,7 @@ _snapshotAdminSettings() {
     update_banner_admin_only: this.serverSettings.update_banner_admin_only || 'false',
     update_channel_early: this.serverSettings.update_channel_early || 'false',
     allow_self_purge: this.serverSettings.allow_self_purge || 'false',
-    hide_disabled_channel_badges: this.serverSettings.hide_disabled_channel_badges || 'false',
+    hide_disabled_channel_badges: this.serverSettings.hide_disabled_channel_badges || 'true',
     category_layout: this.serverSettings.category_layout || 'list',
     admin_password_reset_enabled: this.serverSettings.admin_password_reset_enabled || 'false',
     unicode_emoji_auto_update: this.serverSettings.unicode_emoji_auto_update || 'false',
@@ -1206,7 +1207,7 @@ _saveAdminSettings() {
     changed = true;
   }
   const hideDisabledBadges = document.getElementById('hide-disabled-badges')?.checked ? 'true' : 'false';
-  if (hideDisabledBadges !== (snap.hide_disabled_channel_badges || 'false')) {
+  if (hideDisabledBadges !== (snap.hide_disabled_channel_badges || 'true')) {
     this.socket.emit('update-server-setting', { key: 'hide_disabled_channel_badges', value: hideDisabledBadges });
     changed = true;
   }
@@ -1413,7 +1414,7 @@ _cancelAdminSettings() {
     const asp = document.getElementById('allow-self-purge');
     if (asp) asp.checked = snap.allow_self_purge === 'true';
     const hdb = document.getElementById('hide-disabled-badges');
-    if (hdb) hdb.checked = snap.hide_disabled_channel_badges === 'true';
+    if (hdb) hdb.checked = snap.hide_disabled_channel_badges !== 'false';
     const dt = document.getElementById('default-theme-select');
     if (dt) dt.value = snap.default_theme || '';
     const dl = document.getElementById('default-locale-select');

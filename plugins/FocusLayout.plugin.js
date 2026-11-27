@@ -528,14 +528,14 @@ FocusLayout.CALL = Object.freeze([
 ]);
 FocusLayout.KEYS = Object.freeze([['Enter', 'focus.k_send', 'Send, then the next thing to answer'], ['⇧Enter', 'focus.k_line', 'New line'], ['Tab', 'focus.k_skip', 'Skip (empty message box)'], ['⇧Tab', 'focus.k_back', 'Bring back the last one'], ['Alt →  Alt ←', 'focus.k_arrows', 'Next or back from anywhere'], ['Alt [  Alt ]', 'focus.k_aim', 'Aim at another message'], ['Alt L', 'focus.k_like', 'Like and clear'], ['Alt J', 'focus.k_voice', 'Join or leave voice'], ['Alt K', 'focus.k_channels', 'Channels'], ['Alt D', 'focus.k_dms', 'Direct messages'], ['Alt A', 'focus.k_activity', 'Activity'], ['Alt 1 to 9', 'focus.k_servers', 'Switch server'], ['Esc', 'focus.k_close', 'Close a menu']]);
 FocusLayout.CHIPS = Object.freeze([['all', 'modals.all_members.filter_all', 'All'], ['mention', 'focus.mentions', 'Mentions'], ['reply', 'settings.sounds_section.replies', 'Replies'], ['dm', 'focus.dms', 'DMs'], ['unread', 'focus.unread', 'Unread']]);
-FocusLayout.YOU = Object.freeze([['#activities-btn', 'modals.activities.title', 'Activities'], ['#donors-btn', 'focus.support', 'Support Haven']]);
+FocusLayout.YOU = Object.freeze([['#activities-btn', 'modals.activities.title', 'Activities']]);
 FocusLayout.TABS = Object.freeze([
   ['server', 'status_bar.server', 'Server', '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/>'],
   ['dms', 'focus.dms', 'DMs', '<path d="M21 12a8 8 0 0 1-11.7 7.1L4 20l1-4.7A8 8 0 1 1 21 12Z"/>'],
   ['activity', 'users.activity', 'Activity', '<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'],
   ['you', 'voice_runtime.you', 'You', '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>']
 ]);
-FocusLayout.CYOU = Object.freeze([['#open-settings-btn', 'settings.title', 'Settings'], ['#theme-popup-toggle', 'settings.plugins_section.themes_label', 'Themes'], ['#activities-btn', 'modals.activities.title', 'Activities'], ['#sidebar-members-btn', 'settings.nav.members', 'Members'], ['#donors-btn', 'focus.support', 'Support Haven']]);
+FocusLayout.CYOU = Object.freeze([['#open-settings-btn', 'settings.title', 'Settings'], ['#theme-popup-toggle', 'settings.plugins_section.themes_label', 'Themes'], ['#activities-btn', 'modals.activities.title', 'Activities'], ['#sidebar-members-btn', 'settings.nav.members', 'Members']]);
 FocusLayout.CSS = `@font-face { font-family: 'Focus Archivo'; src: url('/fonts/archivo-var.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
 html[data-focus-desktop="classic"] .focus-rail, html[data-focus-desktop="classic"] [data-haven-region="navigation-sidebar"], html[data-focus-desktop="classic"] [data-haven-region="channel-header"] { font-family: 'Focus Archivo', var(--font-main, system-ui), system-ui, sans-serif; }
 html[data-focus-desktop="classic"] .focus-rail { display: flex; flex-direction: column; flex: 0 0 77px; width: 77px; height: 100%; box-sizing: border-box; background: var(--bg-tertiary); border-inline-end: 1px solid var(--border); padding: 7px 0; z-index: 3; }

@@ -336,7 +336,6 @@
             <button class="sidebar-bottom-btn" id="sidebar-members-btn" data-i18n-title="modals.all_members.title" title="All Members" style="display:none">👥</button>
             <button id="mobile-settings-btn" class="sidebar-bottom-btn mobile-settings-btn" data-i18n-title="settings.title" title="Settings">⚙️</button>
             <span style="flex:1"></span>
-            <button id="donors-btn" class="sidebar-bottom-btn donate-btn">❤️</button>
             <button id="voice-mute-btn" class="sidebar-bottom-btn voice-header-btn" data-i18n-title="voice.mute" title="Mute" style="display:none">🎙️</button>
             <button id="voice-deafen-btn" class="sidebar-bottom-btn voice-header-btn" data-i18n-title="voice.deafen" title="Deafen" style="display:none">🔊</button>
           </div>
@@ -887,8 +886,7 @@
         <span class="value" id="status-version"></span>
       </div>
     </div>
-    <!-- Status bar toggle tab (visible when bar is hidden) -->
-    <button class="status-bar-toggle-tab" id="status-bar-toggle" data-i18n-title="status_bar.toggle_bar" title="Toggle status bar (debug footer)">📊</button>
+    <!-- Habitat fork: Settings controls the debug footer without a floating reveal tab. -->
 
     <!-- Online users overlay (floats above status bar) -->
     <div id="online-overlay" class="online-overlay" style="display:none">
@@ -2131,6 +2129,8 @@
       <div class="settings-section" id="section-whats-new" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
         <h5 class="settings-section-title"><span data-i18n="settings.whats_new.title">What's New</span></h5>
         <div class="whats-new-version" id="whats-new-version"></div>
+        <!-- Habitat fork: credit the upstream project beside the version, using its own name. -->
+        <small class="settings-hint"><a href="https://github.com/ancsemi/Haven" target="_blank" rel="noopener noreferrer"><span data-i18n="settings.whats_new.built_on">Built on</span> Haven</a></small>
         <label class="select-row">
           <span data-i18n="settings.whats_new.show_label">Show what's new after</span>
           <select id="whats-new-select" style="max-width:180px">
@@ -5437,39 +5437,6 @@
   </div>
 
   <!-- Habitat fork: members open the app without a desktop download prompt. -->
-  <!-- Donors Thank You Modal -->
-  <div class="modal-overlay" id="donors-modal" style="display:none">
-    <div class="modal donors-modal-box">
-      <button class="donors-close-btn" id="donors-close-btn" data-i18n-title="modals.common.close" title="Close">&times;</button>
-      <div class="donors-heart-icon">❤️</div>
-      <h2 class="donors-title" data-i18n="modals.donors.title">Thank You</h2>
-      <p class="donors-subtitle" data-i18n="modals.donors.subtitle">Haven is built with love and kept alive by the generosity of people like you. Every donation, big or small, means the world.</p>
-
-      <div class="donors-sort-toggle" id="donors-sort-toggle" style="display:none">
-        <button class="donors-sort-btn active" data-sort="chronological" data-i18n="modals.donors.sort_chronological">Early Believers</button>
-        <button class="donors-sort-btn" data-sort="featured" data-i18n="modals.donors.sort_featured">Biggest Thanks!</button>
-      </div>
-
-      <div class="donors-tiers" id="donors-tiers">
-        <div class="donors-tier">
-          <h3 class="donors-tier-title donors-sponsor-title">✨ <span data-i18n="modals.donors.sponsors_title">Monthly Supporters</span></h3>
-          <div class="donors-grid" id="sponsors-grid"></div>
-        </div>
-
-        <div class="donors-tier">
-          <h3 class="donors-tier-title donors-donor-title">💛 <span data-i18n="modals.donors.donors_title">Donors</span></h3>
-          <div class="donors-grid" id="donors-grid"></div>
-        </div>
-      </div>
-
-      <p class="donors-note" data-i18n="modals.donors.note">New donors will be added each release. If you've donated and don't see your name, it'll be in the next update!</p>
-
-      <a href="https://ko-fi.com/ancsemi" target="_blank" rel="noopener noreferrer" class="donors-kofi-btn">
-        <span>☕ <span data-i18n="modals.donors.kofi_btn">Support Haven on Ko-fi</span></span>
-      </a>
-    </div>
-  </div>
-
   <script src="/js/i18n.js?v=4.29.11"></script>
   <script src="/socket.io/socket.io.js"></script>
 

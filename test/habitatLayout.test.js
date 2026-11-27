@@ -12,17 +12,22 @@ const HabitatLayout = require('../plugins/HabitatLayout.plugin.js');
 
 // ── A DOM just large enough for the plugin ─────────────────
 class FakeTarget {
-  constructor() { this.listeners = new Map(); this.captured = new Set(); }
+  constructor() { this.listeners = new Map(); this.captured = new Set(); this.captureListeners = new WeakSet(); }
   addEventListener(type, listener, options) {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set());
     this.listeners.get(type).add(listener);
-    if (options === true || options?.capture) this.captured.add(type);
+    if (options === true || options?.capture) { this.captured.add(type); this.captureListeners.add(listener); }
   }
   removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); }
   listenerCount() { return [...this.listeners.values()].reduce((sum, set) => sum + set.size, 0); }
   fire(type, init = {}) {
-    const event = { type, target: this, stopped: false, stopPropagation() { this.stopped = true; }, ...init };
-    for (const listener of [...(this.listeners.get(type) || [])]) listener.call(this, event);
+    const event = { type, target: this, stopped: false, stopPropagation() { this.stopped = true; }, stopImmediatePropagation() { this.immediate = true; }, ...init };
+    const listeners = [...(this.listeners.get(type) || [])];
+    listeners.sort((a, b) => Number(this.captureListeners.has(b)) - Number(this.captureListeners.has(a)));
+    for (const listener of listeners) {
+      listener.call(this, event);
+      if (event.immediate) break;
+    }
     return event;
   }
 }
@@ -114,6 +119,9 @@ class FakeElement extends FakeTarget {
     return false;
   }
   focus() { this.ownerDocument.activeElement = this; }
+  click() { this.fire('click'); }
+  getClientRects() { return this.hidden || this.style.display === 'none' ? [] : [{}]; }
+  getBoundingClientRect() { return { top: 0, right: 40, width: 40, height: 40 }; }
   matches(selector) {
     return selector.split(',').some((single) => {
       const want = parseCompound(single);
@@ -200,6 +208,8 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   const button = (id, title) => el(doc, 'button', title ? { id, title } : { id });
   const account = region(doc, 'account', [
     el(doc, 'button', { id: 'user-bar-avatar' }),
+    el(doc, 'div', { class: 'user-names' }, [el(doc, 'span', { id: 'current-user' })]),
+    button('user-status-btn', 'Set status'),
     button('mentions-btn', 'Mentions and replies'),
     button('rename-btn', 'Change display name'),
     button('logout-btn', 'Logout')
@@ -214,13 +224,13 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   const dms = region(doc, 'direct-messages', [badge, el(doc, 'div', { id: 'dm-list' })]);
   dms.setAttribute('id', 'dm-pane');
   const split = el(doc, 'div', { id: 'sidebar-split' }, [channels, el(doc, 'div', { class: 'sidebar-split-handle' }), dms]);
-  const content = region(doc, 'sidebar-content', [join, create, split]);
-  const rail = region(doc, 'server-rail', [el(doc, 'div', { id: 'home-server' })]);
+  const content = region(doc, 'sidebar-content', [el(doc, 'div', { id: 'mobile-servers-row' }, [button('mobile-srv-add-btn')]), join, create, split]);
+  const rail = region(doc, 'server-rail', [el(doc, 'div', { id: 'home-server' }), region(doc, 'server-list'),
+    button('add-server-btn', 'Add Server'), button('manage-servers-btn', 'Manage Servers'), button('sync-servers-btn', 'Sync Server List')]);
   const actions = region(doc, 'sidebar-actions', [
     button('theme-popup-toggle', 'Theme'),
     button('activities-btn', 'Activities'),
     el(doc, 'span'),
-    button('donors-btn'),
     button('voice-mute-btn', 'Mute'),
     button('voice-deafen-btn', 'Deafen')
   ]);
@@ -239,7 +249,6 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
     el(doc, 'div', { id: 'settings-panel' }, [button('open-settings-btn', 'Settings')])
   ], 'aside');
   doc.body.appendChild(el(doc, 'div', { id: 'app' }, [rail, navigation, region(doc, 'main'), context]));
-  doc.getElementById('app').appendChild(button('status-bar-toggle', 'Toggle status bar'));
   // The member's own "fold the message box buttons" setting, when the test wants one.
   if (foldSetting !== null) {
     const setting = el(doc, 'input', { id: 'compact-composer', type: 'checkbox' });
@@ -274,6 +283,7 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   };
   globalThis.document = doc;
   globalThis.window = {
+    innerWidth: phone ? 375 : 1440, innerHeight: 900,
     matchMedia(query) { return /max-width:\s*768px/.test(query) ? phoneMedia : media; },
     app: { _applyComposerButtons() { composerRefreshes.push(doc.documentElement.hasAttribute('data-compact-composer')); } }
   };
@@ -352,9 +362,12 @@ test('nothing leaves the sidebar without staying reachable', () => {
 
   const menu = app.header.querySelector('[data-habitat-menu]');
   assert.ok(menu.hidden, 'the menu starts closed');
-  for (const id of ['theme-popup-toggle', 'activities-btn', 'donors-btn', 'rename-btn', 'logout-btn', 'status-bar-toggle']) {
+  for (const id of ['theme-popup-toggle', 'activities-btn']) {
     assert.ok(menu.contains(app.doc.getElementById(id)), `${id} is in the server menu`);
   }
+  const accountMenu = app.account.querySelector('[data-habitat-menu="account"]');
+  assert.deepEqual(accountMenu.children.map(el => el.id), ['rename-btn', 'logout-btn']);
+  assert.ok(app.account.contains(app.doc.getElementById('user-status-btn')));
   const body = app.doc.querySelector('[data-habitat-dialog-body]');
   assert.deepEqual(body.children, [app.join, app.create]);
   assert.ok(app.channels.querySelector('[data-habitat-add-button]'), 'the channel list offers the + button');
@@ -501,7 +514,7 @@ test('crossing the desktop breakpoint swaps one shape for the other cleanly', ()
   assert.equal(app.doc.documentElement.getAttribute('data-habitat-layout'), 'compact');
   assert.equal(app.voiceControls.parentNode, app.context);
   assert.equal(app.account.parentNode, app.footer);
-  assert.equal(app.doc.querySelectorAll('[data-habitat-menu]').length, 1, 'nothing is built twice');
+  assert.equal(app.doc.querySelectorAll('[data-habitat-menu]').length, 3, 'nothing is built twice');
   assert.equal(app.doc.querySelectorAll('[data-habitat-dialog]').length, 1);
 
   app.media.set(true);
@@ -609,7 +622,6 @@ test('server menu rows keep their names while the tooltip code holds the title',
   assert.equal(menu.hidden, false);
   assert.equal(toggle.getAttribute('aria-expanded'), 'true');
   assert.equal(theme.getAttribute('data-habitat-label'), 'Theme');
-  assert.equal(app.doc.getElementById('donors-btn').getAttribute('data-habitat-label'), 'Supporters');
 
   // What the app's tooltip does on hover: title off, aria-label on.
   toggle.fire('click');
@@ -744,7 +756,7 @@ test('the members sidebar gives the roster no space, in or out of the stage', ()
   assert.equal(close.parentNode, roster);
   assert.deepEqual(context.querySelector('[data-habitat-roster-home]').children, []);
   media.set(false);
-  assert.equal(invite.parentNode, invitePanel);
+  assert.ok(doc.querySelector('[data-habitat-menu="server"]').contains(invite));
   doc.querySelector('[data-habitat-call-view]').fire('click');
   assert.equal(close.parentNode, context.querySelector('[data-habitat-roster-home]'));
   layout.stop();
@@ -798,7 +810,7 @@ test('on a phone the way into a text channel\'s call moves from the hidden roste
   layout.start();
   const menu = doc.querySelector('[data-habitat-channel-menu]');
   assert.equal(join.parentNode, menu);
-  assert.equal(menu.children[0], join, 'first in the menu');
+  assert.ok(menu.children.indexOf(join) < menu.children.indexOf(menu.querySelector('[data-habitat-channel-management]')));
   assert.equal(join.style.display, 'none', 'Haven still decides when it shows');
   layout.stop();
   assert.equal(join.parentNode, roster);
@@ -1272,7 +1284,7 @@ test('the channel disclosure preserves its original buttons and their visibility
   const layout = new HabitatLayout();
   layout.start();
   const menu = doc.querySelector('[data-habitat-channel-menu]');
-  assert.equal(copy.parentNode, menu);
+  assert.equal(copy.parentNode, menu.querySelector('[data-habitat-channel-management]'));
   assert.equal(settings.style.display, 'none');
   layout.stop();
   assert.equal(snapshot(box), before);
@@ -1405,4 +1417,130 @@ test('the layout keeps to public regions and named buttons, and ships no remote 
     'join-channel', 'create-channel', 'voice-controls', 'voice-settings', 'context-sidebar']) {
     assert.match(source, new RegExp(`_region\\('${name}'\\)`), `${name} is looked up as a public region`);
   }
+});
+
+for (const [shape, options] of [
+  ['desktop', { desktop: true }], ['tablet', { desktop: false }], ['phone', { desktop: false, phone: true }]
+]) {
+  test(`the ${shape} server list menu dispatches the original actions and restores the rail`, () => {
+    const { doc, rail } = buildApp(options);
+    const rows = ['add-server-btn', 'manage-servers-btn', 'sync-servers-btn'].map(id => doc.getElementById(id));
+    const clicked = [];
+    rows.forEach(row => row.addEventListener('click', () => clicked.push(row.id)));
+    rows[1].setAttribute('data-habitat-label', 'Prior label');
+    const before = snapshot(doc.body);
+    const layout = new HabitatLayout();
+    layout.start();
+    const trigger = doc.querySelector('[data-habitat-servers-button]');
+    const menu = doc.getElementById(trigger.getAttribute('aria-controls'));
+    assert.equal(trigger.parentNode, options.phone ? doc.getElementById('mobile-servers-row') : rail);
+    assert.equal(trigger.parentNode.children.at(-1), trigger);
+    assert.deepEqual(menu.children, rows);
+    for (const row of rows) {
+      trigger.click();
+      assert.equal(doc.activeElement, rows[0]);
+      row.click();
+      menu.fire('click', { target: row });
+      assert.ok(menu.hidden);
+      assert.equal(doc.activeElement, trigger);
+    }
+    assert.deepEqual(clicked, rows.map(row => row.id));
+    for (const [type, event] of [['keydown', { key: 'Escape' }], ['pointerdown', { target: doc.body }]]) {
+      trigger.click();
+      assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+      doc.fire(type, event);
+      assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+      assert.equal(doc.activeElement, trigger);
+    }
+    layout._disengage();
+    assert.deepEqual(rail.children.slice(-3), rows);
+    assert.equal(snapshot(doc.body), before);
+    layout.stop();
+  });
+}
+
+test('the account identity and server header open distinct actions and respect server permissions', () => {
+  const { doc, header, account, create } = buildApp();
+  const before = snapshot(doc.body);
+  const avatar = doc.getElementById('user-bar-avatar');
+  let profileOpens = 0;
+  avatar.addEventListener('click', () => profileOpens++);
+  doc.getElementById('rename-btn').addEventListener('click', () => profileOpens++);
+  const layout = new HabitatLayout();
+  layout.start();
+  const accountMenu = doc.getElementById(avatar.getAttribute('aria-controls'));
+  account.querySelector('.user-names').fire('click', { target: doc.getElementById('current-user') });
+  assert.equal(avatar.getAttribute('aria-expanded'), 'true');
+  assert.equal(profileOpens, 0);
+  assert.deepEqual(accountMenu.children.map(el => el.getAttribute('data-habitat-label')), ['Edit profile', 'Logout']);
+  doc.fire('keydown', { key: 'Escape' });
+  assert.ok(accountMenu.hidden);
+  assert.equal(doc.activeElement, avatar);
+  avatar.click();
+  accountMenu.children[0].click();
+  accountMenu.fire('click', { target: accountMenu.children[0] });
+  assert.equal(profileOpens, 1);
+  assert.ok(accountMenu.hidden);
+  const button = header.querySelector('[data-habitat-menu-button]');
+  assert.equal(button.tagName, 'button');
+  const menu = doc.getElementById(button.getAttribute('aria-controls'));
+  const visible = label => !menu.querySelector('[aria-label="' + label + '"]').hidden;
+  create.style.display = 'none';
+  button.click();
+  assert.ok(visible('Server notifications'));
+  for (const label of ['Server settings', 'Create channel', 'Roles & permissions']) assert.equal(visible(label), false);
+  assert.equal(menu.querySelector('#rename-btn, #logout-btn, #open-settings-btn, #status-bar-toggle'), null);
+  create.style.display = 'block';
+  window.app._hasAnyAdminSettingsAccess = () => true;
+  window.app._hasPerm = perm => perm === 'manage_roles';
+  button.click();
+  button.click();
+  for (const label of ['Server settings', 'Create channel', 'Roles & permissions']) assert.equal(visible(label), true);
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
+  avatar.click();
+  assert.equal(profileOpens, 2, 'the avatar resumes its native profile action');
+});
+
+test('channel actions put reading tools first and gate topic editing and rotation', () => {
+  const { doc } = buildApp();
+  const ids = ['channel-code-display', 'copy-code-btn', 'channel-code-settings-btn', 'pinned-toggle-btn',
+    'gallery-toggle-btn', 'threads-toggle-btn', 'move-select-btn'];
+  const box = el(doc, 'div', { id: 'header-actions-box' }, ids.map(id => el(doc, 'button', { id })));
+  doc.body.appendChild(box);
+  const rotateNow = el(doc, 'button', { id: 'code-rotate-now-btn' });
+  doc.body.appendChild(rotateNow);
+  let edits = 0, rotations = 0;
+  rotateNow.addEventListener('click', () => rotations++);
+  const channel = { code: 'room' };
+  Object.assign(window.app, { channels: [channel], currentChannel: 'room', user: {},
+    _editTopic: () => edits++, _hasPerm: () => false });
+  const before = snapshot(doc.body);
+  const layout = new HabitatLayout();
+  layout.start();
+  const panel = box.querySelector('[data-habitat-channel-menu]');
+  assert.deepEqual(panel.children.slice(0, 3).map(el => el.id), ids.slice(3, 6));
+  const group = panel.children.at(-1);
+  assert.deepEqual(group.children.map(el => el.id || el.getAttribute('aria-label')),
+    ['channel-code-display', 'copy-code-btn', 'Rotate channel code', 'channel-code-settings-btn', 'move-select-btn']);
+  const topic = panel.querySelector('[aria-label="Set or edit topic"]');
+  const rotate = group.querySelector('[aria-label="Rotate channel code"]');
+  assert.ok(topic.hidden && rotate.hidden);
+  window.app._hasPerm = perm => perm === 'set_channel_topic';
+  panel.parentNode.fire('toggle');
+  assert.ok(!topic.hidden && rotate.hidden);
+  topic.click();
+  rotate.click();
+  assert.equal(edits, 1);
+  assert.equal(rotations, 0);
+  window.app.user.isAdmin = true;
+  panel.parentNode.fire('toggle');
+  assert.equal(rotate.hidden, false);
+  rotate.click();
+  assert.equal(rotations, 1);
+  channel.is_dm = true;
+  panel.parentNode.fire('toggle');
+  assert.ok(topic.hidden && rotate.hidden);
+  layout.stop();
+  assert.equal(snapshot(doc.body), before);
 });

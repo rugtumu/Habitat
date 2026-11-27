@@ -907,7 +907,8 @@ _listenAdminAndPrefs() {
     // The channel list can land first (it is asked for first, and on a slow
     // start it usually wins), drawn without this setting; redraw it once the
     // real value is known (#5723).
-    const hideBadges = (s) => !!s && s.hide_disabled_channel_badges === 'true';
+    // Habitat fork: a saved show choice can arrive after the first channel render.
+    const hideBadges = (s) => s?.hide_disabled_channel_badges !== 'false';
     const redrawChannels = hideBadges(this.serverSettings) !== hideBadges(settings);
     this.serverSettings = settings;
     if (redrawChannels) this._renderChannels?.();

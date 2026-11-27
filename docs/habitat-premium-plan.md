@@ -8,7 +8,7 @@ Karar çerçevesi: Haven'in sunucusunda kalıyoruz, `src/` ve `server.js` içine
 
 - **Yüklenirken Haven görünüyor.** Tema 32. milisaniyede geliyor, düzeni kuran eklenti 201. milisaniyede (yerel ölçüm; internet üzerinden daha uzun). Arada sayfa Haven'in dizilişiyle çiziliyor: hesap üstte, Join formu kanal listesinde, DM'ler kanalların altında. Sonra her şey yer değiştiriyor. Sayfa 245 dosya istiyor, 142'si betik.
 - **Her açılışta "Haven Desktop App" tanıtımı çıkıyor** (1,2 saniye sonra), doğrulandı.
-- **Kalabalık:** kanal başlığında 7 ikon ve güncelleme hapı, her mesajda 12 düğmeli araç çubuğu, her bağlantı önizlemesinde boyut seçici, rayda üç yardımcı düğme, sunucu menüsünde hesap, tema, oyun, bağış ve hata ayıklama karışık.
+- **Kalabalık:** kanal başlığında 7 ikon ve güncelleme hapı, her bağlantı önizlemesinde boyut seçici, rayda üç yardımcı düğme, sunucu menüsünde hesap, tema, oyun, bağış ve hata ayıklama karışık.
 - **Kimsenin kullanmadığı Haven parçaları çalışıyor:** oyun skorları her açılışta sunucudan isteniyor (doğrulandı), bağışçı listesi açılmadan indiriliyor, hata ayıklama çubuğu, efekt konsolu, ses panosu kenar sekmesi.
 - **Kendi temamız tutarsız:** 19 köşe yarıçapı, 24 yazı boyutu, 9 yazı ağırlığı, 31 boşluk değeri, 13 gölge, 6 süre, 26 elle yazılmış renk.
 - **Gerçek hatalar:** yazı boyutunu %110 yapmak mesaj yazısını küçültüyor (doğrulandı: Haven 0,875rem'den, biz 1,0625rem'den hesaplıyoruz); sahnenin görünüşü tema ile eklentinin yüklenme sırasına bağlı (doğrulandı: aynı seçici iki yerde farklı tanımlı); sahne düğmeleri gerçek düğme devre dışıyken tıklanabilir görünüyor (doğrulandı); okunmamış her kanal kırmızı rozet alıyor, bahsetme ile ayırt edilmiyor (doğrulandı); telefonda iki parmakla yakınlaştırma kapalı (doğrulandı).
@@ -63,7 +63,7 @@ Hedef: en çok bakılan dört yüzey (mesaj, yazma alanı, kanal listesi, üye) 
 
 | İş | Boyut | Kim |
 |---|:---:|---|
-| Mesaj araç çubuğu: tepki, yanıt, düzenle, diğer. Kalan sekiz eylem "diğer" içinde; Shift ile sil yerinde | O | Claude |
+| Mesaj araç çubuğu: bugün tepki, yanıt, alıntı ve "diğer" görünüyor (kalan yedi eylem "diğer" içinde). Hedef: tepki, yanıt, kendi mesajında düzenle, diğer; Shift ile sil yerinde | K | Codex |
 | Yazma alanı varsayılanı: ek, metin, emoji, gönder. GIF ve sesli mesaj bir tık uzakta; anket, zaman, biçim "+" içinde | O | Codex |
 | Okunmamış sakin (koyu yazı, nokta), bahsetme belirgin (sayı rozeti) | O | Claude |
 | Bağlantı önizlemesi: boyut seçici kalkar, tek boyut, kart sadeleşir | K | Claude |

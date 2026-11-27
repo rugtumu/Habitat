@@ -3318,6 +3318,7 @@
     },
     "search_placeholder": "Search settings (Ctrl+F)",
     "whats_new": {
+      "built_on": "Built on",
       "title": "What's New",
       "show_label": "Show what's new after",
       "all": "Every update",

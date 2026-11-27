@@ -1,7 +1,7 @@
 // Page setup: _setupUI wires every part of the page by calling each area's
 // _bind method in turn. Also here: the header search and pinned-message
 // buttons, the sidebar collapse, the encryption menu, keyboard shortcuts,
-// games, member search, file uploads, resizable sidebars, and the donors list.
+// games, member search, file uploads and resizable sidebars.
 
 import { keepInColumn } from './keep-in-column.js?v=4.29.18';
 
@@ -1120,60 +1120,5 @@ _setupResizableSidebars() {
   }
 },
 
-_initDonorsModal() {
-  const modal = document.getElementById('donors-modal');
-  if (!modal) return;
-
-  let donorData = null;
-
-  const renderDonorList = (sort) => {
-    const sg = document.getElementById('sponsors-grid');
-    const dg = document.getElementById('donors-grid');
-    sg.innerHTML = '';
-    dg.innerHTML = '';
-    if (!donorData) return;
-    const sponsors = sort === 'featured' && donorData.featuredSponsors ? donorData.featuredSponsors : (donorData.sponsors || []);
-    const allDonors = sort === 'featured' && donorData.featuredDonors ? donorData.featuredDonors : (donorData.donors || []);
-    const sponsorSet = new Set(sponsors.map(n => n.toLowerCase()));
-    const donors = allDonors.filter(n => !sponsorSet.has(n.toLowerCase()));
-    sponsors.forEach(n => { const s = document.createElement('span'); s.className = 'donor-chip donor-sponsor'; s.textContent = n; sg.appendChild(s); });
-    donors.forEach(n => { const s = document.createElement('span'); s.className = 'donor-chip'; s.textContent = n; dg.appendChild(s); });
-  };
-
-  // Fetch donor/sponsor list from server
-  fetch('/api/donors').then(r => r.json()).then(d => {
-    donorData = d;
-    // Show toggle if featured order is available
-    if (d.featuredSponsors || d.featuredDonors) {
-      const toggle = document.getElementById('donors-sort-toggle');
-      if (toggle) toggle.style.display = '';
-    }
-    renderDonorList('chronological');
-  }).catch((err) => { console.warn('[Donors] could not load the donor list', err); });
-
-  // Sort toggle buttons
-  document.getElementById('donors-sort-toggle')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.donors-sort-btn');
-    if (!btn) return;
-    document.querySelectorAll('.donors-sort-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderDonorList(btn.dataset.sort);
-  });
-
-  // Open on heart button click
-  document.getElementById('donors-btn')?.addEventListener('click', () => {
-    modal.style.display = 'flex';
-  });
-
-  // Close on X button
-  document.getElementById('donors-close-btn')?.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
-
-  // Close on overlay click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
-  });
-},
-
+// Habitat fork: upstream credit lives in Settings and needs no donor list.
 };

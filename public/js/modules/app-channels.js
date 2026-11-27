@@ -425,17 +425,18 @@ _updateTopicBar(topic) {
     bar.appendChild(toggle);
   }
   const canEdit = this.user.isAdmin || this._hasPerm('set_channel_topic');
-  const editable = !!topic ? canEdit : canEdit;
+  // Habitat fork: the layout offers topic editing in the channel menu when the strip is empty.
+  bar.toggleAttribute('data-empty-topic', !topic);
   if (topic || canEdit) {
     text.textContent = topic || t('channels.topic_placeholder');
     bar.style.display = '';
     bar.title = topic ? (canEdit ? t('channels.topic_edit_hint') : topic) : '';
-    bar.style.cursor = editable ? 'pointer' : 'default';
+    bar.style.cursor = canEdit ? 'pointer' : 'default';
     bar.style.color = topic ? '' : 'var(--text-muted)';
     bar.style.opacity = topic ? '1' : '';
     bar.onclick = () => {
       if (bar.classList.contains('collapsed')) { this._setTopicBarFolded(false); return; }
-      if (editable) this._editTopic();
+      if (canEdit) this._editTopic();
     };
   } else {
     bar.style.display = 'none';
@@ -697,7 +698,8 @@ _renderChannels() {
     if (!isSub) {
       // An admin can hide the crossed-out icons for everyone (#5615): on a
       // server where most channels have these off they were only clutter.
-      const showOff = !_typeBadge && (!this.serverSettings || this.serverSettings.hide_disabled_channel_badges !== 'true');
+      // Habitat fork: show these badges only when the server has explicitly enabled them.
+      const showOff = !_typeBadge && this.serverSettings?.hide_disabled_channel_badges === 'false';
       if (showOff && ch.streams_enabled === 0) _badges.push(`<span class="ch-disabled-badge" title="${t('channels.screen_share_not_allowed')}">🖥️</span>`);
       if (showOff && ch.music_enabled === 0) _badges.push(`<span class="ch-disabled-badge" title="${t('channels.music_not_allowed')}">🎵</span>`);
       if (ch.slow_mode_interval > 0) _badges.push(`<span title="${t('channels.slow_mode_title', { seconds: ch.slow_mode_interval })}" style="opacity:0.5;font-size:0.65rem">🐢</span>`);
