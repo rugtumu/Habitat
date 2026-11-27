@@ -105,8 +105,11 @@ server's owner; the steps, checks and rollback are in
    covers both. Still open: a viewer who closes a share keeps receiving it,
    the share is always tuned for motion rather than text, and coturn in the
    example setup has no bandwidth limit. Haven's built-in voice relay (an SFU,
-   Admin > voice relay mode) sends each picture once however many people watch;
-   it has not been tried on this server.
+   Settings > Large Server Setup) sends each picture once however many people
+   watch and stops sending a share to a viewer who closes it. It was tried
+   locally with two accounts: the call stage and the connection details work
+   through it. It is not switched on on the live server; the steps are in
+   section 6 of `docs/examples/habitat-caddy-coturn/README.md`.
 3. **Light theme.** Habitat Grafit is dark only.
 4. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.

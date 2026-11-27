@@ -1007,17 +1007,34 @@ class HabitatLayout {
     let before = new Map();  // per person: packets lost and received at the last reading
     let traffic = null;      // bytes sent and received, and when, at the last reading
     const read = async () => {
-      const out = { peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0, up: null, down: null, video: null };
+      const out = {
+        peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0, up: null, down: null, video: null,
+        sfu: false, sfuLive: false, others: 0
+      };
       let sentBytes = 0; let gotBytes = 0;
-      const peers = window.app?.voice?.peers;
-      if (!peers || typeof peers.forEach !== 'function') return out;
+      const voice = window.app?.voice;
+      // A call is either a mesh, one connection per person, or goes through
+      // Haven's voice relay: two connections to the server, one each way.
+      const links = [];
+      if (voice?.peers && typeof voice.peers.forEach === 'function') {
+        for (const [id, peer] of voice.peers) links.push({ id, link: peer?.connection, person: true });
+      }
+      const relay = voice?._relay;
+      if (relay && !relay.closed) {
+        out.sfu = true;
+        links.push({ id: 'relay-out', link: relay.sendTransport }, { id: 'relay-in', link: relay.recvTransport });
+        const heard = new Set();
+        relay.consumers?.forEach?.(entry => heard.add(entry.userId));
+        out.others = heard.size;
+      }
       const trips = []; const shakes = []; let lost = 0; let got = 0;
       const seen = new Map();
-      for (const [id, peer] of peers) {
-        const link = peer?.connection;
+      for (const { id, link, person } of links) {
         if (!link || typeof link.getStats !== 'function') continue;
-        out.peers++;
-        if (link.connectionState === 'connected') out.live++;
+        if (person) {
+          out.peers++;
+          if (link.connectionState === 'connected') out.live++;
+        } else if (link.connectionState === 'connected') out.sfuLive = true;
         let stats;
         try { stats = await link.getStats(); } catch { continue; }
         const byId = new Map();
@@ -1085,13 +1102,15 @@ class HabitatLayout {
       const worst = Math.max(Number.isFinite(ping) ? ping : 0, call.rtt || 0);
       const loss = call.loss || 0;
       const held = call.video?.limit === 'bandwidth' || call.video?.limit === 'cpu';
-      const grade = (call.peers && !call.live) || worst > 300 || loss > 8 ? 'poor'
+      const down = (call.peers && !call.live && !call.sfuLive) || (call.sfu && !call.sfuLive && !call.live);
+      const grade = down || worst > 300 || loss > 8 ? 'poor'
         : worst > 120 || loss > 3 || held ? 'fair' : 'good';
       if (bar.getAttribute('data-habitat-signal') !== grade) bar.setAttribute('data-habitat-signal', grade);
       if (panel.hidden) return;
       panel.setAttribute('data-habitat-connection', grade);
       head.textContent = this._text(grade);
-      cells.people.textContent = call.peers ? `${call.live} / ${call.peers}` : this._text('alone');
+      cells.people.textContent = call.peers ? `${call.live} / ${call.peers}`
+        : call.others ? String(call.others) : this._text('alone');
       cells.serverPing.textContent = ms(Number.isFinite(ping) ? ping : null);
       cells.voicePing.textContent = ms(call.rtt);
       cells.loss.textContent = call.loss === null ? '–' : `${call.loss.toFixed(1)}%`;
@@ -1103,8 +1122,9 @@ class HabitatLayout {
         Number.isFinite(call.video.fps) ? `${Math.round(call.video.fps)} fps` : '',
         held ? this._text(call.video.limit === 'cpu' ? 'limitCpu' : 'limitBandwidth') : ''
       ].filter(Boolean).join(' · ');
-      cells.route.textContent = !call.relayed && !call.direct ? '–'
-        : this._text(call.relayed && call.direct ? 'mixed' : call.relayed ? 'relay' : 'direct');
+      cells.route.textContent = call.sfu ? this._text('sfu')
+        : !call.relayed && !call.direct ? '–'
+          : this._text(call.relayed && call.direct ? 'mixed' : call.relayed ? 'relay' : 'direct');
       cells.server.textContent = window.location?.host || '–';
     };
     const place = () => {
@@ -1447,7 +1467,8 @@ HabitatLayout.TEXT = Object.freeze({
     direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay',
     sideBySide: 'Show every shared screen together',
     upload: 'Upload', download: 'Download', video: 'Picture you send',
-    limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer'
+    limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer',
+    sfu: 'Through the server (voice relay)'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
@@ -1462,7 +1483,8 @@ HabitatLayout.TEXT = Object.freeze({
     direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı',
     sideBySide: 'Paylaşılan ekranları birlikte göster',
     upload: 'Yükleme', download: 'İndirme', video: 'Gönderdiğin görüntü',
-    limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor'
+    limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor',
+    sfu: 'Sunucu üzerinden (ses aktarıcısı)'
   })
 });
 

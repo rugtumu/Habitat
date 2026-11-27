@@ -107,13 +107,44 @@ kurmak gerekmez.
 Her üye sonradan kendi tarayıcısında istediğini değiştirebilir. Yerleşim
 telefonda ve tablette de çalışır: kenar çubuğu uygulamanın kendi çekmecesinde
 aynı düzeni alır, telefonda mesaj kutusundaki araçlar tek bir `+` düğmesine
-katlanır. Arama kontrolleri yalnızca 901 pikselden geniş pencerede sol alta
-iner, dar ekranda üyeler çekmecesinde kalır. Vazgeçmek için Layout'tan
+katlanır. Arama kontrolleri 901 pikselden geniş pencerede sol alta iner; dar
+ekranda arama sahnesi açıkken sahnenin altında durur. Vazgeçmek için Layout'tan
 **Original**'ı seçmek yeter, her şey eski yerine döner.
 
 İkon eklemek ya da değiştirmek için `scripts/habitat-icons.js` içindeki çizimi
 düzenleyip `node scripts/habitat-icons.js` çalıştırın; temadaki ikon bloğu
 yeniden yazılır.
+
+## 6. Ses aktarıcısı (isteğe bağlı)
+
+Varsayılan düzende aramadaki herkes sesini ve görüntüsünü diğer herkese ayrı
+ayrı gönderir. Ekran paylaşan kişinin yüklemesi odadaki kişi sayısıyla çarpılır;
+dört beş kişiden sonra ev bağlantıları yetmez, görüntü donar. Aktarıcı
+açıkken herkes bir kez, sunucuya gönderir; sunucu izleyenlere dağıtır.
+Paylaşımı kapatan izleyiciye görüntü gönderilmez.
+
+Port (40000, TCP ve UDP) bu kurulumda zaten açık ve `docker-compose.yml`
+içinde eşlenmiş durumda. Açmak için admin hesabıyla:
+
+1. Ayarlar → **Large Server Setup** → **Voice relay** altında **Install**'a
+   basın. Yaklaşık 10 MB'lık medya motoru veri birimine iner; güncellemeler ona
+   dokunmaz.
+2. **Built-in relay**'i seçip kaydedin. Durum satırında "running" ve sunucunun
+   genel IP adresi görünmeli. Adres yanlışsa **Public address** alanına elle
+   yazın.
+3. Yeni başlayan bir aramaya girip "Voice Connected" satırına tıklayın;
+   **Route** satırında "Through the server (voice relay)" yazmalı. Süren bir
+   arama, herkes çıkana kadar başladığı düzende kalır.
+
+Bilinmesi gerekenler:
+
+- Bütün ses ve görüntü VPS'ten geçer. 8 Mbps'lik bir ekran paylaşımını dört
+  kişi izlerse sunucudan saniyede 32 Mbps çıkar; bu bir saatte yaklaşık 14 GB
+  eder. Sağlayıcının aylık trafik kotasını ve hat hızını buna göre
+  değerlendirin.
+- Sunucu görüntüyü yeniden kodlamaz, yalnızca iletir; işlemci yükü düşüktür.
+- Kapatmak için aynı yerden **Off**'u seçin. Süren aramalar doğrudan
+  bağlantıya geçer.
 
 ## Güncelleme
 
@@ -143,4 +174,5 @@ docker run --rm -v habitat-caddy-coturn_habitat_data:/data -v "$PWD":/backup alp
 | Sertifika alınamıyor | DNS kaydı henüz VPS'i göstermiyor ya da 80/443 kapalı. `docker compose logs caddy` |
 | Ses yalnızca bazı kişiler arasında çalışıyor | UDP 3478 veya 49152-65535 kapalı. `docker compose logs coturn` |
 | TURN yapılandırılmış ama hiç aktarmıyor | VPS'in arayüzünde özel IP var (`ip -4 addr` ile bakın). `docker-compose.yml` içindeki `--external-ip` satırını açıp genel IP'yi yazın |
-| Kalabalık odada ses/görüntü takılıyor | Ayarlar → Large Server Setup altından ses aktarıcısını açın |
+| Kalabalık odada ses/görüntü takılıyor | Ses aktarıcısını açın (bölüm 6) |
+| Aktarıcı açık ama aramalar bağlanmıyor | 40000 portu (TCP ve UDP) sağlayıcının güvenlik duvarında kapalı ya da **Public address** yanlış. `docker compose logs --tail 50 habitat` içinde "Voice relay" satırına bakın |

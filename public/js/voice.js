@@ -2548,7 +2548,8 @@ class VoiceManager {
 
       // Tell the server. A relayed call checks this before taking the camera.
       this.socket.emit('webcam-started', { code: this.currentChannel, streamId: this.webcamStream.id });
-      if (this._relay) await this._relay.publish('webcam', camTrack).catch(e => console.warn('[Relay] Camera not sent:', e.message));
+      // Habitat fork: the same ceiling through the relay, which forwards the camera to everyone.
+      if (this._relay) await this._relay.publish('webcam', camTrack, { maxBitrate: this._webcamBitrateCap() }).catch(e => console.warn('[Relay] Camera not sent:', e.message));
       return true;
     } catch (err) {
       console.error('Webcam access failed:', err);
@@ -2872,16 +2873,20 @@ class VoiceManager {
   // the browser settled on, often 2 Mbps and more, to every other person. A
   // ceiling per picked quality keeps a room full of cameras inside a home
   // upload; the picture a small tile shows does not need more.
+  _webcamBitrateCap() {
+    let pick = '480';
+    try { pick = localStorage.getItem('haven_cam_quality') || '480'; } catch { /* private mode: the default */ }
+    const caps = { '480': 600_000, '720': 1_200_000, '720p60': 1_800_000, '1080': 2_500_000, '1080p60': 3_500_000 };
+    return caps[pick] || caps['480'];
+  }
+
   _applyWebcamBitrate(connection, track = this.webcamStream?.getVideoTracks()[0]) {
     try {
       const sender = track && connection.getSenders().find(s => s.track === track);
       if (!sender) return;
-      let pick = '480';
-      try { pick = localStorage.getItem('haven_cam_quality') || '480'; } catch { /* private mode: the default */ }
-      const caps = { '480': 600_000, '720': 1_200_000, '720p60': 1_800_000, '1080': 2_500_000, '1080p60': 3_500_000 };
       const params = sender.getParameters();
       if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
-      params.encodings[0].maxBitrate = caps[pick] || caps['480'];
+      params.encodings[0].maxBitrate = this._webcamBitrateCap();
       sender.setParameters(params).catch(() => { /* browser rejected the hint: the encoder keeps its defaults */ });
     } catch { /* setParameters not supported: adaptive bitrate remains */ }
   }
@@ -3788,7 +3793,8 @@ class VoiceManager {
       await this._relayScreenEnqueue(() => this._publishInitialRelayScreen(restartToken));
     }
     const cam = this.isWebcamActive && this.webcamStream?.getVideoTracks()[0];
-    if (cam) await relay.publish('webcam', cam).catch(err => console.warn('[Relay] Camera not sent:', err.message));
+    // Habitat fork: the camera's ceiling, as when it is first switched on.
+    if (cam) await relay.publish('webcam', cam, { maxBitrate: this._webcamBitrateCap() }).catch(err => console.warn('[Relay] Camera not sent:', err.message));
   }
 
   _onRelayTrack({ userId, source, track }) {
