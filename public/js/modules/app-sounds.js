@@ -45,43 +45,6 @@ _setupSoundManagement() {
     this._toggleSoundboardSidebar();
   });
 
-  // Soundboard sidebar resize handle
-  {
-    const sbPanel = document.getElementById('sb-sidebar-panel');
-    const sbResizeHandle = document.getElementById('sb-sidebar-resize-handle');
-    if (sbPanel && sbResizeHandle) {
-      const savedWidth = localStorage.getItem('haven_sb_sidebar_width');
-      if (savedWidth) sbPanel.style.width = savedWidth + 'px';
-
-      let sbDragging = false, sbStartX = 0, sbStartW = 0;
-      sbResizeHandle.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        sbDragging = true;
-        sbStartX = e.clientX;
-        sbStartW = sbPanel.getBoundingClientRect().width;
-        sbResizeHandle.classList.add('dragging');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-      });
-      document.addEventListener('mousemove', (e) => {
-        if (!sbDragging) return;
-        let w = sbStartW + (sbStartX - e.clientX);
-        w = Math.max(160, Math.min(420, w));
-        sbPanel.style.width = w + 'px';
-        window._updateSbToggleRight?.(); // keep voice/users btn aligned during drag
-      });
-      document.addEventListener('mouseup', () => {
-        if (!sbDragging) return;
-        sbDragging = false;
-        sbResizeHandle.classList.remove('dragging');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        localStorage.setItem('haven_sb_sidebar_width', parseInt(sbPanel.style.width));
-        window._updateSbToggleRight?.();
-      });
-    }
-  }
-
   // Tab switching
   document.querySelectorAll('.sound-tab').forEach(tab => {
     tab.addEventListener('click', () => {

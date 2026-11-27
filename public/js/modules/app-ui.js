@@ -5,6 +5,62 @@
 
 import { keepInColumn } from './keep-in-column.js?v=4.29.18';
 
+// Habitat fork: move a guide while dragging so a busy chat only reflows on release.
+function bindSidebarResize(handleId, storageKey, defaultSide) {
+  const handle = document.getElementById(handleId);
+  if (!handle) return;
+  const panel = handle.parentElement;
+  const saved = Number(localStorage.getItem(storageKey));
+  if (Number.isFinite(saved) && saved > 0) panel.style.width = saved + 'px';
+
+  handle.addEventListener('pointerdown', (start) => {
+    if (start.button !== 0 || !start.isPrimary || start.pointerType === 'touch') return;
+    start.preventDefault();
+    const rect = panel.getBoundingClientRect();
+    const style = getComputedStyle(panel);
+    const min = parseFloat(style.minWidth) || 0;
+    const max = parseFloat(style.maxWidth) || Infinity;
+    const onLeft = (panel.dataset.panelPos || defaultSide) === 'left';
+    const direction = onLeft ? 1 : -1;
+    const guide = document.createElement('div');
+    guide.className = 'sidebar-resize-guide';
+    guide.style.left = (onLeft ? rect.right : rect.left) + 'px';
+    guide.style.top = rect.top + 'px';
+    guide.style.height = rect.height + 'px';
+    document.body.append(guide);
+    document.body.classList.add('resizing-sidebar');
+    handle.setPointerCapture(start.pointerId);
+
+    const widthAt = x => Math.round(Math.max(min, Math.min(max, rect.width + direction * (x - start.clientX))));
+    function move(event) {
+      if (event.pointerId === start.pointerId) {
+        guide.style.translate = direction * (widthAt(event.clientX) - rect.width) + 'px';
+      }
+    }
+    function finish(event) {
+      if (event.pointerId !== undefined && event.pointerId !== start.pointerId) return;
+      if (event.type === 'pointerup' && event.clientX !== start.clientX) {
+        const width = widthAt(event.clientX);
+        panel.style.width = width + 'px';
+        panel.getBoundingClientRect(); // Apply the drop before restoring the collapse transition.
+        localStorage.setItem(storageKey, width);
+        window._updateSbToggleRight?.();
+      }
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', finish);
+      handle.removeEventListener('lostpointercapture', finish);
+      window.removeEventListener('blur', finish);
+      if (handle.hasPointerCapture(start.pointerId)) handle.releasePointerCapture(start.pointerId);
+      guide.remove();
+      document.body.classList.remove('resizing-sidebar');
+    }
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('lostpointercapture', finish);
+    window.addEventListener('blur', finish);
+  });
+}
+
 export default {
 
 _setupUI() {
@@ -1004,77 +1060,9 @@ _formatFileSize(bytes) {
 // ── Resizable Sidebars ─────────────────────────────────
 
 _setupResizableSidebars() {
-  // Left sidebar resize (delta-based so it works with mod-mode panel repositioning)
-  const sidebar = document.querySelector('.sidebar');
-  const leftHandle = document.getElementById('sidebar-resize-handle');
-  if (sidebar && leftHandle) {
-    const savedLeft = localStorage.getItem('haven_sidebar_width');
-    if (savedLeft) sidebar.style.width = savedLeft + 'px';
-
-    let dragging = false, startX = 0, startW = 0;
-    leftHandle.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      dragging = true;
-      startX = e.clientX;
-      startW = sidebar.getBoundingClientRect().width;
-      leftHandle.classList.add('dragging');
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    });
-    document.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      // Flip direction when mod mode has moved this sidebar to the right
-      const factor = sidebar.dataset.panelPos === 'right' ? -1 : 1;
-      let w = startW + (e.clientX - startX) * factor;
-      w = Math.max(200, Math.min(400, w));
-      sidebar.style.width = w + 'px';
-    });
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      leftHandle.classList.remove('dragging');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      localStorage.setItem('haven_sidebar_width', parseInt(sidebar.style.width));
-    });
-  }
-
-  // Right sidebar resize (delta-based)
-  const rightSidebar = document.getElementById('right-sidebar');
-  const rightHandle = document.getElementById('right-sidebar-resize-handle');
-  if (rightSidebar && rightHandle) {
-    const savedRight = localStorage.getItem('haven_right_sidebar_width');
-    if (savedRight) rightSidebar.style.width = savedRight + 'px';
-
-    let dragging = false, startX = 0, startW = 0;
-    rightHandle.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      dragging = true;
-      startX = e.clientX;
-      startW = rightSidebar.getBoundingClientRect().width;
-      rightHandle.classList.add('dragging');
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    });
-    document.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      // Default right-side: shrinks when moving right; flip if mod moved it left
-      const factor = rightSidebar.dataset.panelPos === 'left' ? 1 : -1;
-      let w = startW + (e.clientX - startX) * factor;
-      w = Math.max(200, Math.min(400, w));
-      rightSidebar.style.width = w + 'px';
-      window._updateSbToggleRight?.(); // keep both collapse btns aligned during drag
-    });
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      rightHandle.classList.remove('dragging');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      localStorage.setItem('haven_right_sidebar_width', parseInt(rightSidebar.style.width));
-      window._updateSbToggleRight?.();
-    });
-  }
+  bindSidebarResize('sidebar-resize-handle', 'haven_sidebar_width', 'left');
+  bindSidebarResize('right-sidebar-resize-handle', 'haven_right_sidebar_width', 'right');
+  bindSidebarResize('sb-sidebar-resize-handle', 'haven_sb_sidebar_width', 'right');
 
   // Sidebar split handle (channels/DM divider)
   const splitHandle = document.getElementById('sidebar-split-handle');

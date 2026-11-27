@@ -13,6 +13,23 @@
   position: relative;
 }
 
+.sidebar-resize-guide {
+  position: fixed;
+  width: 0.1875rem;
+  margin-left: -0.09375rem;
+  background: var(--accent);
+  pointer-events: none;
+  will-change: translate;
+  z-index: 100000;
+}
+body.resizing-sidebar {
+  cursor: col-resize;
+  user-select: none;
+}
+body.resizing-sidebar :is(.right-sidebar, .sb-sidebar-panel, .sidebar-collapse-btn, .sb-sidebar-toggle-btn) {
+  transition: none;
+}
+
 /* Resize handle (right edge of left sidebar) */
 .sidebar-resize-handle {
   position: absolute;
