@@ -1134,6 +1134,12 @@ html[data-habitat-layout] [data-haven-region="sidebar-footer"] > [data-haven-reg
   padding: 0.5rem;
   border-radius: 0;
 }
+/* The bar's 0.25rem gap is sized for its row of small buttons. A profile
+   border is drawn up to a quarter larger than the avatar it frames, so with
+   one on, that gap was used up and the picture touched the name. */
+html[data-habitat-layout] [data-haven-region="sidebar-footer"] > [data-haven-region="account"] > #user-bar-avatar {
+  margin-inline-end: 0.5rem;
+}
 html[data-habitat-layout] [data-habitat-tools] {
   display: flex;
   align-items: center;
