@@ -64,6 +64,15 @@
 }
 
 :root {
+  /* ── Backgrounds ───────────────────────────────── */
+  --bg-primary:    #24282b;
+  --bg-secondary:  #1d2023;
+  --bg-tertiary:   #14171a;
+  --bg-hover:      #31373b;
+  --bg-active:     #3a4246;
+  --bg-input:      #31373b;
+  --bg-card:       #181b1e;
+
   /* Habitat's own, not part of the public token set */
   --hb-stage-gap: .625rem;
   --hb-stage-pad: .875rem;
@@ -87,15 +96,20 @@
   --hb-ease:       cubic-bezier(.2, .8, .2, 1);
   --hb-fast:       .12s;
   --hb-base:       .18s;
-
-  /* ── Backgrounds ───────────────────────────────── */
-  --bg-primary:    #24282b;
-  --bg-secondary:  #1d2023;
-  --bg-tertiary:   #14171a;
-  --bg-hover:      #31373b;
-  --bg-active:     #3a4246;
-  --bg-input:      #31373b;
-  --bg-card:       #181b1e;
+  --hb-radius-lg: .75rem;
+  --hb-radius-xl: 1.25rem;
+  --hb-radius-pill: 62.5rem;
+  --hb-shadow-ink: rgba(0, 0, 0, .5);
+  --hb-elev-popover: 0 .75rem 2rem var(--hb-shadow-ink);
+  --hb-elev-dialog: 0 1.5rem 4rem var(--hb-shadow-ink);
+  --hb-ring-hairline: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --hb-ring-speaking: inset 0 0 0 .125rem var(--success), 0 0 0 .25rem color-mix(in srgb, var(--success) 25%, transparent);
+  --hb-scrim: rgba(0, 0, 0, .6);
+  --hb-media-surface: #0b0c0f;
+  --hb-media-plate: rgba(8, 9, 12, .78);
+  --hb-media-plate-hover: rgba(40, 44, 50, .92);
+  --hb-on-media: #fff;
+  --hb-on-media-fill: rgba(255, 255, 255, .12);
 
   /* ── Accent ────────────────────────────────────── */
   --accent:        #64b99f;
@@ -215,10 +229,10 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 /* ── Login and registration ──────────────────────── */
 [data-haven-page="auth"] {
-  --bg-primary:   #14171a;
-  --bg-secondary: #14171a;
+  --bg-primary:   var(--bg-tertiary);
+  --bg-secondary: var(--bg-tertiary);
   background:
-    radial-gradient(48rem 24rem at 50% -6%, rgba(100, 185, 159, .09), transparent 70%),
+    radial-gradient(48rem 24rem at 50% -6%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
     var(--bg-primary);
 }
 
@@ -229,13 +243,13 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="auth"] [data-haven-region="auth-card"] {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: .875rem;
-  box-shadow: 0 1.5rem 4rem -1.5rem rgba(0, 0, 0, .8);
+  border-radius: var(--hb-radius-lg);
+  box-shadow: var(--hb-elev-dialog);
 }
 
 [data-haven-page="auth"] [data-haven-region="theme-picker"] {
   opacity: .4;
-  transition: opacity var(--transition);
+  transition: opacity var(--hb-fast) var(--hb-ease);
 }
 
 [data-haven-page="auth"] [data-haven-region="theme-picker"]:hover,
@@ -262,12 +276,12 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-primary);
   border: 0;
   box-shadow: none;
-  transition: border-radius var(--transition), background var(--transition), color var(--transition);
+  transition: scale var(--hb-fast) var(--hb-ease);
 }
 
 [data-haven-page="app"] .server-icon:hover,
 [data-haven-page="app"] .server-icon.active {
-  border-radius: 1rem;
+  border-radius: var(--hb-radius-lg);
 }
 
 [data-haven-page="app"] .server-icon.home,
@@ -289,7 +303,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   border: 0;
   border-radius: var(--radius);
   color: var(--text-muted);
-  transition: background var(--transition), color var(--transition);
+  transition: none;
 }
 
 [data-haven-page="app"] .channel-item:hover {
@@ -330,7 +344,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .channel-badge-bubble {
   background: var(--danger);
   color: var(--danger-text);
-  border-radius: 1rem;
+  border-radius: var(--hb-radius-pill);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
@@ -388,7 +402,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .reaction-badge {
   min-height: 1.625rem;
   background: var(--bg-hover);
-  border-radius: .5rem;
+  border-radius: var(--radius);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -433,7 +447,7 @@ html[data-haven-theme-api="1"] :focus-visible {
     min-height: 2.75rem;
     padding: .75rem 1rem;
     border: 0;
-    border-radius: .75rem 0 0 .75rem;
+    border-radius: var(--hb-radius-lg) 0 0 var(--hb-radius-lg);
     background: var(--bg-input);
     box-shadow: none;
     font-size: var(--hb-composer-text);
@@ -460,7 +474,7 @@ html[data-haven-theme-api="1"] :focus-visible {
     align-self: stretch;
     height: auto;
     border: 0;
-    border-radius: 0 .75rem .75rem 0;
+    border-radius: 0 var(--hb-radius-lg) var(--hb-radius-lg) 0;
     background: var(--bg-input);
     color: var(--accent);
     box-shadow: none;
@@ -566,11 +580,8 @@ html[data-haven-theme-api="1"] :focus-visible {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid var(--border);
-}
-
-[data-haven-page="app"] .profile-popup {
-  border-radius: .875rem;
-  box-shadow: 0 1rem 3rem rgba(0, 0, 0, .55);
+  border-radius: var(--hb-radius-lg);
+  box-shadow: var(--hb-elev-popover);
 }
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner:not(.has-banner-image) {
@@ -640,7 +651,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-badge {
   padding: 0;
   border: 0;
-  border-radius: .25rem;
+  border-radius: var(--radius-sm);
   background: transparent;
 }
 
@@ -663,7 +674,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-role {
   border-color: var(--border-light);
-  border-radius: 1rem;
+  border-radius: var(--hb-radius-pill);
   background: var(--bg-active);
 }
 
@@ -717,7 +728,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] #voice-bar[data-habitat-signal="poor"] .voice-bar-icon { color: var(--danger); }
 [data-haven-page="app"] .voice-bar-status[role="button"] {
   margin: -.25rem -.375rem; padding: .25rem .375rem; border-radius: var(--radius-sm);
-  transition: background-color var(--hb-fast) var(--hb-ease);
+  transition: none;
 }
 [data-haven-page="app"] .voice-bar-status[role="button"]:is(:hover, :focus-visible, [aria-expanded="true"]) {
   background: var(--bg-hover);
@@ -742,7 +753,6 @@ html[data-habitat-layout] #channel-list .channel-voice-user:hover { color: var(-
    name and status line get the room, and the buttons stay in one tight row.
    Before, five buttons left the name about three letters wide during a call.
    The @handle is on the profile card a click on the picture opens. */
-html[data-habitat-layout] [data-haven-region="account"] { position: relative; gap: .375rem; }
 html[data-habitat-layout] [data-haven-region="account"] > .user-names { flex: 1 1 0; min-width: 0; }
 html[data-habitat-layout] [data-haven-region="account"] > .user-names > #login-name { display: none; }
 html[data-habitat-layout] [data-haven-region="account"] > .user-names > :is(#current-user, #user-bar-status-text) {
@@ -1074,11 +1084,11 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
 
 /* Windows: the backdrop fades, the window settles into place. */
 [data-haven-page="app"] .modal-overlay {
-  animation: hb-fade var(--hb-base) ease-out;
+  animation: hb-fade var(--hb-base) var(--hb-ease);
 }
 
 [data-haven-page="app"] .modal-overlay > .modal {
-  animation: hb-pop .22s var(--hb-ease);
+  animation: hb-pop var(--hb-base) var(--hb-ease);
 }
 
 /* Pickers and menus that open upwards from the message box. */
@@ -1089,7 +1099,9 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
 [data-haven-page="app"] [data-haven-region="composer"] > .slash-dropdown,
 [data-haven-page="app"] [data-haven-region="composer"] .input-actions-box.open,
 [data-haven-page="app"] [data-haven-region="composer"] > .composer-overflow.open,
-[data-haven-page="app"] .theme-popup,
+[data-haven-page="app"] .theme-popup {
+  animation: hb-rise var(--hb-fast) var(--hb-ease);
+}
 [data-haven-page="app"] .reply-bar {
   animation: hb-rise var(--hb-base) var(--hb-ease);
 }
@@ -1109,13 +1121,13 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
 [data-haven-page="app"] .e2e-dropdown,
 [data-haven-page="app"] .search-filter-popover,
 [data-haven-page="app"] .mobile-server-menu {
-  animation: hb-drop var(--hb-fast) ease-out;
+  animation: hb-drop var(--hb-fast) var(--hb-ease);
 }
 
 /* The tools that appear over a message you point at, and tooltips. */
 [data-haven-page="app"] .msg-toolbar,
 [data-haven-page="app"] .haven-tooltip {
-  animation: hb-fade var(--hb-fast) ease-out;
+  animation: hb-fade var(--hb-fast) var(--hb-ease);
 }
 
 /* Joining a call: the voice bar and its controls arrive, they do not blink in. */
@@ -1124,20 +1136,20 @@ html[data-compact-composer] [data-haven-region="composer"] .input-actions-box > 
   animation: hb-rise var(--hb-base) var(--hb-ease);
 }
 
-/* Rows answer the pointer with a short fade instead of a hard switch. */
+/* Override Haven's colour transitions on rows and the composer. */
 [data-haven-page="app"] .message,
 [data-haven-page="app"] .user-item,
 [data-haven-page="app"] .channel-voice-user {
-  transition: background-color var(--hb-fast) ease, color var(--hb-fast) ease;
+  transition: none;
 }
 
 [data-haven-page="app"] .channel-voice-user::before {
-  transition: background-color var(--hb-base) ease, box-shadow var(--hb-base) ease;
+  transition: none;
 }
 
 [data-haven-page="app"] [data-haven-region="composer"] > textarea,
 [data-haven-page="app"] [data-haven-region="composer"] > .input-actions-box {
-  transition: background-color var(--hb-base) ease;
+  transition: none;
 }
 
 /* Buttons give a little under a press. */
@@ -1203,7 +1215,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] .msg-toolbar {
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
-  border-radius: .5rem;
+  border-radius: var(--radius);
 }
 [data-haven-page="app"] .channel-item {
   min-height: 2.375rem;
@@ -1267,12 +1279,11 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   text-transform: none;
 }
 [data-haven-page="app"] .user-search-input {
-  border-radius: .5rem; border-color: var(--border); background: var(--bg-tertiary);
+  border-radius: var(--radius); border-color: var(--border); background: var(--bg-tertiary);
 }
 [data-haven-page="app"] [data-haven-region="sidebar-footer"] {
-  margin: .375rem; border-radius: .75rem; background: var(--hb-rail);
+  margin: .375rem; border-radius: var(--hb-radius-lg); background: var(--hb-rail);
 }
-[data-haven-page="app"] [data-haven-region="account"] { border-radius: inherit; }
 [data-haven-page="app"] .channel-info h3 {
   margin: 0; font: 750 1.1875rem/1.25 var(--font-heading); letter-spacing: -.015em;
 }
@@ -1287,19 +1298,19 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 }
 [data-haven-page="app"] .welcome-icon {
   display: grid; place-items: center; width: 4rem; height: 4rem; margin: 0 0 1rem;
-  border-radius: 1.25rem; background: var(--bg-active); color: var(--accent); font-size: 2.5rem;
+  border-radius: var(--hb-radius-xl); background: var(--bg-active); color: var(--accent); font-size: 2.5rem;
 }
 [data-haven-page="app"] .welcome-content h2 {
   font: 750 clamp(1.625rem, 3vw, 2.375rem)/1.12 var(--font-heading); letter-spacing: -.035em;
 }
 [data-haven-page="app"] :is(.thread-panel, .dm-pip-panel, .quick-switcher-box, .channel-ctx-menu, .emoji-picker, .gif-picker) {
-  border-color: var(--border-light); border-radius: .875rem; background-color: var(--bg-secondary);
+  border-color: var(--border-light); border-radius: var(--hb-radius-lg); background-color: var(--bg-secondary);
 }
 [data-haven-page="app"] :is(.dm-pip-header, .thread-panel-header) {
   padding: .75rem 1rem; border-bottom: 1px solid var(--border); background-color: var(--bg-secondary);
 }
 [data-haven-page="app"] :is(.dm-pip-input, .thread-input, #quick-switcher-input) {
-  background-color: var(--bg-input); border-radius: .625rem; color: var(--text-primary);
+  background-color: var(--bg-input); border-radius: var(--radius); color: var(--text-primary);
 }
 [data-haven-page="app"] .quick-switcher-item.selected { background: var(--bg-active); color: var(--text-primary); }
 /* The bands follow the actual member colour. Uploaded pictures supply their own cover. */
@@ -1315,7 +1326,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   margin: .625rem;
   padding: .875rem;
   border: .0625rem solid var(--border);
-  border-radius: .75rem;
+  border-radius: var(--hb-radius-lg);
   background-color: var(--bg-secondary);
 }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-close {
@@ -1342,7 +1353,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 }
 [data-haven-page="app"] :is(.panel.voice-panel, .voice-settings-panel) { background-color: var(--bg-secondary); }
 [data-haven-page="app"] .modal:not(.has-profile-theme) {
-  border-color: var(--border-light); border-radius: .875rem;
+  border-color: var(--border-light); border-radius: var(--hb-radius-lg);
 }
 [data-haven-page="app"] .modal-settings {
   background: var(--bg-primary); border: 1px solid var(--border-light);
@@ -1358,7 +1369,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 }
 [data-haven-page="auth"] .auth-header { text-align: start; }
 [data-haven-page="auth"] .auth-header h1 { font-size: 1.875rem; letter-spacing: -.035em; }
-[data-haven-page="auth"] :is(.auth-tabs, .auth-form input) { background: var(--bg-tertiary); border-radius: .5rem; }
+[data-haven-page="auth"] :is(.auth-tabs, .auth-form input) { background: var(--bg-tertiary); border-radius: var(--radius); }
 [data-haven-page="auth"] .auth-tab.active { color: var(--text-primary); background: var(--bg-active); }
 [data-haven-page="auth"] .auth-form .btn-primary { background: var(--accent); color: var(--accent-text); }
 @media (min-width: 901px) {
@@ -1374,7 +1385,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   [data-haven-page="app"] .modal.modal-settings { width: 100%; max-width: 100%; max-height: 100dvh; }
   [data-haven-page="app"] .settings-nav.sp-nav { padding: .5rem; }
   [data-haven-page="app"] [data-haven-region="composer"] > textarea {
-    min-width: 0; border: 1px solid var(--border-light); border-radius: 1.25rem;
+    min-width: 0; border: 1px solid var(--border-light); border-radius: var(--hb-radius-xl);
     background: var(--bg-input); padding-inline: .875rem;
   }
   [data-haven-page="app"] .message-user-sep { margin-block-start: .375rem; }
@@ -1405,18 +1416,15 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   }
   [data-haven-page="auth"] .auth-header .logo {
     display: grid; place-items: center; width: 4rem; height: 4rem; margin-block-end: 1rem;
-    border-radius: 1.125rem; background: var(--accent); color: var(--accent-text);
+    border-radius: var(--hb-radius-xl); background: var(--accent); color: var(--accent-text);
   }
   [data-haven-page="auth"] .auth-header .auth-server-logo { margin-inline: 0; }
   [data-haven-page="auth"] .auth-card > :is(.auth-appearance, .auth-lang-bar, .auth-version) { grid-column: 1 / -1; }
 }
 
-[data-haven-page="app"] [data-habitat-inbox][aria-pressed="true"] {
-  background: var(--accent); color: var(--accent-text); border-radius: 1rem;
-}
 @media (min-width: 901px) {
   html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > .btn-composer-plus {
-    align-self: stretch; height: auto; margin: 0; border: 0; border-radius: .75rem 0 0 .75rem;
+    align-self: stretch; height: auto; margin: 0; border: 0; border-radius: var(--hb-radius-lg) 0 0 var(--hb-radius-lg);
     background: var(--bg-input); color: var(--text-secondary);
   }
   html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > textarea {
@@ -1514,7 +1522,7 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
     max-width: 100%;
     max-height: calc(100dvh - 2rem);
     padding-bottom: env(safe-area-inset-bottom, 0rem);
-    border-radius: 1.25rem 1.25rem 0 0;
+    border-radius: var(--hb-radius-xl) var(--hb-radius-xl) 0 0;
   }
   [data-haven-page="app"] .profile-popup-action-btn { min-height: 2.75rem; }
   [data-haven-page="app"] [data-haven-region="composer"] {
@@ -1541,9 +1549,9 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
   [data-haven-page="app"] .msg-dots-btn:active { background: var(--bg-active); }
 }
 [data-haven-page="app"] .voice-panel-btn:not(.active, .muted, .sharing, .voice-panel-leave) {
-  background-color: var(--bg-active); border-color: transparent; border-radius: .5rem;
+  background-color: var(--bg-active); border-color: transparent; border-radius: var(--radius);
 }
-[data-haven-page="app"] .voice-panel-leave { border-radius: .5rem; }
+[data-haven-page="app"] .voice-panel-leave { border-radius: var(--radius); }
 [data-haven-page="app"] .pinned-panel, [data-haven-page="app"] .search-panel {
   background-color: var(--bg-secondary); border-color: var(--border-light);
 }
@@ -1594,13 +1602,13 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   padding: .1875rem;
   gap: .125rem;
   border: .0625rem solid var(--border);
-  border-radius: .625rem;
+  border-radius: var(--radius);
   background: var(--bg-tertiary);
 }
 #settings-modal .settings-tab {
   min-height: 2rem;
   border: 0;
-  border-radius: .4375rem;
+  border-radius: var(--radius-sm);
   font-size: .9375rem;
 }
 #settings-modal .settings-tab.active {
@@ -1629,13 +1637,13 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   min-height: 2.625rem;
   padding-inline: 2.125rem .5rem;
   border: .0625rem solid var(--border-light);
-  border-radius: .625rem;
+  border-radius: var(--radius);
   background: var(--bg-tertiary);
   font: inherit;
   font-size: 1rem;
 }
 #settings-modal .sp-list { gap: .1875rem; }
-#settings-modal .sp-cat { min-height: 2.625rem; padding: .5rem .75rem; gap: .75rem; border-radius: .5rem; }
+#settings-modal .sp-cat { min-height: 2.625rem; padding: .5rem .75rem; gap: .75rem; border-radius: var(--radius); }
 #settings-modal .sp-cat:is([data-sp="profile"], [data-sp="advanced"], [data-sp="network"]) { margin-block-start: .75rem; }
 #settings-modal:not(.sp-search) .sp-cat.active {
   color: var(--text-primary);
@@ -1766,7 +1774,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   text-transform: none;
   letter-spacing: 0;
 }
-#settings-modal .call-settings-page-panel { padding: 1rem; border-radius: .75rem; }
+#settings-modal .call-settings-page-panel { padding: 1rem; border-radius: var(--hb-radius-lg); }
 #settings-modal #section-call-settings > .volume-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(5rem, 1fr) auto;
@@ -1787,7 +1795,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 #settings-modal #section-layout :is(.density-picker, .channel-scroll-picker) {
   gap: .1875rem;
   padding: .25rem;
-  border-radius: .625rem;
+  border-radius: var(--radius);
   background: var(--bg-tertiary);
 }
 #settings-modal #section-layout .density-btn { border: 0; background: transparent; }
@@ -1814,7 +1822,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   color: transparent;
 }
 #settings-modal #layout-density-subsection { padding-block: .25rem 1.125rem; border-bottom: .0625rem solid var(--border); }
-#settings-modal .density-sample { border-radius: .5rem; padding: .875rem 1rem; }
+#settings-modal .density-sample { border-radius: var(--radius); padding: .875rem 1rem; }
 #settings-modal .density-sample figcaption { margin-bottom: .625rem; }
 #settings-modal .density-sample-row strong { color: var(--text-primary); }
 #settings-modal #density-picker .density-btn.active { color: var(--text-primary); }
@@ -1919,7 +1927,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     font: 650 1rem var(--font-main);
     background: var(--bg-active);
     border: .0625rem solid var(--border-light);
-    border-radius: .625rem;
+    border-radius: var(--radius);
     color: var(--text-primary);
   }
   #settings-modal .sp-body { padding-inline: 1rem; }
@@ -2017,7 +2025,7 @@ html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::after 
 /* Someone sharing their screen: a small red LIVE mark with the viewer count,
    wherever the roster shows it. */
 html[data-habitat-layout] .voice-stream-badge.live {
-  display: inline-flex; align-items: center; gap: .25rem; padding: .0625rem .375rem; border-radius: .375rem;
+  display: inline-flex; align-items: center; gap: .25rem; padding: .0625rem .375rem; border-radius: var(--radius-sm);
   color: var(--danger-text); background: var(--danger); font: 700 .6875rem/1.4 var(--font-main);
 }
 html[data-habitat-layout] .voice-stream-badge.live .haven-glyph { width: .5rem; height: .5rem; font-size: .5rem; }
@@ -2025,7 +2033,7 @@ html[data-habitat-layout] .voice-stream-badge.live .haven-glyph { width: .5rem; 
    out in red at the end. */
 html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn {
   width: 2.75rem; height: 2.75rem; flex: none; border-radius: 50%;
-  transition: background-color var(--hb-fast) var(--hb-ease), scale var(--hb-fast) var(--hb-ease);
+  transition: scale var(--hb-fast) var(--hb-ease);
 }
 html[data-habitat-layout] [data-habitat-call-bar] > .voice-panel-btn:active { scale: .94; }
 /* Nothing in this theme loops, and these three of Haven's did: the dot on the
@@ -2064,20 +2072,11 @@ html[data-habitat-layout="compact"] #toast-container {
   top: auto; bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse;
 }
 
-[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile) {
-  border-radius: .875rem;
-  box-shadow: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 7%, transparent);
-  transition: box-shadow var(--hb-base) var(--hb-ease);
-}
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) {
   background: linear-gradient(150deg, color-mix(in srgb, var(--hb-face-bg, var(--accent)) 14%, var(--bg-secondary)), var(--bg-secondary) 75%);
 }
-[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile):hover {
+[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile):hover:where(:not(.talking)) {
   box-shadow: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 16%, transparent);
-}
-[data-habitat-call-stage] .voice-user-item.talking,
-[data-habitat-call-stage] .voice-user-item.talking:hover {
-  outline: 0; box-shadow: inset 0 0 0 .125rem var(--success), 0 0 0 .1875rem color-mix(in srgb, var(--success) 22%, transparent);
 }
 [data-habitat-call-stage] [data-habitat-call-avatar] {
   width: clamp(2.5rem, calc(var(--hb-tile-h, 9rem) * .36), 6rem); height: clamp(2.5rem, calc(var(--hb-tile-h, 9rem) * .36), 6rem);
@@ -2098,13 +2097,14 @@ html[data-habitat-layout="compact"] #toast-container {
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge.watching { inset: auto auto .625rem .625rem; }
 /* The buttons a picture shows on hover: one row of dark glass squares in the
    top right, in place of Haven's small marks in four corners. */
-[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn) {
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-close-btn),
+[data-habitat-call-stage] .screen-share-tile > .stream-minimize-btn {
   inset: .5rem auto auto auto; display: grid; place-items: center; width: 1.875rem; height: 1.875rem; padding: 0;
-  border-radius: .5rem; color: #fff; background: rgba(8, 9, 12, .8); font-size: .875rem; line-height: 1;
-  transition: opacity var(--hb-fast) var(--hb-ease), background-color var(--hb-fast) var(--hb-ease);
+  border-radius: var(--radius); color: var(--hb-on-media); background: var(--hb-media-plate); font-size: .875rem; line-height: 1;
+  transition: opacity var(--hb-fast) var(--hb-ease);
 }
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn):hover {
-  background: rgba(40, 44, 50, .92);
+  background: var(--hb-media-plate-hover);
 }
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > .stream-close-btn { right: .5rem; }
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > .stream-minimize-btn { right: 2.625rem; }
@@ -2117,30 +2117,29 @@ html[data-habitat-layout="compact"] #toast-container {
 [data-habitat-call-stage][data-habitat-focus] :is(.webcam-tile, .screen-share-tile):not([data-habitat-focused]) > :is(.stream-popout-btn, .stream-fullscreen-btn, .stream-minimize-btn, .stream-close-btn, .stream-audio-controls) {
   display: none;
 }
-[data-habitat-call-stage] .webcam-tile > .stream-minimize-btn { display: none; }
 /* The audio note gives the top right corner to those buttons. */
 [data-habitat-call-stage] .screen-share-tile > :is(.stream-audio-badge, .stream-no-audio-badge) {
-  inset: .5rem auto auto .5rem; padding: .1875rem .5rem; border-radius: .375rem; background: rgba(8, 9, 12, .68);
+  inset: .5rem auto auto .5rem; padding: .1875rem .5rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
 }
-[data-habitat-stage-spread] { transition: background-color var(--hb-fast) var(--hb-ease), color var(--hb-fast) var(--hb-ease); }
+[data-habitat-stage-spread] { transition: none; }
 [data-habitat-call-stage] .voice-user-menu-btn { position: absolute; inset: .375rem .375rem auto auto; opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease); }
 [data-habitat-call-stage] :is(.voice-user-item:hover, .voice-user-item:focus-within) .voice-user-menu-btn { opacity: 1; }
 /* The name plate on a picture: a dark plate, so it reads on any camera or
    screen. No blur behind it: a blur over video is drawn again with every frame. */
 [data-habitat-call-stage] [data-habitat-on-camera] .user-item-name,
 [data-habitat-call-stage] :is(.webcam-tile-label, .screen-share-tile-label) {
-  inset: auto auto .5rem .5rem; width: auto; max-width: calc(100% - 1rem); padding: .1875rem .5rem; border-radius: .375rem;
-  overflow: hidden; color: #fff; background: rgba(8, 9, 12, .78); font: 600 .8125rem/1.3 var(--font-main);
+  inset: auto auto .5rem .5rem; width: auto; max-width: calc(100% - 1rem); padding: .1875rem .5rem; border-radius: var(--radius-sm);
+  overflow: hidden; color: var(--hb-on-media); background: var(--hb-media-plate); font: 600 .8125rem/1.3 var(--font-main);
   text-align: start; text-overflow: ellipsis; white-space: nowrap;
 }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons {
-  margin-inline-start: .375rem; padding: .1875rem .375rem; border-radius: .375rem; background: rgba(8, 9, 12, .68);
+  margin-inline-start: .375rem; padding: .1875rem .375rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
 }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons:empty { display: none; }
 /* The call buttons on the stage: they come and go with the pointer. */
 [data-habitat-stage-controls] { transition: opacity var(--hb-base) var(--hb-ease); }
 [data-habitat-stage-controls] > button {
-  transition: background-color var(--hb-fast) var(--hb-ease), scale var(--hb-fast) var(--hb-ease);
+  transition: scale var(--hb-fast) var(--hb-ease);
 }
 [data-habitat-stage-controls] > button:hover { scale: 1.06; }
 [data-habitat-stage-controls] > button:active { scale: .95; }
@@ -2150,7 +2149,7 @@ html[data-habitat-layout="compact"] #toast-container {
    into the list under the room; a person who leaves fades where they were.
    The layout marks only the rows that are new or gone, so nothing replays
    when Haven redraws the others. */
-[data-habitat-call-stage] [data-habitat-enter] { animation: hb-pop .22s var(--hb-ease) both; }
+[data-habitat-call-stage] [data-habitat-enter] { animation: hb-pop var(--hb-base) var(--hb-ease) both; }
 [data-habitat-call-stage] > [data-habitat-leave] { animation: hb-leave var(--hb-base) ease-in both; }
 html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-enter] { animation: hb-rise var(--hb-base) var(--hb-ease) both; }
 html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-leave] { animation: hb-leave var(--hb-base) ease-in both; }

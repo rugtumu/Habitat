@@ -62,10 +62,20 @@ test('entrances are short: nothing makes a member wait for the interface', () =>
   for (const [name, seconds] of Object.entries(tokens)) {
     assert.match(theme, new RegExp(`${name}:\\s*${String(seconds).replace('0.', '\\.')}s`), `${name} changed`);
   }
-  const durations = [
-    ...[...theme.matchAll(/animation:\s*hb-[\w-]+\s+([\d.]+)s/g)].map((hit) => Number(hit[1])),
-    ...[...HabitatLayout.CSS.matchAll(/animation:\s*habitat-layout-[\w-]+\s+([\d.]+)s/g)].map((hit) => Number(hit[1]))
-  ];
+  const durations = [];
+  for (const css of [theme, HabitatLayout.CSS]) {
+    const root = css.match(/(?:^|\n)(?::root|:where\(:root\))\s*\{([^}]*)\}/)[1];
+    const secondsByToken = new Map([...root.matchAll(/(--hb-(?:fast|base)):\s*([\d.]+)s;/g)]
+      .map(([, name, value]) => [`var(${name})`, Number(value)]));
+    for (const [, duration] of css.matchAll(/(?:\banimation:|,)\s*(?:hb-|habitat-layout-)[\w-]+\s+([^\s;}]+)/g)) {
+      const literal = duration.match(/^(\d*\.?\d+)(ms|s)$/);
+      const seconds = literal
+        ? Number(literal[1]) / (literal[2] === 'ms' ? 1000 : 1)
+        : secondsByToken.get(duration);
+      assert.ok(Number.isFinite(seconds), `unresolved animation duration ${duration}`);
+      durations.push(seconds);
+    }
+  }
   assert.ok(durations.length >= 4);
   for (const seconds of durations) assert.ok(seconds <= 0.25, `an entrance takes ${seconds}s`);
   assert.doesNotMatch(theme + HabitatLayout.CSS, /animation:[^;]*infinite/, 'nothing moves on its own');

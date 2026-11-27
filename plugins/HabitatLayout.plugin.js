@@ -876,7 +876,7 @@ class HabitatLayout {
               glides.get(part)?.cancel();
               glides.set(part, part.animate(
                 [{ translate: `${dx}px ${dy}px`, scale: `${sx} ${sy}` }, { translate: '0 0', scale: '1 1' }],
-                { duration: 200, easing: 'cubic-bezier(.2, .8, .2, 1)' }
+                { duration: 180, easing: 'cubic-bezier(.2, .8, .2, 1)' }
               ));
             }
           }
@@ -1829,6 +1829,31 @@ HabitatLayout.TEXT = Object.freeze({
 // Cosmetic rules sit in :where() so any theme can restyle them; rules the
 // layout needs in order to work at all keep their weight.
 HabitatLayout.CSS = `
+:where(:root) {
+  --hb-stage-gap: .5rem;
+  --hb-stage-pad: .75rem;
+  --hb-stage-surface: var(--bg-tertiary);
+  --radius: .5rem;
+  --radius-sm: .375rem;
+  --hb-ease: cubic-bezier(.2, .8, .2, 1);
+  --hb-fast: .12s;
+  --hb-base: .18s;
+  --hb-radius-lg: .75rem;
+  --hb-radius-xl: 1.25rem;
+  --hb-radius-pill: 62.5rem;
+  --hb-shadow-ink: rgba(0, 0, 0, .5);
+  --hb-elev-popover: 0 .75rem 2rem var(--hb-shadow-ink);
+  --hb-elev-dialog: 0 1.5rem 4rem var(--hb-shadow-ink);
+  --hb-ring-hairline: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --hb-ring-speaking: inset 0 0 0 .125rem var(--success), 0 0 0 .25rem color-mix(in srgb, var(--success) 25%, transparent);
+  --hb-scrim: rgba(0, 0, 0, .6);
+  --hb-media-surface: #0b0c0f;
+  --hb-media-plate: rgba(8, 9, 12, .78);
+  --hb-media-plate-hover: rgba(40, 44, 50, .92);
+  --hb-on-media: #fff;
+  --hb-on-media-fill: rgba(255, 255, 255, .12);
+}
+
 html[data-habitat-layout] [data-habitat-icon] {
   width: 1.25rem;
   height: 1.25rem;
@@ -1841,7 +1866,7 @@ html[data-habitat-layout] [data-habitat-icon] {
 }
 
 /* ── Motion ──
-   Opacity and the translate and scale properties only. Haven's reduce-motion
+   Opacity, translate, scale and rotate only. Haven's reduce-motion
    switch takes these to zero along with everything else. */
 @keyframes habitat-layout-fade {
   from { opacity: 0; }
@@ -1853,27 +1878,27 @@ html[data-habitat-layout] [data-habitat-icon] {
   from { opacity: 0; translate: 0 0.5rem; scale: 0.98; }
 }
 html[data-habitat-layout] [data-habitat-menu]:not([hidden]) {
-  animation: habitat-layout-drop 0.14s ease-out;
+  animation: habitat-layout-drop var(--hb-fast) var(--hb-ease);
 }
 html[data-habitat-layout] [data-habitat-menu-button] > [data-habitat-icon] {
-  transition: rotate 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: rotate var(--hb-base) var(--hb-ease);
 }
 html[data-habitat-layout] [data-habitat-menu-button][aria-expanded="true"] > [data-habitat-icon] {
   rotate: 180deg;
 }
 html[data-habitat-layout] :where([data-habitat-menu] button, [data-habitat-tools] > button,
   [data-habitat-menu-button], [data-habitat-add-button], [data-habitat-dialog-close]) {
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition: scale var(--hb-fast) var(--hb-ease);
 }
 html[data-habitat-layout] :is([data-habitat-menu-button], [data-habitat-add-button],
   [data-habitat-dialog-close], [data-habitat-tools] > button):active {
   scale: 0.94;
 }
 [data-habitat-dialog]:not([hidden]) {
-  animation: habitat-layout-fade 0.16s ease-out;
+  animation: habitat-layout-fade var(--hb-base) var(--hb-ease);
 }
 [data-habitat-dialog]:not([hidden]) > [data-habitat-dialog-panel] {
-  animation: habitat-layout-pop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: habitat-layout-pop var(--hb-base) var(--hb-ease);
 }
 
 /* ── Server rail ── */
@@ -1969,9 +1994,9 @@ html[data-habitat-layout] [data-habitat-menu] {
   gap: 0.125rem;
   padding: 0.375rem;
   border: 1px solid var(--border-light);
-  border-radius: 0.625rem;
+  border-radius: var(--radius);
   background: var(--bg-card);
-  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
+  box-shadow: var(--hb-elev-popover);
 }
 html[data-habitat-layout] [data-habitat-menu][hidden] {
   display: none;
@@ -2143,7 +2168,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--hb-scrim);
 }
 [data-habitat-dialog][hidden] {
   display: none;
@@ -2155,10 +2180,10 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   overflow-y: auto;
   padding: 1.25rem 1.5rem 1.5rem;
   border: 1px solid var(--border);
-  border-radius: 0.875rem;
+  border-radius: var(--hb-radius-lg);
   background: var(--bg-card);
   color: var(--text-primary);
-  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.55);
+  box-shadow: var(--hb-elev-dialog);
 }
 [data-habitat-dialog-panel]:focus {
   outline: none;
@@ -2192,11 +2217,6 @@ html[data-habitat-layout] [data-haven-region="context-sidebar"] > [data-haven-re
 [data-habitat-call-view][aria-pressed="true"] { background: var(--bg-active); color: var(--accent); }
 html[data-habitat-layout="compact"] [data-habitat-roster-home]:not(:empty) { display: block; position: relative; min-height: 2.5rem; }
 [data-habitat-roster-home]:not(:empty) #mobile-right-close { margin-inline-start: auto; }
-:where(:root) {
-  --hb-stage-gap: .5rem;
-  --hb-stage-pad: .75rem;
-  --hb-stage-surface: var(--bg-tertiary);
-}
 [data-habitat-call-stage] {
   --hb-stage-top: var(--hb-stage-pad);
   position: relative; flex: none; height: clamp(11rem, 42dvh, 30rem); min-height: 0; overflow: hidden;
@@ -2226,9 +2246,10 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 [data-habitat-call-stage] #voice-users > :not(.voice-user-item) { grid-column: 1 / -1; margin: 0; text-align: center; }
 [data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile) {
   position: relative; box-sizing: border-box; width: auto; height: auto; min-width: 0; min-height: 0; margin: 0;
-  overflow: hidden; border-radius: .75rem; cursor: pointer;
+  overflow: hidden; border-radius: var(--hb-radius-lg); cursor: pointer;
+  box-shadow: var(--hb-ring-hairline); transition: none;
 }
-[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { max-width: none !important; background: #0b0c0f; box-shadow: none; }
+[data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) { max-width: none !important; background: var(--hb-media-surface); }
 [data-habitat-call-stage] :is(.webcam-tile, .screen-share-tile) > video {
   width: 100%; height: 100%; max-height: none !important; object-fit: cover;
 }
@@ -2250,12 +2271,12 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-stage-spread] {
   position: absolute; inset: calc(var(--hb-stage-top) + .5rem) auto auto 50%; z-index: 3; translate: -50%;
   display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0;
-  border: 0; border-radius: .5rem; color: #fff; background: rgba(8, 9, 12, .68); cursor: pointer;
+  border: 0; border-radius: var(--radius); color: var(--hb-on-media); background: var(--hb-media-plate); cursor: pointer;
 }
 [data-habitat-stage-spread][hidden] { display: none; }
 [data-habitat-stage-controls] {
   position: absolute; inset: auto auto 1rem 50%; z-index: 4; translate: -50%;
-  display: flex; gap: .5rem; padding: .375rem; border-radius: 2rem; background: rgba(8, 9, 12, .78);
+  display: flex; gap: .5rem; padding: .375rem; border-radius: var(--hb-radius-pill); background: var(--hb-media-plate);
   opacity: 0; pointer-events: none;
 }
 [data-habitat-call-stage][data-habitat-focus] > [data-habitat-stage-controls] {
@@ -2264,7 +2285,7 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-call-stage]:is(:hover, :focus-within) > [data-habitat-stage-controls] { opacity: 1; pointer-events: auto; }
 [data-habitat-stage-controls] > button {
   display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
-  border: 0; border-radius: 50%; color: #fff; background: rgba(255, 255, 255, .12); cursor: pointer;
+  border: 0; border-radius: 50%; color: var(--hb-on-media); background: var(--hb-on-media-fill); cursor: pointer;
 }
 [data-habitat-stage-controls] > button[hidden] { display: none; }
 [data-habitat-stage-controls] > button[aria-pressed="true"] { color: var(--danger-text); background: var(--danger); }
@@ -2277,7 +2298,7 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .375rem;
   padding: .75rem; background: var(--bg-active);
 }
-[data-habitat-call-stage] .voice-user-item.talking { outline: 2px solid var(--success); outline-offset: -2px; }
+[data-habitat-call-stage] .voice-user-item.talking { box-shadow: var(--hb-ring-speaking, inset 0 0 0 .125rem var(--success)); }
 [data-habitat-call-stage] .voice-status-icons { margin: 0; }
 [data-habitat-call-stage] .voice-user-item .user-dot { position: absolute; inset: .625rem auto auto .625rem; }
 /* On camera the person's row becomes a see-through layer over their picture:
@@ -2294,8 +2315,8 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-call-stage] .webcam-tile[data-habitat-paired] > .webcam-tile-label { display: none; }
 [data-habitat-connection] {
   position: fixed; z-index: 100010; box-sizing: border-box; padding: .75rem .875rem;
-  border: 1px solid var(--border-light); border-radius: .75rem;
-  color: var(--text-primary); background: var(--bg-card); box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, .5); font-size: .8125rem;
+  border: 1px solid var(--border-light); border-radius: var(--hb-radius-lg);
+  color: var(--text-primary); background: var(--bg-card); box-shadow: var(--hb-elev-popover); font-size: .8125rem;
 }
 [data-habitat-connection][hidden] { display: none; }
 [data-habitat-connection] > strong { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; font-size: .875rem; }
@@ -2343,8 +2364,8 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-inbox] svg { width: 1.375rem; height: 1.375rem; }
 [data-habitat-nav] > [data-habitat-inbox] { width: 2.75rem; height: 2.75rem; }
 [data-habitat-nav]:has(> [data-habitat-inbox]) { display: flex; align-items: center; }
-[data-habitat-inbox][aria-pressed="true"] {
-  background: var(--accent); color: var(--accent-text); border-radius: 1rem;
+[data-haven-page="app"] [data-habitat-inbox][aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-text); border-radius: var(--hb-radius-lg);
 }
 [data-habitat-nav] {
   display: grid;
@@ -2371,7 +2392,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
 }
 [data-habitat-room-members] {
   display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
-  border: 0; padding: .375rem; border-radius: .5rem; color: var(--text-secondary); background: var(--bg-hover);
+  border: 0; padding: .375rem; border-radius: var(--radius); color: var(--text-secondary); background: var(--bg-hover);
 }
 [data-habitat-room-members] { flex: none; font: 650 .875rem/1 var(--font-main); cursor: pointer; }
 [data-habitat-room-members][hidden] { display: none; }
@@ -2397,7 +2418,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-face] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dm-item > [data-habitat-dm-avatar] + .channel-hash { display: none; }
 [data-habitat-count]:not(:empty) {
-  position: absolute; inset: auto 0 0 auto; border-radius: 1rem; font-size: .6875rem;
+  position: absolute; inset: auto 0 0 auto; border-radius: var(--hb-radius-pill); font-size: .6875rem;
   padding: .0625rem .3125rem; background: var(--danger); color: var(--danger-text);
 }
 /* A single pane uses the whole split, even when Haven saved a fractional flex for it. */
@@ -2427,7 +2448,7 @@ html[data-habitat-layout] .lp-header .lp-size { display: none; }
   position: absolute; z-index: 60; inset-block-start: calc(100% + .375rem); inset-inline-end: 0;
   display: grid; min-width: min(14rem, 82vw); padding: .375rem;
   background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius);
-  box-shadow: 0 .5rem 1.5rem #0005;
+  box-shadow: var(--hb-elev-popover);
 }
 [data-habitat-channel-menu] button.icon-btn {
   justify-content: start; align-items: center; gap: .625rem; padding: .5rem .625rem;
