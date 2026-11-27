@@ -187,3 +187,57 @@ test('after switching microphone the soundboard still mixes into what is sent', 
   assert.ok(build > 0);
   assert.ok(body.indexOf('this._vcDest = dest;', build) > build);
 });
+
+test('a mic arriving during deafen plays once on undeafen and survives a late relay close', (t) => {
+  const { VoiceManager, Ctx } = load();
+  const elements = new Map();
+  t.mock.method(global, 'setInterval', () => 1);
+  global.document = {
+    getElementById: (id) => id === 'audio-container'
+      ? { appendChild: el => elements.set(el.id, el) } : elements.get(id),
+    querySelectorAll: () => [...elements.values()],
+    createElement: () => ({
+      dataset: {}, volume: 1, muted: false, pause() {}, remove() { elements.delete(this.id); },
+    }),
+  };
+  t.after(() => { delete global.document; });
+  const voice = Object.assign(Object.create(VoiceManager.prototype), {
+    isDeafened: true, gainNodes: new Map(), screenGainNodes: new Map(),
+    analysers: new Map(), talkingState: new Map(), audioCtx: new Ctx(),
+  });
+  const first = {}, second = {};
+  const stream = track => ({ getAudioTracks: () => [track] });
+  voice._playAudio(2, stream(first));
+  voice.toggleDeafen();
+  const el = elements.get('voice-audio-2');
+  assert.equal(el.muted || el.volume === 0, true, 'native playback stays silent');
+  const original = voice.gainNodes.get(2);
+  assert.equal(original.gain.value, 1);
+  voice.setVolume('2', 1.5);
+  assert.equal(original.gain.value, 1.5);
+  assert.equal(el.volume, 0);
+  voice._playAudio(2, stream(first));
+  assert.equal(voice.gainNodes.get(2), original);
+  voice._playAudio(2, stream(second));
+  assert.equal(original.targets.size, 0, 'the old gain no longer reaches the speakers');
+  voice._onRelayTrackEnded({ userId: 2, source: 'mic', track: first });
+  assert.deepEqual(elements.get('voice-audio-2').srcObject.getAudioTracks(), [second]);
+  voice._onRelayTrackEnded({ userId: 2, source: 'mic', track: second });
+  assert.equal(elements.size, 0);
+  assert.equal(voice.gainNodes.size, 0);
+});
+
+test('turning suppression off during model loading keeps the mic on the direct path', async () => {
+  const { MicChain, workletNodes } = load();
+  const chain = new MicChain({});
+  let finish;
+  chain._initRNNoise = () => new Promise(resolve => { finish = resolve; });
+  chain.setNoiseMode('suppress');
+  chain.setNoiseMode('off');
+  chain._rnnoiseWasmBytes = new ArrayBuffer(4096);
+  finish();
+  await Promise.resolve();
+  assert.equal(workletNodes.length, 0);
+  assert.ok(chain._rnnoiseSource.targets.has(chain._noiseGateGain));
+  chain.destroy();
+});

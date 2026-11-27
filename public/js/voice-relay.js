@@ -42,7 +42,7 @@
      * @param {RTCIceServer[]} [opts.iceServers]  TURN/STUN, for networks that need them
      * @param {string} [opts.iceTransportPolicy]
      * @param {(t:{userId:number, source:string, track:MediaStreamTrack, producerId:string}) => void} opts.onTrack
-     * @param {(t:{userId:number, source:string, producerId:string}) => void} opts.onTrackEnded
+     * @param {(t:{userId:number, source:string, track:MediaStreamTrack, producerId:string}) => void} opts.onTrackEnded
      * @param {(reason:string) => void} opts.onLost  the session broke; start a new one
      */
     constructor(socket, code, opts) {
@@ -169,8 +169,10 @@
       const entry = this.consumers.get(producerId);
       if (!entry) return;
       this.consumers.delete(producerId);
+      // Habitat fork: identify the exact microphone that ended after a re-publish.
+      const track = entry.consumer.track;
       try { entry.consumer.close(); } catch { /* already closed */ }
-      this.opts.onTrackEnded?.({ userId: entry.userId, source: entry.source, producerId });
+      this.opts.onTrackEnded?.({ userId: entry.userId, source: entry.source, producerId, track });
     }
 
     /**

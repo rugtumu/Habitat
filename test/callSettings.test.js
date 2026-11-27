@@ -77,7 +77,7 @@ test('get returns the default for every setting when nothing is saved', () => {
   assert.equal(settings.get('cameraDevice'), '');
   assert.equal(settings.get('voiceVolume'), 1);
   assert.equal(settings.get('cameraQuality'), '480');
-  assert.equal(settings.get('noiseMode'), 'gate');
+  assert.equal(settings.get('noiseMode'), 'suppress');
   assert.equal(settings.get('noiseSensitivity'), 10);
   assert.equal(settings.get('screenResolution'), 1080);
   assert.equal(settings.get('screenFrameRate'), 30);
@@ -116,7 +116,7 @@ test('get reads saved values and falls back on invalid ones', () => {
   }) }).settings;
   assert.equal(bad.get('voiceVolume'), 1);
   assert.equal(bad.get('cameraQuality'), '480');
-  assert.equal(bad.get('noiseMode'), 'gate');
+  assert.equal(bad.get('noiseMode'), 'suppress');
   assert.equal(bad.get('noiseSensitivity'), 10);
   assert.equal(bad.get('screenResolution'), 1080);
   assert.equal(bad.get('screenFrameRate'), 30);
@@ -126,7 +126,7 @@ test('get reads saved values and falls back on invalid ones', () => {
 test('get still works when storage throws (private mode)', () => {
   const storage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
   const { settings } = setup({ storage });
-  assert.equal(settings.get('noiseMode'), 'gate');
+  assert.equal(settings.get('noiseMode'), 'suppress');
   assert.doesNotThrow(() => settings.set('noiseMode', 'off'));
   assert.equal(settings.get('noiseMode'), 'off', 'the value holds for this visit');
 });
@@ -182,7 +182,7 @@ test('set clamps and normalizes before saving', () => {
 
 test('set ignores a value that is not valid for a choice setting', () => {
   const { settings, storage, voice } = setup();
-  assert.equal(settings.set('noiseMode', 'bogus'), 'gate');
+  assert.equal(settings.set('noiseMode', 'bogus'), 'suppress');
   assert.equal(settings.set('cameraQuality', '4k'), '480');
   assert.equal(storage.data.haven_noise_mode, undefined);
   assert.equal(storage.data.haven_cam_quality, undefined);

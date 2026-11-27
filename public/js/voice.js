@@ -95,7 +95,8 @@ class VoiceManager {
     this._rnnoiseSource = null;      // MediaStreamSource feeding the chain
     // Noise mode: 'off' | 'gate' | 'suppress'
     const savedMode = localStorage.getItem('haven_noise_mode');
-    this.noiseMode = savedMode || 'gate';
+    // Habitat fork: clean background noise during speech unless the member chose another mode.
+    this.noiseMode = ['off', 'gate'].includes(savedMode) ? savedMode : 'suppress';
 
     // Screen share quality settings (populated from localStorage)
     const savedRes = localStorage.getItem('haven_screen_res');
@@ -1964,6 +1965,8 @@ class VoiceManager {
       this.isWebcamActive = false;
     }
 
+    // Habitat fork: a reconnect needs a new suppressor in the new audio context.
+    this._disableRNNoise();
     this._stopNoiseGate();
     this._stopLocalTalkDetection();
     for (const [id] of this.analysers) this._stopAnalyser(id);
@@ -2133,6 +2136,7 @@ class VoiceManager {
     }
     // Also mute all audio elements as fallback
     document.querySelectorAll('#audio-container audio').forEach(el => {
+      if (el.muted) return; // Habitat fork: its gain node already handles deafen.
       if (this.isDeafened) {
         el.dataset.prevVolume = el.volume;
         el.volume = 0;
@@ -3419,7 +3423,13 @@ class VoiceManager {
     }
 
     // Handle incoming remote tracks: route audio and video separately
-    const remoteAudioStream = new MediaStream();
+    // Habitat fork: a replacement mic takes over only while this connection is current.
+    const playMic = (track) => {
+      const peer = this.peers.get(userId);
+      if (peer?.connection !== connection) return;
+      peer.stream = new MediaStream([track]);
+      this._playAudio(userId, peer.stream);
+    };
     const knownScreenStreamIds = new Set();
     let voiceStreamId = null;
     const deferredAudio = []; // audio tracks that arrived before their video
@@ -3538,8 +3548,7 @@ class VoiceManager {
             if (idx === -1) return;              // the video branch claimed it
             deferredAudio.splice(idx, 1);
             if (track.readyState !== 'live') return;
-            remoteAudioStream.addTrack(track);
-            this._playAudio(userId, remoteAudioStream);
+            playMic(track);
           }, 1500);
           return;
         }
@@ -3550,8 +3559,7 @@ class VoiceManager {
           // Voice path: update voiceStreamId so it tracks the latest
           // negotiation rather than being permanently pinned to the first.
           if (sourceStream) voiceStreamId = sourceStream.id;
-          remoteAudioStream.addTrack(track);
-          this._playAudio(userId, remoteAudioStream);
+          playMic(track);
         }
       }
     };
@@ -3631,7 +3639,7 @@ class VoiceManager {
 
     this.peers.set(userId, {
       connection,
-      stream: remoteAudioStream,
+      stream: new MediaStream(),
       username,
       _makingOffer: false,
       _awaitingAnswer: false,
@@ -3667,25 +3675,16 @@ class VoiceManager {
     if (peer) {
       this._clearOfferAnswerTimer(peer);
       peer.connection.close();
-      const audioEl = document.getElementById(`voice-audio-${userId}`);
-      if (audioEl) audioEl.remove();
+      this._clearRemoteVoice(userId);
       const screenAudioEl = document.getElementById(`voice-audio-screen-${userId}`);
       if (screenAudioEl || this.screenGainNodes.has(userId)) {
         this._cleanupScreenPlayback(userId);
       }
       this._pendingScreenAudio?.delete(userId);
       this._screenDelivered.delete(userId);
-      this.gainNodes.delete(userId);
       this._relayPeers?.delete(userId);
       this.peers.delete(userId);
       this._rebalanceScreenShare();  // Habitat fork: one viewer fewer, a larger share each
-      // Always stop the analyser here too, not just in voice-user-left.
-      // _restartIce failure calls _removePeer directly (without _stopAnalyser),
-      // which would leave an orphaned interval connected to the dead stream.
-      // On reconnect _startAnalyser would then hit the analysers.has() guard
-      // and return early, making voice-activity indicators permanently dead for
-      // that peer without this cleanup.
-      this._stopAnalyser(userId);
     } else if (this._relay || this._callTransport === 'relay') {
       // Reached through the relay: no connection to close, just their audio.
       this._clearRemoteVoice(userId);
@@ -3695,14 +3694,20 @@ class VoiceManager {
   }
 
   _clearRemoteVoice(userId) {
-    document.getElementById(`voice-audio-${userId}`)?.remove();
+    // Habitat fork: release both playback routes before the next track arrives.
+    const el = document.getElementById(`voice-audio-${userId}`);
+    if (el) {
+      el.pause();
+      el.srcObject = null;
+      el.remove();
+    }
+    this.gainNodes.get(userId)?.disconnect();
     this.gainNodes.delete(userId);
     this._stopAnalyser(userId);
   }
 
   _clearRemoteScreenAudio(userId) {
-    document.getElementById(`voice-audio-screen-${userId}`)?.remove();
-    this.screenGainNodes.delete(userId);
+    this._cleanupScreenPlayback(userId);
     this._pendingScreenAudio?.delete(userId);
   }
 
@@ -3812,9 +3817,12 @@ class VoiceManager {
     }
   }
 
-  _onRelayTrackEnded({ userId, source }) {
+  _onRelayTrackEnded({ userId, source, track }) {
     if (userId == null) return;
     if (source === 'mic') {
+      // Habitat fork: an old consumer can close after its replacement starts playing.
+      const current = document.getElementById(`voice-audio-${userId}`)?.srcObject;
+      if (track && current && !current.getAudioTracks().includes(track)) return;
       this._clearRemoteVoice(userId);
     } else if (source === 'screen-audio') {
       this._clearRemoteScreenAudio(userId);
@@ -3964,14 +3972,17 @@ class VoiceManager {
   // ── Volume Control ──────────────────────────────────────
 
   setVolume(userId, volume) {
-    const gainNode = this.gainNodes.get(userId);
-    if (gainNode) {
-      // Web Audio GainNode supports values > 1.0 for boost
-      gainNode.gain.value = Math.max(0, Math.min(2, volume));
+    // Habitat fork: a slider's string ID must address the same mixer as the numeric peer ID.
+    const gain = this.gainNodes.get(userId) || this.gainNodes.get(Number(userId)) || this.gainNodes.get(String(userId));
+    const level = Math.max(0, Math.min(2, volume));
+    if (gain) {
+      gain.gain.value = this._getAppliedIncomingVolume(level);
     } else {
-      // Fallback: HTMLAudioElement volume (capped at 1.0, no boost)
-      const audioEl = document.getElementById(`voice-audio-${userId}`);
-      if (audioEl) audioEl.volume = Math.max(0, Math.min(1, volume * this._voiceMasterLevel()));
+      const el = document.getElementById(`voice-audio-${userId}`);
+      if (!el) return;
+      const nativeLevel = Math.min(1, level * this._voiceMasterLevel());
+      if (this.isDeafened) el.dataset.prevVolume = String(nativeLevel);
+      else el.volume = nativeLevel;
     }
   }
 
@@ -4065,6 +4076,7 @@ class VoiceManager {
     if (this.isDeafened) return;
     // People played straight from their <audio> element (iOS, or no Web Audio).
     document.querySelectorAll('#audio-container audio[id^="voice-audio-"]').forEach((el) => {
+      if (el.id.startsWith('voice-audio-screen-')) return;
       const userId = el.id.slice('voice-audio-'.length);
       if (this.gainNodes.has(userId) || this.gainNodes.has(Number(userId))) return;
       el.volume = Math.max(0, Math.min(1, this._getSavedVolume(userId) * v));
@@ -4253,6 +4265,7 @@ class VoiceManager {
         audioEl.setSinkId(savedOutput).catch((err) => { console.warn('[Voice] saved output device unavailable, using the default', err); });
       }
     }
+    audioEl.muted = false;
     audioEl.srcObject = stream;
 
     // If a gain node already exists but the stream changed, tear it down
@@ -4303,6 +4316,7 @@ class VoiceManager {
       source.connect(gainNode);
       gainNode.connect(this.audioCtx.destination);
       this.screenGainNodes.set(userId, gainNode);
+      audioEl.muted = true;
       audioEl.volume = 0;
     } catch {
       const savedVolume = Math.min(1, this._getSavedStreamVolume(userId));
@@ -4439,6 +4453,7 @@ class VoiceManager {
       // _rnnoiseReady = worklet confirmed init (set asynchronously in _enableRNNoise).
       if (!this._rnnoiseWasmBytes) {
         this._initRNNoise().then(() => {
+          if (this.noiseMode !== 'suppress' || !this._rnnoiseSource) return;
           if (this._rnnoiseWasmBytes) this._enableRNNoise();
           else console.warn('[Voice] AI suppression unavailable (WASM failed to load)');
         });
@@ -4519,7 +4534,7 @@ class VoiceManager {
       // discarded, so a silent init failure looked "healthy" (#5458).
       node.port.onmessage = (e) => {
         const data = e && e.data;
-        if (!data || !data.type) return;
+        if (this._rnnoiseNode !== node || !data || !data.type) return;
         if (data.type === 'ready') {
           this._rnnoiseReady = true;
           console.log('[Voice] RNNoise worklet ready', data.sampleRate ? `(sr=${data.sampleRate})` : '');
@@ -4560,6 +4575,9 @@ class VoiceManager {
   _disableRNNoise() {
     if (!this._rnnoiseNode) return;
     try {
+      this._rnnoiseNode.port.onmessage = null;
+      this._rnnoiseNode.port.onmessageerror = null;
+      this._rnnoiseSource?.disconnect(this._rnnoiseNode);
       this._rnnoiseNode.port.postMessage({ type: 'destroy' });
       this._rnnoiseNode.disconnect();
       this._rnnoiseNode = null;
@@ -4862,28 +4880,21 @@ class VoiceManager {
 
   _playAudio(userId, stream) {
     let audioEl = document.getElementById(`voice-audio-${userId}`);
-    if (!audioEl) {
-      audioEl = document.createElement('audio');
-      audioEl.id = `voice-audio-${userId}`;
-      audioEl.autoplay = true;
-      audioEl.playsInline = true;
-      document.getElementById('audio-container').appendChild(audioEl);
+    // Habitat fork: Web Audio binds to a track when the source is created.
+    if (audioEl?.srcObject?.getAudioTracks()[0] === stream.getAudioTracks()[0]) return;
+    if (audioEl) this._clearRemoteVoice(userId);
+    audioEl = document.createElement('audio');
+    audioEl.id = `voice-audio-${userId}`;
+    audioEl.autoplay = true;
+    audioEl.playsInline = true;
+    document.getElementById('audio-container').appendChild(audioEl);
 
-      // Apply saved output device
-      const savedOutput = localStorage.getItem('haven_output_device');
-      if (savedOutput && typeof audioEl.setSinkId === 'function') {
-        audioEl.setSinkId(savedOutput).catch((err) => { console.warn('[Voice] saved output device unavailable, using the default', err); });
-      }
+    // Apply saved output device
+    const savedOutput = localStorage.getItem('haven_output_device');
+    if (savedOutput && typeof audioEl.setSinkId === 'function') {
+      audioEl.setSinkId(savedOutput).catch((err) => { console.warn('[Voice] saved output device unavailable, using the default', err); });
     }
     audioEl.srcObject = stream;
-
-    // Only set up the Web Audio graph once per user.
-    // ontrack fires per-track, so _playAudio can be called several times
-    // for the same user when tracks are added (mic + screen audio).
-    if (this.gainNodes.has(userId)) {
-      audioEl.volume = 0;
-      return;
-    }
 
     // iOS Safari / WebKit: createMediaStreamSource() from a remote PC track
     // is silent (WebKit bug, unfixed for years). Skip the entire Web Audio
@@ -4929,7 +4940,8 @@ class VoiceManager {
       gainNode.connect(this._voiceOut());
       this.gainNodes.set(userId, gainNode);
 
-      // Mute element playback; audio routes through GainNode instead
+      // Habitat fork: volume restoration on undeafen must never open a second output.
+      audioEl.muted = true;
       audioEl.volume = 0;
     } catch {
       // Fallback: use element volume directly (no boost beyond 100%)
@@ -4950,7 +4962,7 @@ class VoiceManager {
 // there is one copy of that code, and gets its own AudioContext (48 kHz, as a
 // call's) so a test never touches a running call.
 class MicChain {
-  constructor(rawStream, { noiseMode = 'gate' } = {}) {
+  constructor(rawStream, { noiseMode = 'suppress' } = {}) {
     this.noiseMode = noiseMode;
     this.noiseSensitivity = 10;
     this.currentMicLevel = 0;

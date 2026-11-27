@@ -66,7 +66,8 @@ const DEFINITIONS = {
   cameraDevice: { default: '', normalize: (v) => String(v ?? '') },
   voiceVolume: { default: 1, normalize: (v) => clampNumber(v, 0, 2, 1) },
   cameraQuality: { default: '480', normalize: oneOf(CAMERA_QUALITIES, '480', String) },
-  noiseMode: { default: 'gate', normalize: oneOf(NOISE_MODES, 'gate', String) },
+  // Habitat fork: match the default used by calls and microphone previews.
+  noiseMode: { default: 'suppress', normalize: oneOf(NOISE_MODES, 'suppress', String) },
   noiseSensitivity: { default: 10, normalize: (v) => Math.round(clampNumber(v, 0, 100, 10)) },
   screenResolution: { default: 1080, normalize: oneOf(SCREEN_RESOLUTIONS, 1080, (v) => intOr(v, NaN)) },
   screenFrameRate: { default: 30, normalize: oneOf(SCREEN_FRAME_RATES, 30, (v) => intOr(v, NaN)) },

@@ -17,6 +17,8 @@ class RNNoiseProcessor extends AudioWorkletProcessor {
     super();
     this._ready = false;
     this._destroyed = false;
+    this._speechHoldFrames = 0;
+    this._residualGain = 1;
 
     // Ring buffers for bridging 128-sample blocks → 480-sample RNNoise frames
     this._inputBuf = new Float32Array(480);
@@ -238,7 +240,17 @@ class RNNoiseProcessor extends AudioWorkletProcessor {
     }
 
     // Process: returns VAD probability (0..1), output written to wasmOutputPtr
-    this._rnnoise_process_frame(this._state, this._wasmOutputPtr, this._wasmInputPtr);
+    const speechProbability = this._rnnoise_process_frame(this._state, this._wasmOutputPtr, this._wasmInputPtr);
+
+    // Habitat fork: turn down residual noise in sustained pauses. Keep quiet syllables
+    // at full level for 160 ms after speech and ramp back up within one 10 ms frame.
+    if (speechProbability >= 0.2) this._speechHoldFrames = 16;
+    const confidence = Math.min(1, Math.max(0, (speechProbability - 0.1) / 0.1));
+    const target = this._speechHoldFrames > 0 ? 1 : 0.25 + 0.75 * confidence;
+    if (this._speechHoldFrames > 0) this._speechHoldFrames--;
+    const startGain = this._residualGain;
+    this._residualGain = target >= startGain ? target : startGain + 0.12 * (target - startGain);
+    const gainStep = (this._residualGain - startGain) / 480;
 
     // Read output, scale back to [-1, 1], and append to the FIFO. The old code
     // reset the cursors here and declared 480 samples ready, which threw away
@@ -246,7 +258,7 @@ class RNNoiseProcessor extends AudioWorkletProcessor {
     const outIdx = this._wasmOutputPtr >> 2;
     for (let i = 0; i < 480; i++) {
       if (this._fifoCount >= this._FIFO_CAP) break; // full: drop rather than wrap over unread data
-      this._fifo[this._fifoWrite] = this._HEAPF32[outIdx + i] / 32768;
+      this._fifo[this._fifoWrite] = this._HEAPF32[outIdx + i] / 32768 * (startGain + (i + 1) * gainStep);
       this._fifoWrite = (this._fifoWrite + 1) % this._FIFO_CAP;
       this._fifoCount++;
     }

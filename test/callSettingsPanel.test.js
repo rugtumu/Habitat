@@ -208,7 +208,7 @@ test('controls start on the saved values', () => {
 test('defaults show when nothing is saved', () => {
   const { host } = setup();
   assert.equal(byId(host, 'voice-cam-quality').value, '480');
-  assert.equal(byId(host, 'voice-noise-mode').value, 'gate');
+  assert.equal(byId(host, 'voice-noise-mode').value, 'suppress');
   assert.equal(byId(host, 'voice-ns-slider').value, '10');
   assert.equal(byId(host, 'screen-res-select').value, '1080');
   assert.equal(byId(host, 'screen-fps-select').value, '30');
@@ -261,7 +261,7 @@ test('outside a call, changing noise mode saves without touching the audio graph
 test('the gate sensitivity row shows only in gate mode', () => {
   const { host, settings } = setup();
   const row = byId(host, 'noise-gate-row');
-  assert.equal(row.style.display, '');
+  assert.equal(row.style.display, 'none');
   settings.set('noiseMode', 'suppress');
   assert.equal(row.style.display, 'none');
   settings.set('noiseMode', 'gate');
@@ -271,6 +271,7 @@ test('the gate sensitivity row shows only in gate mode', () => {
 test('the gate marker on the mic meter follows mode and sensitivity', () => {
   const { host, settings } = setup();
   const marker = byId(host, 'mic-meter-threshold');
+  settings.set('noiseMode', 'gate');
   settings.set('noiseSensitivity', 50);
   assert.equal(marker.style.display, '');
   assert.equal(marker.style.left, `${((2 + 0.5 * 38) / 50) * 100}%`);
