@@ -819,6 +819,112 @@ test('on a desktop the call buttons stay docked in the sidebar footer', () => {
   layout.stop();
 });
 
+test('a click on someone under a voice room opens their profile, and the card carries their volume', () => {
+  const { doc } = buildApp();
+  const asked = [];
+  const volumes = new Map();
+  const applied = [];
+  Object.assign(window.app, {
+    user: { id: 1 },
+    socket: { emit: (name, data) => asked.push([name, data]) },
+    voiceChannelUsers: { lobi: [{ id: 1 }, { id: 2 }] },
+    voice: { setVolume: (id, value) => applied.push([id, value]) },
+    _getVoiceVolume: (id) => volumes.get(id) ?? 100,
+    _setVoiceVolume: (id, value) => volumes.set(id, value),
+    _positionProfilePopup: () => { window.app.placed = true; }
+  });
+  const list = doc.getElementById('channel-list');
+  const person = (id, bot = 'false') => el(doc, 'div', { class: 'channel-voice-user', 'data-user-id': String(id), 'data-is-bot': bot });
+  const other = person(2);
+  const robot = person(7, 'true');
+  const live = el(doc, 'button', { class: 'cvu-live' });
+  other.appendChild(live);
+  list.appendChild(other);
+  list.appendChild(robot);
+  const layout = new HabitatLayout();
+  layout.start();
+
+  list.fire('click', { target: live });
+  list.fire('click', { target: robot });
+  assert.deepEqual(asked, [], 'the live button and a bot keep their own behaviour');
+  list.fire('click', { target: other });
+  assert.deepEqual(asked, [['get-user-profile', { userId: 2 }]]);
+  assert.equal(window.app._profilePopupAnchor, other, 'the card opens beside the name');
+
+  // Haven answers by putting the card on the page.
+  const card = (id) => el(doc, 'div', { id: 'profile-popup', 'data-habitat-avatar-id': String(id) }, [
+    el(doc, 'div', { class: 'profile-popup-body' }, [el(doc, 'div', { class: 'profile-popup-actions' })])
+  ]);
+  const theirs = card(2);
+  doc.body.appendChild(theirs);
+  FakeMutationObserver.notify(doc.body);
+  const tools = theirs.querySelector('[data-habitat-voice-tools]');
+  assert.ok(tools, 'someone in a voice room gets the volume row');
+  assert.equal(tools.nextSibling, theirs.querySelector('.profile-popup-actions'), 'above the card\'s own buttons');
+  assert.ok(window.app.placed, 'the taller card is placed again');
+  const slider = tools.querySelector('input');
+  const mute = tools.querySelector('button');
+  assert.equal(slider.value, '100');
+  slider.value = '60';
+  slider.fire('input');
+  assert.equal(volumes.get(2), 60);
+  assert.deepEqual(applied.at(-1), [2, 0.6]);
+  mute.fire('click');
+  assert.equal(volumes.get(2), 0);
+  assert.equal(mute.getAttribute('aria-pressed'), 'true');
+  mute.fire('click');
+  assert.equal(volumes.get(2), 100);
+  FakeMutationObserver.notify(doc.body);
+  assert.equal(theirs.querySelectorAll('[data-habitat-voice-tools]').length, 1, 'drawn once');
+
+  // Your own card, and the card of someone who is not in a voice room, stay as they are.
+  theirs.remove();
+  for (const id of [1, 5]) {
+    const plain = card(id);
+    doc.body.appendChild(plain);
+    FakeMutationObserver.notify(doc.body);
+    assert.equal(plain.querySelector('[data-habitat-voice-tools]'), null);
+    plain.remove();
+  }
+  layout.stop();
+  assert.equal(list.listenerCount(), 0);
+});
+
+test('the voice bar opens the connection details and drops the hash from a voice room', () => {
+  const app = buildApp();
+  const { doc, voiceBar } = app;
+  window.app.voice = { inVoice: false, currentChannel: 'lobi' };
+  window.app._isVoiceOnlyChannel = (code) => code === 'lobi';
+  const layout = new HabitatLayout();
+  layout.start();
+  const panel = doc.querySelector('[data-habitat-connection]');
+  assert.ok(panel.hidden);
+  const status = el(doc, 'div', { class: 'voice-bar-status' });
+  const name = el(doc, 'span', { class: 'voice-bar-channel' });
+  name.textContent = '# Lobi';
+  voiceBar.appendChild(status);
+  voiceBar.appendChild(name);
+  app.call(true);
+  assert.equal(status.getAttribute('role'), 'button');
+  assert.equal(status.getAttribute('tabindex'), '0');
+  assert.equal(name.getAttribute('data-habitat-voice-title'), 'Lobi');
+  voiceBar.getBoundingClientRect = () => ({ left: 80, top: 700, width: 260 });
+  window.innerHeight = 900;
+  voiceBar.fire('click', { target: status });
+  assert.ok(!panel.hidden);
+  assert.equal(status.getAttribute('aria-expanded'), 'true');
+  assert.equal(panel.style.getPropertyValue('bottom'), '208px', 'just above the bar');
+  doc.fire('keydown', { key: 'Escape', target: doc.body });
+  assert.ok(panel.hidden);
+  voiceBar.fire('click', { target: status });
+  app.call(false);
+  assert.ok(panel.hidden, 'the details close with the call');
+  assert.ok(!voiceBar.hasAttribute('data-habitat-signal'));
+  layout.stop();
+  assert.equal(doc.querySelector('[data-habitat-connection]'), null);
+  assert.equal(FakeMutationObserver.live.size, 0);
+});
+
 test('the channel disclosure preserves its original buttons and their visibility', () => {
   const { doc } = buildApp();
   const copy = el(doc, 'button', { id: 'copy-code-btn' });

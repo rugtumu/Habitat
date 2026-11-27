@@ -177,6 +177,8 @@ class HabitatLayout {
       this._buildMemberPreview();
       this._buildConversationIntro();
       this._buildCallStage();
+      this._buildVoicePeople();
+      this._buildConnectionInfo();
       this._watchVoice();
       this._setAttr(header, 'data-habitat-header', '');
       this._mode = mode;
@@ -849,6 +851,214 @@ class HabitatLayout {
     }
   }
 
+  // ── People in a voice room ─────────────────────────────────
+  // Haven gives the names under a voice room a right-click menu and nothing
+  // else. A click now opens the person's profile card, and the card of anyone
+  // who is in a voice room carries their volume and a mute switch, so the
+  // same controls are one tap away on a phone, where there is no right click.
+  _buildVoicePeople() {
+    const list = document.getElementById('channel-list');
+    if (list) {
+      this._on(list, 'click', (event) => {
+        const row = event.target.closest?.('.channel-voice-user');
+        const app = window.app;
+        if (!row || event.target.closest('button') || !app?.socket) return;
+        const userId = parseInt(row.getAttribute('data-user-id'), 10);
+        if (Number.isNaN(userId) || row.getAttribute('data-is-bot') === 'true') return;
+        event.stopPropagation();
+        app._profilePopupAnchor = row;
+        app.socket.emit('get-user-profile', { userId });
+      });
+    }
+    if (typeof MutationObserver !== 'function') return;
+    const dress = () => {
+      const card = document.getElementById('profile-popup');
+      const app = window.app;
+      if (!card || !app || card.querySelector('[data-habitat-voice-tools]')) return;
+      const userId = parseInt(card.getAttribute('data-habitat-avatar-id'), 10);
+      const inVoice = Object.values(app.voiceChannelUsers || {})
+        .some(room => Array.isArray(room) && room.some(person => person.id === userId));
+      const body = card.querySelector('.profile-popup-body');
+      if (!body || Number.isNaN(userId) || userId === app.user?.id || !inVoice) return;
+      const tools = this._make('div', { 'data-habitat-voice-tools': '' }, body);
+      const label = this._make('label', {}, tools);
+      this._make('span', {}, label).textContent = this._text('volume');
+      const slider = this._make('input', { type: 'range', min: '0', max: '200', step: '5' }, label);
+      const readout = this._make('output', {}, label);
+      const mute = this._make('button', { type: 'button' }, tools);
+      const show = (value) => {
+        readout.textContent = `${value}%`;
+        mute.textContent = this._text(value === 0 ? 'unmute' : 'mute');
+        mute.setAttribute('aria-pressed', String(value === 0));
+      };
+      // The same two calls Haven's own voice menu makes: remember, then apply.
+      const apply = (value) => {
+        app._setVoiceVolume?.(userId, value);
+        app.voice?.setVolume?.(userId, value / 100);
+        show(value);
+      };
+      const saved = Number(app._getVoiceVolume?.(userId) ?? 100);
+      slider.value = String(saved);
+      show(saved);
+      slider.addEventListener('input', () => apply(parseInt(slider.value, 10) || 0));
+      mute.addEventListener('click', () => {
+        const next = (parseInt(slider.value, 10) || 0) === 0 ? 100 : 0;
+        slider.value = String(next);
+        apply(next);
+      });
+      body.insertBefore(tools, body.querySelector('.profile-popup-actions'));
+      // The card was placed before it grew.
+      app._positionProfilePopup?.(card);
+    };
+    this._cardObserver = new MutationObserver(dress);
+    this._cardObserver.observe(document.body, { childList: true });
+  }
+
+  // ── The signal mark: how the call is doing ─────────────────
+  // Haven's voice bar says "connected" and nothing more. The mark beside it
+  // now takes the colour of the connection, and a click on it lists what that
+  // is made of: the round trip to the server, the delay, loss and jitter of
+  // the voice itself, and whether it travels directly or through the relay.
+  _buildConnectionInfo() {
+    const bar = document.getElementById('voice-bar');
+    if (!bar) return;
+    const panel = this._make('div', { 'data-habitat-connection': '', role: 'status', hidden: '' });
+    document.body.appendChild(panel);
+    const head = this._make('strong', {}, panel);
+    const table = this._make('dl', {}, panel);
+    const cells = {};
+    for (const key of ['people', 'serverPing', 'voicePing', 'loss', 'jitter', 'route', 'server']) {
+      this._make('dt', {}, table).textContent = this._text(key);
+      cells[key] = this._make('dd', {}, table);
+    }
+    let before = new Map();  // per person: packets lost and received at the last reading
+    const read = async () => {
+      const out = { peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0 };
+      const peers = window.app?.voice?.peers;
+      if (!peers || typeof peers.forEach !== 'function') return out;
+      const trips = []; const shakes = []; let lost = 0; let got = 0;
+      const seen = new Map();
+      for (const [id, peer] of peers) {
+        const link = peer?.connection;
+        if (!link || typeof link.getStats !== 'function') continue;
+        out.peers++;
+        if (link.connectionState === 'connected') out.live++;
+        let stats;
+        try { stats = await link.getStats(); } catch { continue; }
+        const byId = new Map();
+        stats.forEach(report => byId.set(report.id, report));
+        let pair = null; let peerLost = 0; let peerGot = 0;
+        stats.forEach((report) => {
+          if (report.type === 'transport' && report.selectedCandidatePairId) pair = byId.get(report.selectedCandidatePairId) || pair;
+          if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+            peerLost += report.packetsLost || 0;
+            peerGot += report.packetsReceived || 0;
+            if (typeof report.jitter === 'number') shakes.push(report.jitter * 1000);
+          }
+        });
+        if (!pair) stats.forEach((report) => {
+          if (!pair && report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) pair = report;
+        });
+        if (pair) {
+          if (typeof pair.currentRoundTripTime === 'number') trips.push(pair.currentRoundTripTime * 1000);
+          const ends = [byId.get(pair.localCandidateId), byId.get(pair.remoteCandidateId)];
+          if (ends.some(end => end?.candidateType === 'relay')) out.relayed++; else out.direct++;
+        }
+        // Loss since the last reading, not since the call began: an old drop
+        // should not colour the mark for the rest of the evening.
+        const was = before.get(id) || { lost: 0, got: 0 };
+        seen.set(id, { lost: peerLost, got: peerGot });
+        lost += Math.max(0, peerLost - was.lost);
+        got += Math.max(0, peerGot - was.got);
+      }
+      before = seen;
+      const mean = list => list.reduce((sum, value) => sum + value, 0) / list.length;
+      if (trips.length) out.rtt = mean(trips);
+      if (shakes.length) out.jitter = mean(shakes);
+      if (lost + got > 0) out.loss = lost / (lost + got) * 100;
+      return out;
+    };
+    const ms = value => (value === null || !Number.isFinite(value) ? '–' : `${Math.round(value)} ms`);
+    let drawing = false;
+    const draw = async () => {
+      const app = window.app;
+      if (!app?.voice?.inVoice || drawing) return;
+      drawing = true;
+      let call;
+      try { call = await read(); } finally { drawing = false; }
+      const ping = parseInt(document.getElementById('status-ping')?.textContent, 10);
+      const worst = Math.max(Number.isFinite(ping) ? ping : 0, call.rtt || 0);
+      const loss = call.loss || 0;
+      const grade = (call.peers && !call.live) || worst > 300 || loss > 8 ? 'poor'
+        : worst > 120 || loss > 3 ? 'fair' : 'good';
+      bar.setAttribute('data-habitat-signal', grade);
+      if (panel.hidden) return;
+      panel.setAttribute('data-habitat-connection', grade);
+      head.textContent = this._text(grade);
+      cells.people.textContent = call.peers ? `${call.live} / ${call.peers}` : this._text('alone');
+      cells.serverPing.textContent = ms(Number.isFinite(ping) ? ping : null);
+      cells.voicePing.textContent = ms(call.rtt);
+      cells.loss.textContent = call.loss === null ? '–' : `${call.loss.toFixed(1)}%`;
+      cells.jitter.textContent = ms(call.jitter);
+      cells.route.textContent = !call.relayed && !call.direct ? '–'
+        : this._text(call.relayed && call.direct ? 'mixed' : call.relayed ? 'relay' : 'direct');
+      cells.server.textContent = window.location?.host || '–';
+    };
+    const place = () => {
+      const box = bar.getBoundingClientRect();
+      panel.style.setProperty('left', `${box.left + 8}px`);
+      panel.style.setProperty('bottom', `${window.innerHeight - box.top + 8}px`);
+      panel.style.setProperty('width', `${Math.max(box.width - 16, 200)}px`);
+    };
+    const setOpen = (open) => {
+      panel.hidden = !open;
+      bar.querySelector('.voice-bar-status')?.setAttribute('aria-expanded', String(open));
+      if (open) { place(); draw(); }
+    };
+    this._on(bar, 'click', (event) => {
+      if (event.target.closest?.('.voice-bar-status')) setOpen(panel.hidden);
+    });
+    this._on(bar, 'keydown', (event) => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.target.closest?.('.voice-bar-status')) {
+        event.preventDefault?.();
+        setOpen(panel.hidden);
+      }
+    });
+    this._on(document, 'pointerdown', (event) => {
+      if (!panel.hidden && !panel.contains(event.target) && !event.target.closest?.('.voice-bar-status')) setOpen(false);
+    }, true);
+    this._on(document, 'keydown', (event) => {
+      if (event.key === 'Escape' && !panel.hidden) setOpen(false);
+    });
+    let timer = null;
+    // Called by the voice watcher each time Haven redraws the bar.
+    this._signalSync = (inCall) => {
+      if (inCall) {
+        const status = bar.querySelector('.voice-bar-status');
+        if (status && !status.hasAttribute('role')) {
+          for (const [name, value] of [['role', 'button'], ['tabindex', '0'], ['title', this._text('connection')],
+            ['aria-expanded', String(!panel.hidden)]]) status.setAttribute(name, value);
+        }
+        // Haven writes "# name" for every channel; a voice room has no hash.
+        const name = bar.querySelector('.voice-bar-channel');
+        const app = window.app;
+        if (name && app?._isVoiceOnlyChannel?.(app.voice?.currentChannel)) {
+          name.setAttribute('data-habitat-voice-title', name.textContent.trim().replace(/^#\s*/, ''));
+        }
+        if (timer) return;
+        timer = setInterval(draw, 4000);
+        timer.unref?.();
+        draw();
+      } else {
+        if (timer) clearInterval(timer);
+        timer = null;
+        before = new Map();
+        bar.removeAttribute('data-habitat-signal');
+        panel.hidden = true;
+      }
+    };
+  }
+
   // ── In a call: mute and deafen beside the account ─────────
   // Haven draws these two in the sidebar only for a member who opted in to
   // sidebar voice controls; for everyone else they sit in the members panel
@@ -862,6 +1072,7 @@ class HabitatLayout {
       const inCall = bar.style.display !== 'none' && bar.children.length > 0;
       if (inCall) document.documentElement.setAttribute('data-habitat-in-voice', '');
       else document.documentElement.removeAttribute('data-habitat-in-voice');
+      this._signalSync?.(inCall);
     };
     this._voiceObserver = new MutationObserver(sync);
     this._voiceObserver.observe(bar, { attributes: true, attributeFilter: ['style'], childList: true });
@@ -1066,6 +1277,10 @@ class HabitatLayout {
     document.getElementById('channel-header-name')?.removeAttribute('data-habitat-voice-title');
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
+    this._cardObserver?.disconnect();
+    this._signalSync?.(false);
+    this._signalSync = null;
+    document.getElementById('profile-popup')?.querySelector('[data-habitat-voice-tools]')?.remove();
     document.documentElement.removeAttribute('data-habitat-in-voice');
     document.documentElement.removeAttribute('data-habitat-layout');
     document.documentElement.removeAttribute('data-habitat-layout-desktop');
@@ -1116,14 +1331,24 @@ HabitatLayout.TEXT = Object.freeze({
     speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
     callView: 'Call view', find: 'Find a conversation', channels: 'Channels', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
-    channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.'
+    channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.',
+    volume: 'User volume', mute: 'Mute', unmute: 'Unmute', connection: 'Connection details',
+    good: 'Connection is good', fair: 'Connection is unsteady', poor: 'Connection is poor',
+    people: 'Connected to', alone: 'No one else here yet', serverPing: 'Server ping', voicePing: 'Voice delay',
+    loss: 'Packet loss', jitter: 'Jitter', route: 'Route', server: 'Server',
+    direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay'
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
     speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
     callView: 'Arama görünümü', find: 'Sohbet bul', channels: 'Kanallar', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
-    channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.'
+    channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.',
+    volume: 'Ses düzeyi', mute: 'Sustur', unmute: 'Sesini aç', connection: 'Bağlantı ayrıntıları',
+    good: 'Bağlantı iyi', fair: 'Bağlantı dalgalı', poor: 'Bağlantı zayıf',
+    people: 'Bağlı kişiler', alone: 'Henüz başka kimse yok', serverPing: 'Sunucu gecikmesi', voicePing: 'Ses gecikmesi',
+    loss: 'Paket kaybı', jitter: 'Seğirme', route: 'Yol', server: 'Sunucu',
+    direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı'
   })
 });
 
@@ -1533,6 +1758,35 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 [data-habitat-call-stage][data-habitat-dense] .voice-user-item:not([data-habitat-focused]) { padding: .25rem; }
 [data-habitat-call-stage] [data-habitat-on-camera] :is([data-habitat-call-avatar], .user-dot, .voice-stream-badge.webcam),
 [data-habitat-call-stage] .webcam-tile[data-habitat-paired] > .webcam-tile-label { display: none; }
+[data-habitat-connection] {
+  position: fixed; z-index: 100010; box-sizing: border-box; padding: .75rem .875rem;
+  border: 1px solid var(--border-light); border-radius: .75rem;
+  color: var(--text-primary); background: var(--bg-card); box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, .5); font-size: .8125rem;
+}
+[data-habitat-connection][hidden] { display: none; }
+[data-habitat-connection] > strong { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; font-size: .875rem; }
+[data-habitat-connection] > strong::before { content: ''; width: .5rem; height: .5rem; flex: none; border-radius: 50%; background: var(--success); }
+[data-habitat-connection="fair"] > strong::before { background: var(--warning); }
+[data-habitat-connection="poor"] > strong::before { background: var(--danger); }
+[data-habitat-connection] dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .75rem; margin: 0; }
+[data-habitat-connection] dt { color: var(--text-secondary); }
+[data-habitat-connection] dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; text-align: end; }
+html[data-habitat-layout] .voice-bar-status[role="button"] { cursor: pointer; }
+html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
+[data-habitat-voice-tools] {
+  display: grid; gap: .5rem; margin-block: .75rem; padding-block: .75rem; border-block: 1px solid var(--border);
+}
+[data-habitat-voice-tools] label {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) 3rem; align-items: center; gap: .625rem;
+  color: var(--text-secondary); font-size: .8125rem;
+}
+[data-habitat-voice-tools] input { width: 100%; min-width: 0; margin: 0; accent-color: var(--accent); }
+[data-habitat-voice-tools] output { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: end; }
+[data-habitat-voice-tools] button {
+  min-height: 2.25rem; border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+  color: var(--text-primary); background: var(--bg-input); font: inherit; font-weight: 600; cursor: pointer;
+}
+[data-habitat-voice-tools] button[aria-pressed="true"] { border-color: transparent; color: var(--danger-text); background: var(--danger); }
 [data-habitat-call-avatar] {
   display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%;
   position: relative; color: var(--accent-text); background: var(--accent); font: 700 1.25rem/1 var(--font-main);

@@ -485,12 +485,15 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 [data-haven-page="app"] [data-habitat-avatar-id] .dm-pip-avatar-initial { font-size: 0; }
 
-/* Older square faces still reach these renderers. Haven's shape picker only
-   supplies rules for the five shapes it offers today. */
-[data-haven-page="app"] .avatar-square:where(.message-avatar, .thread-msg-avatar, .user-item-avatar,
-  .profile-popup-avatar, .border-crop-avatar, #avatar-upload-preview, [data-habitat-face]) {
-  border-radius: 0;
-}
+/* A picture frame is a free image laid over the avatar, up to a quarter
+   larger, and Haven never clips it. A plain photo saved as a frame therefore
+   covered the avatar as a hard square. On the round shapes the frame now
+   keeps to that shape at its largest size; a ring or ornament drawn inside
+   that outline is untouched. Hexagon and diamond frames stay as uploaded. */
+[data-haven-page="app"] .avatar-circle ~ .pfp-border,
+[data-haven-page="app"] [data-habitat-call-avatar] > .pfp-border { clip-path: circle(62.5%); }
+[data-haven-page="app"] .avatar-squircle ~ .pfp-border { clip-path: inset(-12.5% round 28%); }
+[data-haven-page="app"] .avatar-rounded ~ .pfp-border { clip-path: inset(-12.5% round .5rem); }
 
 /* A shifted frame can use almost the whole gap on a phone. Borrow a little
    of the feed's left padding so grouped follow-ups still align with the name. */
@@ -667,6 +670,49 @@ html[data-haven-theme-api="1"] :focus-visible {
   font-size: .75rem;
   font-weight: 500;
 }
+
+/* The signal mark takes the colour of the connection, as the layout reads it. */
+[data-haven-page="app"] #voice-bar[data-habitat-signal="fair"] .voice-bar-icon { color: var(--warning); }
+[data-haven-page="app"] #voice-bar[data-habitat-signal="poor"] .voice-bar-icon { color: var(--danger); }
+[data-haven-page="app"] .voice-bar-status[role="button"] {
+  margin: -.25rem -.375rem; padding: .25rem .375rem; border-radius: var(--radius-sm);
+  transition: background-color var(--hb-fast) var(--hb-ease);
+}
+[data-haven-page="app"] .voice-bar-status[role="button"]:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  background: var(--bg-hover);
+}
+/* A voice room under "Voice Connected": Haven writes "# name", the drawn
+   text drops the hash for a small speaker. */
+[data-haven-page="app"] .voice-bar-channel[data-habitat-voice-title] {
+  display: inline-flex; align-items: center; gap: .25rem; font-size: 0;
+}
+[data-haven-page="app"] .voice-bar-channel[data-habitat-voice-title]::before {
+  content: ''; width: .8125rem; height: .8125rem; flex: none;
+  background: currentColor; mask: var(--hb-icon-voice) center / contain no-repeat;
+}
+[data-haven-page="app"] .voice-bar-channel[data-habitat-voice-title]::after {
+  content: attr(data-habitat-voice-title); min-width: 0; overflow: hidden; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Someone sharing their screen, in the list under a voice room. */
+html[data-habitat-layout] #channel-list .cvu-live { color: var(--danger); }
+html[data-habitat-layout] #channel-list .channel-voice-user:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* The account bar, Discord's way: the picture carries the status dot, the
+   name and status line get the room, and the buttons stay in one tight row.
+   Before, five buttons left the name about three letters wide during a call.
+   The @handle is on the profile card a click on the picture opens. */
+html[data-habitat-layout] [data-haven-region="account"] { position: relative; gap: .375rem; }
+html[data-habitat-layout] [data-haven-region="account"] > .user-names { flex: 1 1 0; min-width: 0; }
+html[data-habitat-layout] [data-haven-region="account"] > .user-names > #login-name { display: none; }
+html[data-habitat-layout] [data-haven-region="account"] > .user-names > :is(#current-user, #user-bar-status-text) {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start;
+}
+html[data-habitat-layout] [data-haven-region="account"] > #user-status-btn {
+  position: absolute; inset: auto auto .625rem 1.75rem; z-index: 2; width: 1.125rem; height: 1.125rem; padding: 0;
+  border: .1875rem solid var(--bg-tertiary); border-radius: 50%; background: var(--bg-tertiary);
+}
+html[data-habitat-layout] [data-haven-region="account"] > #user-status-btn > .status-picker-dot { width: .75rem; height: .75rem; }
+html[data-habitat-layout] [data-haven-region="account"] [data-habitat-tools] { gap: 0; }
 
 /* "Muted" and "Deafened" go on a line of their own under the status. Beside
    it, two of them squeezed "Voice Connected" down to a few letters. */

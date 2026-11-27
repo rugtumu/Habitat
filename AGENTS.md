@@ -27,7 +27,7 @@ the page. The desktop welcome popup still follows the member's preference.
 |---|---|
 | Theme: tokens, polish, motion, phone fixes | `themes/habitat-grafit.theme.css` |
 | Icon and badge drawings (source) | `scripts/habitat-icons.js` |
-| Layout: sidebar, menus, add channel dialog, call buttons, call stage | `plugins/HabitatLayout.plugin.js` |
+| Layout: sidebar, menus, add channel dialog, call buttons, call stage, voice list profiles, connection details | `plugins/HabitatLayout.plugin.js` |
 | Emoji to icon swap (upstream plugin, lightly extended) | `plugins/HavenGlyphs.plugin.js` |
 | Fonts and their licenses | `themes/habitat-fonts/` |
 | VPS setup and how to switch the look on | `docs/examples/habitat-caddy-coturn/README.md` |
