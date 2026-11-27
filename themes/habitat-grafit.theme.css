@@ -2019,7 +2019,7 @@ html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::after 
 }
 /* The same speaker opens an empty voice room. */
 [data-haven-page="app"] [data-habitat-intro="voice"] > span::before {
-  content: ''; width: 1.75rem; height: 1.75rem;
+  content: ''; width: 2.25rem; height: 2.25rem;
   background: currentColor; mask: var(--hb-icon-voice) center / contain no-repeat;
 }
 /* Someone sharing their screen: a small red LIVE mark with the viewer count,

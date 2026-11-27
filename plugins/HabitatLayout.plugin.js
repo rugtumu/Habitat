@@ -544,6 +544,8 @@ class HabitatLayout {
     const mark = this._make('span', { 'aria-hidden': 'true' }, intro);
     const title = this._make('h2', {}, intro);
     const hint = this._make('p', {}, intro);
+    // Who is already in the room, so joining is not a step into the dark.
+    const people = this._make('p', { 'data-habitat-room-people': '' }, intro);
     const join = this._make('button', { type: 'button', class: 'btn-sm btn-accent', 'data-habitat-join-room': '' }, intro);
     join.textContent = this._text('joinRoom');
     this._on(join, 'click', () => window.app?._joinVoice());
@@ -564,6 +566,15 @@ class HabitatLayout {
       const voiceRoom = header.hasAttribute('data-habitat-voice-title');
       intro.hidden = voiceRoom && !!connected;
       join.hidden = !voiceRoom || !app?._canUseVoice?.() || intro.hidden;
+      people.hidden = !voiceRoom || intro.hidden;
+      if (people.hidden) return;
+      // Haven lists a room's people in the row after it; count what it drew.
+      const row = [...document.querySelectorAll('.channel-item')].find(item => item.dataset?.code === channel);
+      const list = row?.nextElementSibling;
+      const count = String(list?.className || '').includes('channel-voice-users')
+        ? list.querySelectorAll('.channel-voice-user').length : 0;
+      const text = count ? this._text(count === 1 ? 'roomOne' : 'roomMany').replace('{n}', count) : this._text('roomEmpty');
+      if (people.textContent !== text) people.textContent = text;
     };
     this._syncJoin = syncJoin;
     const sync = () => {
@@ -593,6 +604,12 @@ class HabitatLayout {
     if (indicator) {
       this._joinObserver = new MutationObserver(syncJoin);
       this._joinObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+    }
+    // Haven redraws the channel list when someone joins or leaves a room.
+    const channels = document.getElementById('channel-list');
+    if (channels) {
+      this._peopleObserver = new MutationObserver(syncJoin);
+      this._peopleObserver.observe(channels, { childList: true, subtree: true });
     }
     this._nameObserver = new MutationObserver(sync);
     this._nameObserver.observe(header, { childList: true, characterData: true, subtree: true });
@@ -1739,6 +1756,7 @@ class HabitatLayout {
     this._historyObserver?.disconnect();
     this._nameObserver?.disconnect();
     this._joinObserver?.disconnect();
+    this._peopleObserver?.disconnect();
     document.getElementById('channel-header-name')?.removeAttribute('data-habitat-voice-title');
     this._voiceObserver?.disconnect();
     this._voiceObserver = null;
@@ -1793,6 +1811,7 @@ HabitatLayout.TEXT = Object.freeze({
     joinRoom: 'Join voice', moveMember: 'Move to voice channel…', permissions: 'Roles & permissions', speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
     callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
+    roomEmpty: 'No one is here yet. Be the first in.', roomOne: '1 person is here', roomMany: '{n} people are here',
     channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.',
     volume: 'User volume', mute: 'Mute', unmute: 'Unmute', connection: 'Connection details',
     good: 'Connection is good', fair: 'Connection is unsteady', poor: 'Connection is poor',
@@ -1812,6 +1831,7 @@ HabitatLayout.TEXT = Object.freeze({
     joinRoom: 'Ses odasına katıl', moveMember: 'Ses odasına taşı…', permissions: 'Roller ve yetkiler', speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
     callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
+    roomEmpty: 'Henüz kimse yok. İlk sen katıl.', roomOne: '1 kişi burada', roomMany: '{n} kişi burada',
     channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.',
     volume: 'Ses düzeyi', mute: 'Sustur', unmute: 'Sesini aç', connection: 'Bağlantı ayrıntıları',
     good: 'Bağlantı iyi', fair: 'Bağlantı dalgalı', poor: 'Bağlantı zayıf',
@@ -2491,6 +2511,25 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
 [data-habitat-join-room] { margin-block-start: .5rem; min-height: 2.5rem; }
 [data-habitat-join-room][hidden] { display: none; }
 [data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
+[data-habitat-room-people][hidden] { display: none; }
+/* A voice room has no history to sit under, so its way in takes the middle
+   of the room instead of a corner, and the empty list gives it the space.
+   The id, the layout mark and the doubled attribute are there to outweigh
+   the rule above, whose :not(#msg-more-btn) counts as an id. */
+html[data-habitat-layout] #message-area > [data-habitat-intro="voice"][data-habitat-intro]:not([hidden]) {
+  display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 0; padding: 1.5rem; text-align: center;
+}
+[data-haven-region="message-list"]:has(+ [data-habitat-intro="voice"]:not([hidden])) { display: none; }
+[data-habitat-intro="voice"] > span { width: 4.5rem; height: 4.5rem; }
+[data-habitat-intro="voice"] h2 { margin: 1rem 0 .25rem; }
+[data-habitat-intro="voice"] [data-habitat-join-room] { margin-block-start: 1.25rem; min-height: 2.75rem; padding-inline: 1.5rem; font-size: 1rem; }
+/* The room's own button is the way in; the header's copy of it would be a
+   second one a hand's width away. Haven sets its display inline, so it is
+   taken out of the flow rather than hidden by display. */
+html[data-habitat-layout] body:has([data-habitat-intro="voice"]:not([hidden]) > [data-habitat-join-room]:not([hidden])) .channel-header #voice-join-btn {
+  position: absolute; visibility: hidden; pointer-events: none;
+}
 @media (min-width: 901px) {
   html[data-habitat-layout-desktop] #voice-join-mobile { display: none; }
 }
