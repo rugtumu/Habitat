@@ -1660,24 +1660,10 @@ function _setLayout(key) {
 function _renderLayoutPicker() {
   const picker = document.getElementById('layout-picker');
   if (!picker) return;
-  const active = _activeLayoutKey();
-  const original = picker.querySelector('[data-layout=""]');
-  picker.querySelectorAll('[data-layout]:not([data-layout=""])').forEach(b => b.remove());
-  for (const l of _layoutPluginFiles()) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'layout-opt';
-    btn.dataset.layout = l.key;
-    btn.setAttribute('role', 'radio');
-    btn.textContent = l.name;
-    picker.appendChild(btn);
-  }
-  picker.querySelectorAll('[data-layout]').forEach(b => {
-    const on = b.dataset.layout === active;
-    b.classList.toggle('active', on);
-    b.setAttribute('aria-checked', String(on));
-  });
-  if (original && !original.isConnected) picker.prepend(original);
+  // Habitat fork: keep every installed layout in one keyboard-accessible picker.
+  const original = picker.options[0];
+  picker.replaceChildren(original, ..._layoutPluginFiles().map(layout => new Option(layout.name, layout.key)));
+  picker.value = _activeLayoutKey() || '';
 }
 
 function initEffectSelector() {
@@ -1691,10 +1677,7 @@ function initEffectSelector() {
   const layoutPicker = document.getElementById('layout-picker');
   if (layoutPicker && !layoutPicker.dataset.bound) {
     layoutPicker.dataset.bound = '1';
-    layoutPicker.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-layout]');
-      if (btn) _setLayout(btn.dataset.layout);
-    });
+    layoutPicker.addEventListener('change', () => _setLayout(layoutPicker.value));
     _renderLayoutPicker();
   }
   if (!document.documentElement.dataset.layoutTogglesBound) {
@@ -2102,22 +2085,28 @@ function applyPublishedThemeBase(file, persist = true, meta = null) {
   if (!file || _isHavenSafeMode() || _isThemeRecoveryPending()) return null;
   const compatibility = meta || window.HavenThemeCompat?.getCachedTheme?.(file);
   if (!_isFileThemeCompatible(compatibility)) return null;
-  // The theme on screen stays until the new sheet has loaded, so a switch
-  // never flashes the bare Haven base. The old sheets are renamed at once, so
-  // a lookup by theme id already treats them as gone.
-  const stale = [...document.querySelectorAll('link[id^="haven-theme-"]')];
+  // Habitat fork: adopt the sheet that painted this page instead of downloading it again on login.
+  const early = document.getElementById('haven-theme-file-early');
+  const href = `/themes/${encodeURIComponent(file)}`;
+  const reuseEarly = early?.sheet && early.getAttribute('href') === href;
+  const linkEl = reuseEarly ? early : document.createElement('link');
+  const stale = [...document.querySelectorAll('link[id^="haven-theme-"]')].filter(link => link !== linkEl);
   stale.forEach((link, i) => { link.id = `haven-theme-stale-${i}-${Date.now()}`; });
-  const linkEl = document.createElement('link');
-  linkEl.rel = 'stylesheet';
-  linkEl.href = `/themes/${encodeURIComponent(file)}?_=${Date.now()}`;
   linkEl.id = `haven-theme-${file}`;
-  // 'haven' is the stable layout base; the sheet loads after it and overrides the :root variables.
   const settle = () => {
     stale.forEach(link => link.remove());
     if (linkEl.isConnected) document.documentElement.setAttribute('data-theme', 'haven');
   };
-  ['load', 'error'].forEach(type => linkEl.addEventListener(type, settle, { once: true }));
-  document.head.appendChild(linkEl);
+  if (reuseEarly) {
+    settle();
+  } else {
+    linkEl.rel = 'stylesheet';
+    linkEl.href = href + '?_=' + Date.now();
+    linkEl.addEventListener('load', settle, { once: true });
+    // A deploy can interrupt this request. Leave the working sheet on screen in that case.
+    linkEl.addEventListener('error', () => linkEl.remove(), { once: true });
+    document.head.appendChild(linkEl);
+  }
 
   if (persist) {
     try { localStorage.setItem('haven_theme', `file:${file}`); } catch { /* storage blocked (private mode): nothing is remembered, nothing else breaks */ }

@@ -948,6 +948,7 @@
     "pin_message": "Pin Messages",
     "highlight_messages": "Post Official Messages",
     "archive_messages": "Protect Messages",
+    "move_voice_members": "Move members between voice channels",
     "kick_user": "Kick Users",
     "mute_user": "Timeout Users",
     "ban_user": "Ban Users",
@@ -1737,6 +1738,9 @@
         "hint": "Original is Haven's own layout. The others come from layout plugins on this server. Saved per browser."
       },
       "density": {
+        "preview": "Chat preview",
+        "sample_first": "Anyone up for a voice chat?",
+        "sample_reply": "Joining now!",
         "title": "Layout Density",
         "compact": "Compact",
         "compact_hint": "Compact: tighter spacing, smaller avatars",

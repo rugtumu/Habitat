@@ -6,8 +6,9 @@ export default {
 
 // ── Voice ─────────────────────────────────────────────
 
-async _joinVoice() {
-  if (!this.currentChannel) return;
+// Habitat fork: a room switch can target the call while the member is reading another channel.
+async _joinVoice(roomCode = this.currentChannel) {
+  if (!roomCode) return;
   // Spam-click guard: while a join is already in-flight (waiting for mic
   // permissions, ICE config fetch, getUserMedia), repeated clicks used to
   // queue a fresh voice.join() per press. After a server restart, every
@@ -18,7 +19,7 @@ async _joinVoice() {
   if (this._joiningVoice) return;
   // Already in this channel's call: a second click that landed after the
   // first join finished left and rejoined, opening the mic a second time.
-  if (this.voice?.inVoice && this.voice.currentChannel === this.currentChannel) return;
+  if (this.voice?.inVoice && this.voice.currentChannel === roomCode) return;
   // If the socket is currently disconnected (e.g. user is mashing the
   // button during a server restart) refuse to start. Emits would be
   // buffered by socket.io and replayed N times on reconnect, producing
@@ -29,7 +30,7 @@ async _joinVoice() {
     return;
   }
   // Block voice join in text-only channels
-  const _jvChk = this.channels.find(c => c.code === this.currentChannel);
+  const _jvChk = this.channels.find(c => c.code === roomCode);
   if (_jvChk && _jvChk.voice_enabled === 0) {
     this._showToast(t('voice.disabled'), 'error');
     return;
@@ -54,7 +55,7 @@ async _joinVoice() {
   try {
   // voice.join() auto-leaves old channel if connected
   // Habitat fork: browsing a text room while microphone permission is pending must not move the roster.
-  const joinedCode = this.currentChannel;
+  const joinedCode = roomCode;
   success = await this.voice.join(joinedCode);
   if (success) {
     const joinedUser = {

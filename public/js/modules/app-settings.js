@@ -165,6 +165,12 @@ _bindSettings() {
       // admin/manage permissions, regardless of where the call came from.
       const hasAdminAccess = !!this.user && this._hasAnyAdminSettingsAccess();
       if (!hasAdminAccess) return this._switchSettingsTab('user');
+      // Habitat fork: avoid spending every member's connection budget on unopened moderation panels.
+      if (this.user.isAdmin || this._hasGlobalPerm('manage_server')) {
+        this.socket.emit('get-media-cache-stats');
+        this.socket.emit('get-automod-domains');
+        this.socket.emit('get-automod-log', { limit: 100 });
+      }
       if (userBody) userBody.style.display = 'none';
       if (adminBody) adminBody.style.display = '';
       if (userNav) userNav.style.display = 'none';

@@ -78,8 +78,18 @@ sunucu bozulursa işe yaraması için başka bir yere de kopyalayın.
    git -C /root/Habitat log --oneline -1
    ```
 
-4. Tarayıcıda siteyi `Cmd+Shift+R` (Windows'ta `Ctrl+Shift+R`) ile yenileyip
-   değişikliği gözle kontrol edin.
+4. Canlıdaki dosyanın çekilen sürümle eşleştiğini doğrulayın. Örneğin ses
+   güncellemesinde aşağıdaki iki SHA-256 aynı olmalıdır. Başka bir güncellemede
+   o commit’te değişen bir istemci dosyasını seçin.
+
+   ```bash
+   sha256sum /root/Habitat/public/js/voice.js
+   curl -fsS https://habitat.umutgur.com/js/voice.js -o /tmp/habitat-voice-live.js && sha256sum /tmp/habitat-voice-live.js
+   ```
+
+5. Konteyner sağlıklı, dışarıdan sağlık kontrolü başarılı ve dosya eşleşiyorsa
+   üyeler sayfayı normal şekilde yenileyebilir. F5 açık ses görüşmesini sonlandırır.
+   Görüşmeye dönmek isteyen üye ses odasına tekrar tıklar.
 
 ## Tarayıcı tarafında bilinmesi gerekenler
 

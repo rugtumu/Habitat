@@ -950,12 +950,8 @@ window.HavenPluginLoader = (function () {
     }
   }
 
-  // Start when the app is ready
-  if (document.readyState === 'complete') {
-    setTimeout(init, 500);
-  } else {
-    window.addEventListener('load', () => setTimeout(init, 500));
-  }
+  // Habitat fork: slow locale loading can outlast the window load event. Layouts need the actual app.
+  window.addEventListener('haven:app-ready', () => init(), { once: true });
 
   return {
     loadedPlugins,

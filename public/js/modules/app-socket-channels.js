@@ -23,12 +23,10 @@ _listenChannelsAndMessages() {
     }
     const rotations = this._collectChannelCodeRotations(channels);
     const activeRotation = rotations.find(rotation => rotation.oldCode === this.currentChannel) || null;
-    let savedVoiceCode = null;
-    try { savedVoiceCode = localStorage.getItem('haven_voice_channel'); } catch { /* storage blocked (private mode): keep the default */ }
+    // Habitat fork: a room rotation only matters to a live or interrupted call in this tab.
     const voiceRotation = rotations.find(rotation =>
       rotation.oldCode === this.voice?.currentChannel ||
-      rotation.oldCode === this.voice?._softLeftChannel ||
-      rotation.oldCode === savedVoiceCode
+      rotation.oldCode === this.voice?._softLeftChannel
     ) || null;
     for (const rotation of rotations) {
       this._migrateChannelCodeState(rotation.oldCode, rotation.newCode);

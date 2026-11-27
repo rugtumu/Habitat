@@ -29,6 +29,7 @@ _migrateChannelCodeState(oldCode, newCode) {
     if (this[property] === oldCode) this[property] = newCode;
   }
   if (this.voice?.currentChannel === oldCode) this.voice.currentChannel = newCode;
+  if (this.voice?._lastLiveRoom === oldCode) this.voice._lastLiveRoom = newCode;
   if (this.voice?._softLeftChannel === oldCode) this.voice._softLeftChannel = newCode;
   if (this.voice?._joiningChannelCode === oldCode) this.voice._joiningChannelCode = newCode;
   for (const channel of this.channels || []) {
@@ -37,11 +38,6 @@ _migrateChannelCodeState(oldCode, newCode) {
   const createSubModal = document.getElementById('create-sub-modal');
   if (createSubModal?._parentCode === oldCode) createSubModal._parentCode = newCode;
 
-  try {
-    if (localStorage.getItem('haven_voice_channel') === oldCode) {
-      localStorage.setItem('haven_voice_channel', newCode);
-    }
-  } catch { /* storage blocked: the saved voice channel keeps the old code and simply will not auto-rejoin */ }
   for (const key of ['haven_muted_channels', 'haven_hidden_channels']) {
     try {
       const values = JSON.parse(localStorage.getItem(key) || '[]');
@@ -360,10 +356,6 @@ _listenSession() {
       clearTimeout(this._voiceDisconnectTimer);
       this._voiceDisconnectTimer = null;
     }
-    if (this._savedVoiceRejoinTimer) {
-      clearTimeout(this._savedVoiceRejoinTimer);
-      this._savedVoiceRejoinTimer = null;
-    }
     // A reconnect usually means the machine slept or the network dropped, which
     // is the most likely moment for the media token to have expired underneath
     // us. Cheap to redo and it keeps remote images from silently breaking.
@@ -482,9 +474,7 @@ _listenSession() {
       // tore down local audio but kept the channel intent. Re-init the mic
       // and announce ourselves via voice-rejoin so peers tear down their
       // stale RTCPeerConnections via voice-user-left and we get fresh ones.
-      // This is the proper rejoin path. The localStorage setTimeout(1500)
-      // fallback below uses voice.join which doesn't do that, leaving peers
-      // with dead audio paths even after "rejoin".
+      // Habitat fork: only this open page can resume its interrupted call.
       const rejoinChannel = this.voice._softLeftChannel;
       this.voice._softLeftChannel = null;
       (async () => {
@@ -499,28 +489,6 @@ _listenSession() {
           console.warn('[Voice] reconnect rejoin failed:', e);
         }
       })();
-    } else {
-      // Check localStorage for saved voice channel (persists across page refreshes / server restarts)
-      try {
-        const savedVoiceChannel = localStorage.getItem('haven_voice_channel');
-        if (savedVoiceChannel && /^[a-f0-9]{8}$/i.test(savedVoiceChannel)) {
-          // Auto-rejoin saved voice channel after delay (wait for channels to load)
-          this._savedVoiceRejoinTimer = setTimeout(async () => {
-            this._savedVoiceRejoinTimer = null;
-            if (this.voice && !this.voice.inVoice) {
-              let currentSavedChannel = savedVoiceChannel;
-              try { currentSavedChannel = localStorage.getItem('haven_voice_channel') || savedVoiceChannel; } catch { /* storage blocked (private mode): keep the default */ }
-              console.log('[Voice] Auto-rejoining saved voice channel:', currentSavedChannel);
-              const ok = await this.voice.join(currentSavedChannel);
-              if (ok) {
-                this._updateVoiceButtons(true);
-                this._updateVoiceStatus(true);
-                this._updateVoiceBar();
-              }
-            }
-          }, 1500);
-        }
-      } catch (err) { console.warn('[Voice] auto-rejoin check failed', err); }
     }
     // Apply any queued status change from when we were disconnected
     if (this._pendingStatus) {
@@ -636,23 +604,6 @@ _listenSession() {
       // Re-fetch channels in case list changed while backgrounded
       this.socket?.emit('get-channels');
       
-      // Mobile voice fix: check if we should be in voice but got disconnected
-      try {
-        const savedVoiceChannel = localStorage.getItem('haven_voice_channel');
-        if (savedVoiceChannel && this.voice && !this.voice.inVoice && this.socket?.connected) {
-          console.log('[Voice] Mobile foreground, rejoining voice channel:', savedVoiceChannel);
-          setTimeout(async () => {
-            if (this.voice && !this.voice.inVoice) {
-              const ok = await this.voice.join(savedVoiceChannel);
-              if (ok) {
-                this._updateVoiceButtons(true);
-                this._updateVoiceStatus(true);
-                this._updateVoiceBar();
-              }
-            }
-          }, 500);
-        }
-      } catch (err) { console.warn('[Voice] auto-rejoin check failed', err); }
     }
   });
 

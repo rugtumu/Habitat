@@ -113,6 +113,9 @@ const ICONS = {
   shuffle: 'M4 7h3.5c4 0 5 10 9 10H20M17 14l3 3-3 3M4 17h3.5c1.3 0 2.3-1 3.2-2.5M13.3 9.5C14.2 8 15.2 7 16.5 7H20M17 4l3 3-3 3',
   'voice-low': SPEAKER + 'M15.5 9a4.2 4.2 0 0 1 0 6',
   box: 'M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8',
+  access: 'M12 6.5a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6zM4 8.5l8 2 8-2M12 10.5v4M12 14l-4.5 6.5M12 14l4.5 6.5',
+  puzzle: 'M4 5h5a2.5 2.5 0 1 1 5 0h4.5v5a2.5 2.5 0 1 1 0 5v4H13a2.5 2.5 0 1 0-5 0H4z',
+  bot: 'M5 8h14v11H5zM12 8V4M10.5 3.5h3M8 12v1M16 12v1M10 16h4M3 11v5M21 11v5',
   signal: 'M5 19v-3M10 19v-7M15 19V8M20 19V4'
 };
 
@@ -201,9 +204,8 @@ function encode(markup) {
   return 'url("data:image/svg+xml,' + markup.replace(/</g, '%3C').replace(/>/g, '%3E').replace(/#/g, '%23') + '")';
 }
 
-// Icons a theme paints by hand, outside the Haven Glyphs classes: the signal
-// bars on the voice bar. They get a variable even though no glyph class uses them.
-const EXTRA = ['signal'];
+// Voice status and settings categories also use these masks without the Glyphs plugin.
+const EXTRA = ['signal', 'access', 'puzzle', 'bot'];
 
 function svg(name) {
   const spec = ICONS[name];

@@ -544,8 +544,7 @@ _bindAdminControls() {
   // whitelist and tunnel controls already behave.
   if (typeof this._initAutomodPanel === 'function') {
     this._initAutomodPanel();
-    this.socket.emit('get-automod-domains');
-    this.socket.emit('get-automod-log', { limit: 100 });
+    // Habitat fork: the Admin tab fetches these lists when its controls are needed.
   }
 
   // ── Tunnel settings (immediate, not part of Save flow) ──

@@ -171,7 +171,8 @@ _bindChannelMenu() {
     this._closeChannelCtxMenu();
     // Switch to the channel first, then join voice
     this.switchChannel(code);
-    setTimeout(() => this._joinVoice(), 300);
+    // Habitat fork: join the selected room immediately, even if another channel opens next.
+    this._joinVoice(code);
   });
   // Leave channel
   document.querySelector('[data-action="leave-channel"]')?.addEventListener('click', async () => {

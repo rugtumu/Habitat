@@ -896,6 +896,7 @@
     "pin_message": "Épingler des messages",
     "highlight_messages": "Poster des messages officiels",
     "archive_messages": "Protéger des messages",
+    "move_voice_members": "Déplacer des membres entre salons vocaux",
     "kick_user": "Expulser des utilisateurs",
     "mute_user": "Mettre en sourdine",
     "ban_user": "Bannir des utilisateurs",
@@ -1666,6 +1667,9 @@
         "hint": "Original est la disposition propre à Haven. Les autres viennent de plugins de disposition de ce serveur. Enregistré par navigateur."
       },
       "density": {
+        "preview": "Aperçu du chat",
+        "sample_first": "Ça vous dit de passer en vocal ?",
+        "sample_reply": "J’arrive !",
         "title": "Densité de disposition",
         "compact": "Compact",
         "compact_hint": "Compact — espacement réduit, avatars plus petits",

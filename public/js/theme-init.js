@@ -188,8 +188,10 @@
   // default as it was last reported (haven_default_theme, written by auth.js
   // and the app), so a reload does not paint Haven's base first. It is a
   // cache, not a choice: haven_theme still wins and stays unset.
+  // Habitat fork: the HTML already carries the server-verified default, including on a first visit.
+  var serverTheme = document.documentElement.dataset?.serverTheme;
   var t = (_safeMode || _resetPending) ? 'haven'
-    : (localStorage.getItem('haven_theme') || localStorage.getItem('haven_default_theme'));
+    : (localStorage.getItem('haven_theme') || (serverTheme ?? localStorage.getItem('haven_default_theme')));
   // Light or dark native controls (dropdown lists, scrollbars), as theme.js
   // last measured them, so a light theme's first frame is light too. Haven's
   // base (safe mode, no theme yet) is dark, the stylesheet default.
@@ -206,7 +208,7 @@
       // matching what applyFileTheme() does when the plugin-loader runs. (#5359)
       var _themeFile = t.slice(5);
       var _cachedTheme = _themeCompat ? _themeCompat.getCachedTheme(_themeFile) : null;
-      if (_cachedTheme && _cachedTheme.compatible) {
+      if (t === serverTheme || (_cachedTheme && _cachedTheme.compatible)) {
         _injectEarlyTheme(_themeFile);
       } else {
         // Validate an uncached theme immediately. Hide the base briefly so a

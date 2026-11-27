@@ -182,10 +182,12 @@ export function createCallSettingsPanel(host, options = {}) {
     node.setAttribute('data-i18n', key);
     node.textContent = tr(key);
   };
+  // Habitat fork: the room controls use icons, while the full settings page has text headings.
+  const showIcons = host.id !== 'call-settings-page-panel';
   const addLabel = (row, control) => {
     const label = el('label', 'voice-settings-label');
     if (control.labelStyle) label.setAttribute('style', control.labelStyle);
-    if (control.icon) {
+    if (showIcons && control.icon) {
       label.appendChild(doc.createTextNode(`${control.icon} `));
       const span = el('span');
       i18nText(span, control.labelKey);
@@ -305,7 +307,7 @@ export function createCallSettingsPanel(host, options = {}) {
   const buildMeter = () => {
     const row = el('div', 'voice-settings-row mic-meter-row');
     const label = el('label', 'voice-settings-label');
-    label.appendChild(doc.createTextNode('🎙️ '));
+    if (showIcons) label.appendChild(doc.createTextNode('🎙️ '));
     const span = el('span');
     i18nText(span, 'voice_settings.mic_level');
     label.appendChild(span);
@@ -543,7 +545,7 @@ export function createCallSettingsPanel(host, options = {}) {
     switch (control.kind) {
       case 'section': {
         node = el('div', 'voice-settings-section-label');
-        node.appendChild(doc.createTextNode(`${control.icon} `));
+        if (showIcons) node.appendChild(doc.createTextNode(`${control.icon} `));
         const span = el('span');
         i18nText(span, control.labelKey);
         node.appendChild(span);

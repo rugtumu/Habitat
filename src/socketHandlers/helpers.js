@@ -1,3 +1,4 @@
+// Habitat fork: moving someone between voice rooms is a separately assignable moderation permission.
 // ── Pure utilities and constants (no io/db dependency) ──
 
 // Normalize SQLite timestamps to UTC ISO 8601
@@ -199,7 +200,7 @@ function cleanProfileTheme(top, bottom) {
 // All recognized role permissions. Any permission sent by a client that is not here is silently rejected.
 const VALID_ROLE_PERMS = [
   'edit_own_messages', 'delete_own_messages', 'delete_message', 'delete_lower_messages',
-  'pin_message', 'archive_messages', 'kick_user', 'mute_user', 'ban_user', 'ban_ip',
+  'pin_message', 'archive_messages', 'kick_user', 'move_voice_members', 'mute_user', 'ban_user', 'ban_ip',
   'rename_channel', 'rename_sub_channel', 'set_channel_topic', 'manage_sub_channels',
   'manage_channel_settings',
   'create_channel', 'create_temp_channel', 'invite_users',

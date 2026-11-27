@@ -90,11 +90,12 @@ function browserCompat(localStorage, sessionStorage) {
   };
 }
 
-function runThemeInit({ theme = 'file:test.theme.css', search = '', cache = [], themes, stored = {} } = {}) {
+function runThemeInit({ serverTheme, theme = 'file:test.theme.css', search = '', cache = [], themes, stored = {} } = {}) {
   const localStorage = new MemoryStorage({ haven_theme: theme, ...stored });
   const sessionStorage = new MemoryStorage();
   ThemeCompat.cacheThemes(cache, localStorage);
   const { document, documentElement, links } = createDocument();
+  documentElement.dataset = { serverTheme };
   const location = { search, href: `https://haven.test/${search}` };
   const window = {
     HavenThemeCompat: browserCompat(localStorage, sessionStorage),
@@ -201,7 +202,7 @@ async function runPluginLoader({
   const window = {
     location,
     confirm() { return false; },
-    addEventListener() {},
+    addEventListener(name, listener) { if (name === 'haven:app-ready') this.startPlugins = listener; },
     havenSocket: socket,
   };
   if (viewer) window.app = { _canPublishThemes: () => viewer === 'admin' };
@@ -246,6 +247,7 @@ async function runPluginLoader({
     URLSearchParams,
     window,
   });
+  window.startPlugins();
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));
   return {
@@ -542,6 +544,16 @@ test('pre-paint loader injects only a theme with a cached compatible verdict', (
   const unknown = runThemeInit();
   assert.equal(unknown.links.length, 0);
   assert.equal(unknown.documentElement.attributes.get('data-haven-theme-pending'), 'test.theme.css');
+});
+
+test('the current published default paints before config arrives on a first visit', () => {
+  const options = { serverTheme: 'file:first.theme.css', theme: null };
+  const first = runThemeInit(options);
+  assert.equal(first.links[0].href, '/themes/first.theme.css');
+  assert.equal(first.localStorage.getItem('haven_theme'), null);
+  assert.equal(runThemeInit({ ...options, theme: 'nord' }).links.length, 0);
+  assert.equal(runThemeInit({ ...options, search: '?haven-safe-mode=1' }).links.length, 0);
+  assert.equal(runThemeInit({ ...options, serverTheme: '', stored: { haven_default_theme: 'file:old.theme.css' } }).links.length, 0);
 });
 
 test('a visitor with no theme of their own starts from the cached server default', () => {

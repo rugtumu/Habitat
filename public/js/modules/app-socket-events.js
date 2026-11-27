@@ -161,6 +161,14 @@ _listenFeatureEvents() {
   });
 
   // ── Voice kicked ────────────────────────────────
+  // Habitat fork: only the tab still speaking in the named source room may follow a moderator move.
+  this.socket.on('voice-move-requested', ({ from, to }) => {
+    if (!this.voice?.inVoice || this.voice.currentChannel !== from || this._joiningVoice ||
+        !this.channels.some(ch => ch.code === to && !ch.is_dm && ch.voice_enabled !== 0)) return;
+    if (this.currentChannel === from) this.switchChannel(to);
+    this._joinVoice(to);
+  });
+
   // NOTE: voice.js also listens for `voice-kicked` and calls leave() +
   // onVoiceKicked (which toasts). Wait a tick so that handler runs first;
   // only tear down + toast here if the session is somehow still live

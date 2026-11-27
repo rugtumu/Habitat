@@ -84,7 +84,7 @@ test('channel code migration updates runtime caches and persisted state', () => 
   assert.equal(app.voice._joiningChannelCode, newCode);
   assert.equal(app.channels[0].afk_sub_code, newCode);
   assert.equal(app.persistedMentions, true);
-  assert.equal(storage.getItem('haven_voice_channel'), newCode);
+  assert.equal(storage.getItem('haven_voice_channel'), oldCode, 'legacy storage is ignored');
   assert.deepEqual(JSON.parse(storage.getItem('haven_muted_channels')), [newCode, 'aaaaaaaa']);
   assert.equal(storage.getItem(`haven_seen_pin_max_${oldCode}`), null);
   assert.equal(storage.getItem(`haven_seen_pin_max_${newCode}`), '42');

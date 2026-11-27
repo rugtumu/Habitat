@@ -679,6 +679,7 @@
     "delete_lower_messages": "Nachrichten von niedrigerer Ebene löschen",
     "pin_message": "Nachrichten anheften",
     "archive_messages": "Nachrichten schützen",
+    "move_voice_members": "Mitglieder zwischen Sprachkanälen verschieben",
     "kick_user": "Nutzer kicken",
     "mute_user": "Nutzer stummschalten",
     "ban_user": "Nutzer bannen",
@@ -1197,6 +1198,9 @@
     "layout": {
       "title": "Layout",
       "density": {
+        "preview": "Chatvorschau",
+        "sample_first": "Hat jemand Lust auf einen Sprachchat?",
+        "sample_reply": "Bin gleich da!",
         "title": "Layout-Dichte",
         "compact": "Kompakt",
         "compact_hint": "Kompakt — engere Abstände, kleinere Avatare",

@@ -870,6 +870,7 @@
     "pin_message": "置顶消息",
     "highlight_messages": "发布官方消息",
     "archive_messages": "保护消息",
+    "move_voice_members": "在语音频道间移动成员",
     "kick_user": "踢出用户",
     "mute_user": "禁言用户",
     "ban_user": "封禁用户",
@@ -1640,6 +1641,9 @@
         "hint": "原始是 Haven 自带布局。其他来自本服务器的布局插件。按浏览器保存。"
       },
       "density": {
+        "preview": "聊天预览",
+        "sample_first": "有人想来语音聊天吗？",
+        "sample_reply": "我这就来！",
         "title": "布局密度",
         "compact": "紧凑",
         "compact_hint": "紧凑：间距更小，头像更小",

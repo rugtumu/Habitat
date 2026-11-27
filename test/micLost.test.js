@@ -173,11 +173,13 @@ test('a soft leave lets go of the mic even when a later step throws', async () =
   assert.throws(() => voice._softLeave(), /teardown failed/);
   assert.equal(liveRaws(raws), 0);
 });
-test('a page that is going away lets go of the mic, a page kept for later does not', async () => {
-  const { voice, raws, pageHide } = setup();
-  await voice.join('aaaaaaaa');
-  pageHide.forEach((f) => f({ persisted: true }));
-  assert.equal(liveRaws(raws), 1);
-  pageHide.forEach((f) => f({ persisted: false }));
-  assert.equal(liveRaws(raws), 0);
-});
+for (const persisted of [true, false]) {
+  test(`pagehide ends the call and releases the microphone (persisted=${persisted})`, async () => {
+    const { voice, raws, pageHide } = setup();
+    await voice.join('aaaaaaaa');
+    pageHide.forEach(listener => listener({ persisted }));
+    assert.equal(liveRaws(raws), 0);
+    assert.equal(voice.inVoice, false);
+    assert.equal(voice._softLeftChannel, null);
+  });
+}

@@ -134,17 +134,17 @@ module.exports = function register(socket, ctx) {
   // checks it makes. They used to check only membership, so someone refused
   // voice (no use_voice, missing the channel's required roles, a guest on a
   // text-only server) could get in that way, and past a full room.
-  function voiceEntryRefusal(code, channelId) {
-    if (!socket.user.isAdmin && ctx.roleGateAllows && !ctx.roleGateAllows(socket.user.id, db.prepare('SELECT id, role_gate FROM channels WHERE id = ?').get(channelId))) {
+  function voiceEntryRefusal(code, channelId, user = socket.user) {
+    if (!user.isAdmin && ctx.roleGateAllows && !ctx.roleGateAllows(user.id, db.prepare('SELECT id, role_gate FROM channels WHERE id = ?').get(channelId))) {
       return 'This channel needs a role you do not hold';
     }
-    if (!socket.user.isAdmin && !socket.user.isGuest && !userHasPermission(socket.user.id, 'use_voice', channelId)) {
+    if (!user.isAdmin && !user.isGuest && !userHasPermission(user.id, 'use_voice', channelId)) {
       return 'You don\'t have permission to use voice chat';
     }
-    if (socket.user.isGuest && !guestsMayUseVoice()) return 'Guests cannot join voice on this server';
+    if (user.isGuest && !guestsMayUseVoice()) return 'Guests cannot join voice on this server';
     const lim = db.prepare('SELECT voice_user_limit FROM channels WHERE id = ?').get(channelId);
     const room = voiceUsers.get(code);
-    if (lim && lim.voice_user_limit > 0 && !(room && room.has(socket.user.id)) && (room ? room.size : 0) >= lim.voice_user_limit) {
+    if (lim && lim.voice_user_limit > 0 && !(room && room.has(user.id)) && (room ? room.size : 0) >= lim.voice_user_limit) {
       return `Voice is full (${room.size}/${lim.voice_user_limit})`;
     }
     return null;
@@ -435,6 +435,31 @@ module.exports = function register(socket, ctx) {
   });
 
   // ── Voice kick ──────────────────────────────────────────
+  // Habitat fork: a moderator may move an active call only between rooms both members can access.
+  socket.on('voice-move-member', (data) => {
+    if (!data || !isInt(data.userId) || data.userId === socket.user.id ||
+        !isString(data.from, 8, 8) || !isString(data.to, 8, 8) || data.from === data.to) return;
+    const denied = () => socket.emit('error-msg', 'This voice move is not available');
+    const channel = db.prepare('SELECT id, role_gate FROM channels WHERE code = ? AND is_dm = 0 AND voice_enabled = 1');
+    const member = db.prepare('SELECT 1 FROM channel_members WHERE channel_id = ? AND user_id = ?');
+    const source = channel.get(data.from), destination = channel.get(data.to);
+    for (const room of [source, destination]) {
+      if (!room || !member.get(room.id, socket.user.id) ||
+          !userHasPermission(socket.user.id, 'move_voice_members', room.id) ||
+          (!socket.user.isAdmin && !ctx.roleGateAllows(socket.user.id, room)) ||
+          getUserEffectiveLevel(socket.user.id, room.id) <= getUserEffectiveLevel(data.userId, room.id)) return denied();
+    }
+    const entry = voiceUsers.get(data.from)?.get(data.userId);
+    const target = entry && !entry.isBot && io.sockets.sockets.get(entry.socketId);
+    if (!target || target.user.id !== data.userId || !member.get(destination.id, data.userId)) return denied();
+    const refusal = voiceEntryRefusal(data.to, destination.id, target.user);
+    if (refusal) return socket.emit('error-msg', refusal);
+    // The active socket runs its normal voice switch, including mute state and relay cleanup.
+    target.emit('voice-move-requested', { from: data.from, to: data.to });
+    ctx.logAudit?.({ actor: socket.user, action: 'voice_move_requested', target_type: 'user',
+      target_id: data.userId, target_name: entry.username, details: { from: data.from, to: data.to } });
+  });
+
   socket.on('voice-kick', (data) => {
     if (!data || typeof data !== 'object') return;
     if (!isString(data.code, 8, 8)) return;

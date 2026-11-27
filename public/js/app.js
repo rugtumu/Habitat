@@ -125,7 +125,9 @@ import { startTooltips } from './modules/tooltips.js?v=4.27.51';
 class HavenApp {
   constructor() {
     this.token = localStorage.getItem('haven_token');
-    this.user = JSON.parse(localStorage.getItem('haven_user') || 'null');
+    // Habitat fork: an interrupted sign-in can leave just a token or a damaged account record.
+    try { this.user = JSON.parse(localStorage.getItem('haven_user') || 'null'); }
+    catch { this.user = null; }
     this.socket = null;
     this.voice = null;
     this.currentChannel = null;
@@ -239,7 +241,10 @@ class HavenApp {
       '📱':'phone mobile','💻':'laptop computer','📷':'camera photo','📚':'books reading','📝':'memo note write','🔑':'key','🔒':'lock locked','💎':'gem diamond jewel','🎁':'gift present','🔔':'bell notification','💰':'money bag rich','🔨':'hammer tool','💬':'speech bubble chat','💭':'thought bubble thinking','🗨️':'speech balloon','🗯️':'anger bubble','📣':'megaphone announcement','📢':'loudspeaker','👑':'crown king queen royal','💍':'ring diamond wedding','🕶️':'sunglasses cool'
     };
 
-    if (!this.token || !this.user) {
+    if (!this.token || !this.user?.id) {
+      // The login page redirects a stored token here. Clear the incomplete pair before returning.
+      localStorage.removeItem('haven_token');
+      localStorage.removeItem('haven_user');
       // Preserve invite param so it survives the redirect to the auth page
       const _inv = new URLSearchParams(window.location.search).get('invite');
       if (_inv) sessionStorage.setItem('haven_pending_invite', _inv);
@@ -530,8 +535,7 @@ class HavenApp {
     this._setupHeldUploadNotes();
     this._setupSettingsPages();
 
-    this.socket.emit('get-channels');
-    this.socket.emit('get-server-settings');
+    // Habitat fork: the connect handler already requests channels and settings on the first connection.
     this.socket.emit('get-preferences');
     this.socket.emit('get-high-scores', { game: 'flappy' });
 
@@ -728,4 +732,5 @@ Object.assign(HavenApp.prototype,
 document.addEventListener('DOMContentLoaded', async () => {
   await window.i18n?.init();
   window.app = new HavenApp();
+  if (window.app.user?.id && window.app.token) window.dispatchEvent(new Event('haven:app-ready'));
 });

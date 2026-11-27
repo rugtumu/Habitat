@@ -885,6 +885,7 @@
     "pin_message": "Przypinaj wiadomości",
     "highlight_messages": "Publikuj wiadomości oficjalne",
     "archive_messages": "Chroń wiadomości",
+    "move_voice_members": "Przenoszenie członków między kanałami głosowymi",
     "kick_user": "Wyrzucaj użytkowników",
     "mute_user": "Wyciszaj użytkowników",
     "ban_user": "Banuj użytkowników",
@@ -1655,6 +1656,9 @@
         "hint": "Oryginalny to własny układ Haven. Pozostałe pochodzą z wtyczek układu na tym serwerze. Zapisywane w przeglądarce."
       },
       "density": {
+        "preview": "Podgląd czatu",
+        "sample_first": "Kto ma ochotę na rozmowę głosową?",
+        "sample_reply": "Już dołączam!",
         "title": "Gęstość układu",
         "compact": "Kompaktowy",
         "compact_hint": "Kompaktowy — ściślejszy odstęp, mniejsze awatary",

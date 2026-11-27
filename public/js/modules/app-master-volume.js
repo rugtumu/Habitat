@@ -43,7 +43,8 @@ _setupMasterVolume() {
     return `${db > 0.05 ? '+' : ''}${db.toFixed(1)} dB`;
   };
   const readouts = new Map();
-  const updates = [...document.querySelectorAll('#section-sounds input[type="range"]')].map((input) => {
+  // Habitat fork: the voice slider and its readout now live under Voice & video.
+  const updates = [...document.querySelectorAll('#voice-master-volume, #section-sounds input[type="range"]')].map((input) => {
     const out = document.createElement('output');
     out.className = 'vol-readout';
     input.after(out);

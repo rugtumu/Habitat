@@ -769,6 +769,7 @@
     "delete_lower_messages": "하위 등급 메시지 삭제",
     "pin_message": "메시지 고정",
     "archive_messages": "메시지 보호",
+    "move_voice_members": "음성 채널 간 멤버 이동",
     "kick_user": "사용자 추방",
     "mute_user": "사용자 뮤트",
     "ban_user": "사용자 차단",
@@ -1449,6 +1450,9 @@
     },
     "layout": {
       "density": {
+        "preview": "채팅 미리보기",
+        "sample_first": "음성 채팅할 사람 있어?",
+        "sample_reply": "지금 들어갈게!",
         "title": "레이아웃 밀도",
         "compact": "좁게",
         "compact_hint": "좁게: 간격이 좁고 아바타가 작음",

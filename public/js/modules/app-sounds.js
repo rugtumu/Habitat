@@ -165,11 +165,6 @@ _setupSoundManagement() {
   const _applySoundboardSidebarMode = (val) => {
     this._soundboardSidebarMode = val;
     localStorage.setItem('haven_soundboard_sidebar_mode', val ? 'true' : 'false');
-    // Sync all sidebar mode checkboxes (popup + settings page)
-    ['soundboard-sidebar-mode', 'soundboard-sidebar-mode-settings'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.checked = val;
-    });
     const panel = document.getElementById('sb-sidebar-panel');
     const toggleBtn = document.getElementById('sb-sidebar-toggle-btn');
     if (val) {
@@ -193,14 +188,24 @@ _setupSoundManagement() {
       window._updateSbToggleRight?.();
     }
   };
-  // Bind sidebar mode checkboxes
-  ['soundboard-sidebar-mode', 'soundboard-sidebar-mode-settings'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.checked = this._soundboardSidebarMode;
-      el.addEventListener('change', (e) => _applySoundboardSidebarMode(e.target.checked));
-    }
-  });
+  // Habitat fork: keep the docking switch reachable on the soundboard in either mode.
+  const dock = document.getElementById('soundboard-sidebar-mode');
+  if (dock) {
+    const label = dock.closest('label');
+    const popupControls = label.parentElement;
+    const sidebarSearch = document.getElementById('sb-sidebar-search');
+    const placeSwitch = () => {
+      if (dock.checked && sidebarSearch) sidebarSearch.before(label);
+      else popupControls.append(label);
+    };
+    dock.checked = this._soundboardSidebarMode;
+    placeSwitch();
+    dock.addEventListener('change', () => {
+      _applySoundboardSidebarMode(dock.checked);
+      placeSwitch();
+      if (!dock.checked && this.voice?.inVoice) this._openSoundModal('soundboard');
+    });
+  }
 
   // Init: show toggle button when sidebar mode is enabled, but keep panel CLOSED until user clicks
   {

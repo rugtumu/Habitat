@@ -1,3 +1,4 @@
+// Habitat fork: moving someone between voice rooms is a separately assignable moderation permission.
 // Every role permission, the ones only the server owner may grant, and their
 // labels. Shared by the role editor, channel roles and the Role Assignment
 // center.
@@ -9,7 +10,7 @@ export const ALL_PERMS = [
   // editor never rendered a checkbox for it. That made it ungrantable: the
   // "also ban IP" option on the ban dialog could only ever appear for admins,
   // no matter what a moderator's role said. (v3.43.0)
-  'pin_message', 'archive_messages', 'kick_user', 'mute_user', 'ban_user', 'ban_ip',
+  'pin_message', 'archive_messages', 'kick_user', 'move_voice_members', 'mute_user', 'ban_user', 'ban_ip',
   'rename_channel', 'rename_sub_channel', 'set_channel_topic', 'manage_sub_channels',
   // (#5467) Editing an existing channel's settings is its own grant, separate
   // from creating channels. Assign it channel-scoped to keep a moderator's
@@ -36,6 +37,7 @@ export const PERM_LABELS = {
   get delete_lower_messages() { return t('permissions.delete_lower_messages'); },
   get pin_message() { return t('permissions.pin_message'); },
   get archive_messages() { return t('permissions.archive_messages'); },
+  get move_voice_members() { return t('permissions.move_voice_members'); },
   get kick_user() { return t('permissions.kick_user'); },
   get mute_user() { return t('permissions.mute_user'); },
   get ban_user() { return t('permissions.ban_user'); },

@@ -24,7 +24,11 @@ class VoiceManager {
     this.socket = socket;
     this.localStream = null;        // Processed stream (sent to peers)
     this.rawStream = null;          // Raw mic stream (for local talk detection)
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('pagehide', (e) => { if (!e.persisted) this._releaseMic(); });
+    // Habitat fork: a discarded or history-cached page must not bring its call back on restore.
+    if (typeof window !== 'undefined') window.addEventListener?.('pagehide', () => {
+      if (this.inVoice || this._joinInFlight || this._softLeftChannel) this.leave();
+      else this._releaseMic();
+    });
     this.screenStream = null;       // Screen share MediaStream
     this.webcamStream = null;       // Webcam video MediaStream
     this._cameraSwitchGeneration = 0;
@@ -527,10 +531,7 @@ class VoiceManager {
     // maximize-triggered socket blip the peer map can briefly report 0
     // connected while the mic track and remote audio elements are still up.
     if (live === 0 && !micLive) return false;              // genuinely not in voice
-    let code = this.currentChannel || this._softLeftChannel;
-    if (!code) {
-      try { code = localStorage.getItem('haven_voice_channel'); } catch { /* storage blocked (private mode): keep the default */ }
-    }
+    const code = this.currentChannel || this._softLeftChannel || this._lastLiveRoom;
     if (!code) return false; // live media but no idea which channel, so leave it alone
     console.warn('[Voice] Local state said not-in-voice but media is live',
       `(peers=${live}, micLive=${micLive}): restoring session state for`, code);
@@ -538,7 +539,7 @@ class VoiceManager {
     this.inVoice = true;
     this._voiceSessionGeneration = (this._voiceSessionGeneration || 0) + 1;
     this._softLeftChannel = null;
-    try { localStorage.setItem('haven_voice_channel', code); } catch { /* storage blocked (private mode): nothing is remembered, nothing else breaks */ }
+    this._lastLiveRoom = code;
     // Our socket may have been rebound while we thought we were out; rejoin so
     // the server roster and our peers agree with us again. Throttled so a
     // repeatedly-failing repair can't spam signalling.
@@ -1664,9 +1665,7 @@ class VoiceManager {
       // Don't attempt to join while the socket is disconnected. The
       // emit() would otherwise be buffered by socket.io and flushed on
       // reconnect, producing duplicate sessions if the user clicked
-      // Start Voice multiple times during the outage. The 'connect'
-      // handler in app-socket.js auto-rejoins voice via the persisted
-      // localStorage channel once the socket comes back. (#voice-spam-click)
+      // Start Voice multiple times during the outage.
       if (this.socket && this.socket.connected === false) {
         console.warn('[Voice] join() ignored: socket disconnected');
         return false;
@@ -1789,8 +1788,8 @@ class VoiceManager {
 
       this._applyMuteStateToLocalTracks();
 
-      // Persist voice channel for auto-rejoin after page refresh or server restart
-      try { localStorage.setItem('haven_voice_channel', channelCode); } catch { /* storage blocked (private mode): nothing is remembered, nothing else breaks */ }
+      // Habitat fork: a fresh tab must wait for an explicit join, even after a browser restore.
+      this._lastLiveRoom = channelCode;
 
       this.socket.emit('voice-join', { code: channelCode, ...this.getRelayClientInfo() });
       // Inform peers / UI about our mute state so they show the muted icon
@@ -1835,6 +1834,8 @@ class VoiceManager {
   }
 
   leave() {
+    this._softLeftChannel = null;
+    this._lastLiveRoom = null;
     this._leaveCount = (this._leaveCount || 0) + 1;
     this._releaseMic();
     try { this._leaveSession(); } finally { this._releaseMic(); }
@@ -1926,9 +1927,6 @@ class VoiceManager {
     // Clear cached silent track
     this._cachedSilentTrack = null;
     
-    // Clear persisted voice channel
-    try { localStorage.removeItem('haven_voice_channel'); } catch { /* storage blocked (private mode): nothing is remembered, nothing else breaks */ }
-    
     // Clear any pending disconnect-recovery timers
     if (this._disconnectTimers) {
       for (const key of Object.keys(this._disconnectTimers)) {
@@ -1942,7 +1940,6 @@ class VoiceManager {
    * Soft-leave: clean up local voice state WITHOUT emitting to the server.
    * Used when the socket disconnects unexpectedly (e.g. mobile screen timeout)
    * so the client state is reset and the auto-rejoin on reconnect can work.
-   * Intentionally keeps haven_voice_channel in localStorage for that rejoin.
    */
   _softLeave() {
     if (!this.inVoice) return;
@@ -1980,12 +1977,7 @@ class VoiceManager {
     }
     this.gainNodes.clear();
 
-    // Remember the channel we were in so the reconnect handler can use
-    // voice-rejoin (which broadcasts voice-user-left to peers, forcing them
-    // to tear down stale RTCPeerConnections) instead of the slower
-    // setTimeout(1500) auto-rejoin path that fires plain voice-join. The
-    // auto-rejoin path leaves other peers with dead WebRTC sessions and is
-    // the cause of the "rejoined but can't hear anyone" pattern in #5347.
+    // Retain the interrupted room in this page until reconnection or explicit leave.
     this._softLeftChannel = this.currentChannel;
 
     this.currentChannel = null;
@@ -2012,7 +2004,6 @@ class VoiceManager {
       }
       this._disconnectTimers = {};
     }
-    // NOTE: leaves haven_voice_channel in localStorage so auto-rejoin on reconnect works
   }
 
   // Play a soundboard audio file and mix it into the VC stream so other users hear it

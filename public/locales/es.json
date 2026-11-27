@@ -885,6 +885,7 @@
     "pin_message": "Fijar mensajes",
     "highlight_messages": "Publicar mensajes oficiales",
     "archive_messages": "Proteger mensajes",
+    "move_voice_members": "Mover miembros entre canales de voz",
     "kick_user": "Expulsar usuarios",
     "mute_user": "Silenciar usuarios",
     "ban_user": "Banear usuarios",
@@ -1655,6 +1656,9 @@
         "hint": "Original es el diseño propio de Haven. Los demás provienen de plugins de diseño de este servidor. Se guarda por navegador."
       },
       "density": {
+        "preview": "Vista previa del chat",
+        "sample_first": "¿Alguien se apunta al chat de voz?",
+        "sample_reply": "¡Ya entro!",
         "title": "Densidad del diseño",
         "compact": "Compacto",
         "compact_hint": "Compacto — espaciado más ajustado, avatares más pequeños",

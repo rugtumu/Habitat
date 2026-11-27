@@ -83,7 +83,7 @@ _mountCallSettingsPage() {
   this.callSettingsPage = createCallSettingsPanel(host, {
     settings: this.callSettings,
     devices: this.callSettingsDevices,
-    include: ['voiceVolume'],
+    // Habitat fork: the page has one master volume with a percentage or dB readout.
     getMicLevel: () => (mic.active ? mic.level() : this._callSettingsMicLevel()),
   });
 

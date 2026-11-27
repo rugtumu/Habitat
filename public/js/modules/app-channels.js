@@ -744,7 +744,8 @@ _renderChannels() {
       if (voiceRow || this._isVoiceOnlyChannel(ch.code)) return;
       if (!this.user?.isAdmin && !this.user?.isGuest && !this._hasPerm('use_voice')) return;
       this.switchChannel(ch.code);
-      setTimeout(() => this._joinVoice(), 300);
+      // Habitat fork: join the selected room immediately, even if another channel opens next.
+      this._joinVoice(ch.code);
     });
     // Right-click to open context menu
     el.addEventListener('contextmenu', (e) => {

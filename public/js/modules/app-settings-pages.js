@@ -1,13 +1,13 @@
 const SETTINGS_PAGES = {
   user: [
-    ['look', '🎨', 'settings.pages.look', 'Appearance', ['section-layout', 'section-toolbar-icons', 'section-role-display', 'section-reaction-size', 'section-banner-display', 'section-toggle-style']],
-    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-chat-behavior', 'section-image-display', 'section-embed-size', 'section-soundboard-mode']],
+    ['look', '🎨', 'settings.pages.look', 'Appearance', ['section-layout', 'section-toolbar-icons', 'section-banner-display']],
+    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-chat-behavior', 'section-image-display', 'section-embed-size', 'section-reaction-size']],
     ['voice', '🎧', 'settings.pages.voice', 'Voice & video', ['section-call-settings']],
     ['alerts', '🔔', 'settings.pages.alerts', 'Notifications', ['section-sounds', 'section-push', 'section-whats-new']],
-    ['profile', '🎮', 'settings.pages.profile', 'Profile & activity', ['section-activity', 'section-score-badges']],
+    ['profile', '🎮', 'settings.pages.profile', 'Profile & activity', ['section-activity', 'section-role-display', 'section-score-badges']],
     ['security', '🔒', 'settings.pages.security', 'Account & security', ['section-password', 'section-e2e-passphrase', 'section-2fa', 'section-recovery', 'section-sessions', 'section-delete-account']],
     ['language', '🗣️', 'settings.pages.language', 'Language', ['section-language']],
-    ['access', '♿', 'settings.pages.access', 'Accessibility', ['section-zoom']],
+    ['access', '♿', 'settings.pages.access', 'Accessibility', ['section-zoom', 'section-toggle-style']],
     // Only in Haven Desktop: both sections are hidden in a browser, and a page with nothing in it is not listed.
     ['desktop', '🖥️', 'settings.pages.desktop', 'Shortcuts & desktop app', ['section-desktop-shortcuts', 'section-desktop-app']],
     ['advanced', '🧩', 'settings.pages.advanced', 'Plugins & advanced', ['section-plugins', 'section-debug']]
@@ -36,13 +36,37 @@ _setupSettingsPages() {
     s.pages = [...SETTINGS_PAGES[side], ...(extra.length ? [['more', '➕', 'settings.pages.more', 'More', extra]] : [])];
     const list = document.createElement('div');
     list.className = 'sp-list';
+    // Habitat fork: use the same available categories in the sidebar and phone picker.
+    s.picker = document.createElement('select');
+    s.picker.className = 'sp-page-picker';
+    s.picker.setAttribute('aria-label', tr('settings.title', 'Settings'));
+    s.picker.setAttribute('aria-controls', s.body.id);
+    const choose = id => {
+      const search = document.getElementById('settings-search');
+      if (search?.value) {
+        search.value = '';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      this._showSettingsPage(side, id);
+    };
+    s.picker.addEventListener('change', () => choose(s.picker.value));
+    s.nav.prepend(s.picker);
+    s.intro = document.createElement('header');
+    s.intro.className = 'sp-page-intro';
+    s.body.prepend(s.intro);
+    const empty = document.createElement('p');
+    empty.className = 'sp-empty';
+    empty.setAttribute('role', 'status');
+    empty.textContent = tr('header.search_no_results', 'No results found');
+    s.body.prepend(empty);
     s.pages.forEach(([id, icon, key, label]) => {
       const item = Object.assign(document.createElement('div'), { className: 'sp-cat', tabIndex: 0 });
       item.dataset.sp = id;
       item.setAttribute('role', 'button');
       item.append(Object.assign(document.createElement('span'), { className: 'sp-icon', textContent: icon }), Object.assign(document.createElement('span'), { textContent: tr(key, label) }));
-      item.addEventListener('click', () => this._showSettingsPage(side, id));
-      item.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), this._showSettingsPage(side, id)));
+      item.firstElementChild.setAttribute('aria-hidden', 'true');
+      item.addEventListener('click', () => choose(id));
+      item.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), choose(id)));
       list.append(item);
     });
     s.nav.prepend(list);
@@ -57,7 +81,18 @@ _setupSettingsPages() {
     const side = item.closest('.settings-nav-admin-group') ? 'admin' : 'user', page = sides[side].pages?.find(p => p[4].includes(item.dataset.target));
     page && page[0] !== this._spPage[side] && this._showSettingsPage(side, page[0], item.dataset.target);
   }, true);
-  ['input', 'keyup', 'search'].forEach(ev => modal.addEventListener(ev, (e) => e.target?.id === 'settings-search' && modal.classList.toggle('sp-search', !!e.target.value.trim())));
+  modal.addEventListener('input', e => {
+    if (e.target.id !== 'settings-search') return;
+    const query = e.target.value.trim().toLowerCase();
+    modal.classList.toggle('sp-search', !!query);
+    for (const details of modal.querySelectorAll('details.toolbar-order-wrap')) {
+      if (query && !details.hasAttribute('data-before-search')) details.dataset.beforeSearch = String(details.open);
+      if (details.hasAttribute('data-before-search')) {
+        details.open = details.dataset.beforeSearch === 'true' || (!!query && details.textContent.toLowerCase().includes(query));
+        if (!query) delete details.dataset.beforeSearch;
+      }
+    }
+  });
   document.querySelectorAll('#settings-tab-bar .settings-tab').forEach(tab => tab.addEventListener('click', () => setTimeout(() => this._showSettingsPage(tab.dataset.tab === 'admin' ? 'admin' : 'user'), 0)));
   document.getElementById('open-settings-btn')?.addEventListener('click', () => setTimeout(() => { this._showSettingsPage('user'); this._showSettingsPage('admin'); }, 0));
   this._showSettingsPage('user');
@@ -99,6 +134,37 @@ _showSettingsPage(side, id, skip) {
   const page = usable.find(p => p[0] === (id || this._spPage[side])) || usable[0];
   if (!page) return;
   this._spPage[side] = page[0];
+  s.picker.replaceChildren(...usable.map(([id]) => {
+    const label = s.list.querySelector(`[data-sp="${id}"]`).lastElementChild.textContent;
+    return new Option(label, id);
+  }));
+  s.picker.value = page[0];
+  const sections = page[4].filter(sid => this._spAvailable(side, sid));
+  s.intro.replaceChildren();
+  s.intro.hidden = sections.length < 2;
+  s.body.classList.toggle('sp-single', s.intro.hidden);
+  if (!s.intro.hidden) {
+    const title = document.createElement('h4');
+    title.textContent = s.picker.selectedOptions[0].textContent;
+    const links = document.createElement('div');
+    links.className = 'sp-section-links';
+    for (const sid of sections) {
+      const anchor = s.nav.querySelector(`.settings-nav-item[data-target="${sid}"]`);
+      if (!anchor) continue;
+      const jump = document.createElement('button');
+      jump.type = 'button';
+      jump.setAttribute('aria-controls', sid);
+      jump.textContent = (anchor.querySelector('[data-i18n]') || anchor).textContent.trim();
+      jump.addEventListener('click', () => {
+        anchor.click();
+        const target = document.getElementById(sid);
+        target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+      });
+      links.append(jump);
+    }
+    s.intro.append(title, links);
+  }
   s.list.querySelectorAll('.sp-cat').forEach(c => { const on = c.dataset.sp === page[0]; c.classList.toggle('active', on); c.setAttribute('aria-current', on ? 'page' : 'false'); c.style.display = usable.some(p => p[0] === c.dataset.sp) ? '' : 'none'; on && s.list.scrollWidth > s.list.clientWidth && c.scrollIntoView({ block: 'nearest', inline: 'nearest' }); });
   s.body.querySelectorAll(s.sel).forEach(sec => sec.id !== 'admin-mod-panel' && sec.classList.toggle('sp-off', !page[4].includes(sec.id)));
   this._spBusy = true;

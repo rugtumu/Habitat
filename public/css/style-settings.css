@@ -102,6 +102,38 @@
   resize: both;
 }
 
+/* Use the chat's spacing tokens so the sample follows density and interface zoom. */
+.density-sample {
+  margin: .625rem 0;
+  padding: .75rem 1rem;
+  border: .0625rem solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.density-sample figcaption {
+  margin-bottom: .375rem;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  font-weight: 600;
+}
+.density-sample-row {
+  display: grid;
+  grid-template-columns: var(--msg-avatar) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--msg-gap);
+  padding-block: var(--msg-pad-y);
+}
+.density-sample-avatar {
+  display: grid;
+  place-items: center;
+  width: var(--msg-avatar);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--bg-active);
+}
+.density-sample-row time { margin-inline-start: .375rem; }
+.density-sample-row p { margin: .0625rem 0 0; }
+
 /* ── Activities / Games Launcher ──────────────────────── */
 .modal-activities {
   max-width: 32.5rem;
@@ -1030,3 +1062,8 @@
   .sp-cat.active { border-color: var(--accent); }
 }
 #login-css-row > label { display: block; margin-bottom: 0.375rem; font-size: 0.8125rem; color: var(--text-primary); }
+
+
+/* The Habitat theme shows these controls alongside its responsive navigation. */
+.sp-page-intro, .sp-page-picker, .sp-empty { display: none; }
+details.toolbar-order-wrap > summary { cursor: pointer; }

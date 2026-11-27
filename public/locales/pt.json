@@ -753,6 +753,7 @@
     "delete_lower_messages": "Excluir mensagens de níveis inferiores",
     "pin_message": "Fixar mensagens",
     "archive_messages": "Proteger mensagens",
+    "move_voice_members": "Mover membros entre canais de voz",
     "kick_user": "Expulsar usuários",
     "mute_user": "Silenciar usuários",
     "ban_user": "Banir usuários",
@@ -1493,6 +1494,9 @@
     "layout": {
       "title": "Layout",
       "density": {
+        "preview": "Prévia do chat",
+        "sample_first": "Alguém quer conversar por voz?",
+        "sample_reply": "Já estou entrando!",
         "title": "Densidade da disposição",
         "compact": "Compacta",
         "compact_hint": "Compacta — menos espaço e avatares menores",

@@ -769,6 +769,7 @@
     "delete_lower_messages": "下位ユーザーのメッセージを削除",
     "pin_message": "メッセージをピン留め",
     "archive_messages": "メッセージを保護",
+    "move_voice_members": "メンバーをボイスチャンネル間で移動",
     "kick_user": "ユーザーをキック",
     "mute_user": "ユーザーをミュート",
     "ban_user": "ユーザーをBAN",
@@ -1449,6 +1450,9 @@
     },
     "layout": {
       "density": {
+        "preview": "チャットのプレビュー",
+        "sample_first": "誰かボイスチャットしない？",
+        "sample_reply": "今行くよ！",
         "title": "レイアウトの密度",
         "compact": "コンパクト",
         "compact_hint": "コンパクト: 間隔を詰め、アバターを小さく表示",

@@ -324,7 +324,7 @@ _initAutomodPanel() {
     const clearBtn = document.getElementById('media-cache-clear');
     if (clearBtn) clearBtn.addEventListener('click', () => this.socket.emit('clear-media-cache'));
   });
-  this.socket.emit('get-media-cache-stats');
+  // Habitat fork: opening the Admin tab requests cache stats alongside the moderation lists.
 
   // Idle-online oversight (v3.46.0)
   const idleRefresh = document.getElementById('idle-online-refresh');

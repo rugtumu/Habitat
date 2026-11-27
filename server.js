@@ -700,10 +700,43 @@ if (RUFFLE_DIR) {
 app.use('/games/roms', express.static(GAMES_ROMS_DIR, { dotfiles: 'deny', maxAge: 0 }));
 
 // ── Static files with caching ────────────────────────────
+// Habitat fork: tell a first-time browser the published server theme before it paints the login or chat.
+app.get(['/', '/index.html', '/app', '/app.html'], async (req, res, next) => {
+  const page = req.path.startsWith('/app') ? 'app.html' : 'index.html';
+  try {
+    let html = await fs.promises.readFile(path.join(__dirname, 'public', page), 'utf8');
+    try {
+      const rows = await require('./src/database').getDb().async.prepare(
+        "SELECT key, value FROM server_settings WHERE key IN ('default_theme', 'published_themes')"
+      ).all();
+      const settings = Object.fromEntries(rows.map(row => [row.key, row.value]));
+      const published = JSON.parse(settings.published_themes || '[]');
+      const value = settings.default_theme || '';
+      const file = value.replace(/^file:/, '');
+      const theme = BUILTIN_THEMES.includes(value) ? value :
+        (Array.isArray(published) && published.includes(file) && readThemeMetadataFile(THEMES_DIR, file)?.compatible
+          ? 'file:' + file : '');
+      // Both accepted alphabets are restricted to theme names, never free-form HTML.
+      html = html.replace('<html ', '<html data-server-theme="' + theme + '" ');
+    } catch { /* The normal preferences path still works while branding is unavailable. */ }
+    if (page === 'app.html') html = html.replace(/(\?v=)[^"']*/g, '$1' + require('./package.json').version);
+    res.set('Cache-Control', 'no-cache').type('html').send(html);
+  } catch (error) { next(error); }
+});
+
+// A fork release can keep the upstream package version. Revalidate executable assets
+// against this server instance even if Docker preserved the previous size and timestamp.
+const assetGeneration = crypto.randomBytes(8).toString('hex');
+function setClientAssetHeaders(res, file, stat) {
+  if (!/\.(?:js|css|json|mjs)$/i.test(file)) return;
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('ETag', `W/"${assetGeneration}-${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`);
+}
 app.use(express.static(path.join(__dirname, 'public'), {
   dotfiles: 'deny',       // block .env, .git, etc.
   etag: true,             // ETag for conditional requests
   lastModified: true,     // Last-Modified header
+  setHeaders: setClientAssetHeaders,
   maxAge: 0,              // always revalidate (prevents stale JS/CSS after deploys)
 }));
 
@@ -717,6 +750,8 @@ app.use('/uploads', serveUploads(storage));
 const PLUGINS_DIR = path.join(__dirname, 'plugins');
 const THEMES_DIR  = path.join(__dirname, 'themes');
 const {
+  BUILTIN_THEMES,
+  readThemeMetadataFile,
   compatibleThemeFiles,
   createThemeFileMiddleware,
   readThemeMetadataSnapshot,
@@ -735,7 +770,7 @@ const extensionUpdater = createExtensionUpdater({
   havenVersion: require('./package.json').version,
 });
 
-app.use('/plugins', express.static(PLUGINS_DIR, { dotfiles: 'deny', maxAge: 0 }));
+app.use('/plugins', express.static(PLUGINS_DIR, { dotfiles: 'deny', maxAge: 0, setHeaders: setClientAssetHeaders }));
 app.use('/themes', createThemeFileMiddleware(THEMES_DIR));
 app.use('/themes',  express.static(THEMES_DIR,  { dotfiles: 'deny', maxAge: 0 }));
 
@@ -1146,20 +1181,6 @@ app.post('/api/tunnel/sync', express.json(), async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Tunnel sync failed' });
   }
-});
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/app', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  // Inject current version into cache-busting query strings so client
-  // assets are never served stale after an update (especially in Electron).
-  const ver = require('./package.json').version;
-  let html = fs.readFileSync(path.join(__dirname, 'public', 'app.html'), 'utf8');
-  html = html.replace(/(\?v=)[^"']*/g, `$1${ver}`);
-  res.type('html').send(html);
 });
 
 // ── Vanity invite link (/invite/:code) ────────────────

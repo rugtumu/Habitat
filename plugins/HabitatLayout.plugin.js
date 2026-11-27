@@ -263,9 +263,8 @@ class HabitatLayout {
         if (!partner || row.querySelector('[data-habitat-dm-avatar]')) continue;
         const name = row.querySelector('.channel-name')?.textContent.trim() || partner.username;
         // A newly opened DM can arrive with only the partner's ID and name.
-        const member = partner.avatar === undefined
-          ? window.app._memberById?.(partner.id) : null;
-        const face = this._memberFace(member || partner, name);
+        const member = window.app._memberById?.(partner.id);
+        const face = this._memberFace({ ...member, ...partner }, name);
         face.setAttribute('data-habitat-dm-avatar', '');
         row.prepend(face);
       }
@@ -293,7 +292,16 @@ class HabitatLayout {
       image.dataset.animate = person.animateProfile === 'disabled' ? 'disabled' : 'trigger';
       image.addEventListener('error', () => image.remove(), { once: true });
       image.src = person.avatar;
+      image.draggable = false;
       face.appendChild(image);
+    }
+    if (person.border?.startsWith('/uploads/')) {
+      const frame = document.createElement('span');
+      frame.className = 'pfp-border';
+      frame.dataset.border = person.border;
+      frame.dataset.bt = JSON.stringify(person.borderTransform || []);
+      frame.dataset.animate = person.animateProfile === 'disabled' ? 'disabled' : 'trigger';
+      face.appendChild(frame);
     }
     return face;
   }
@@ -391,6 +399,53 @@ class HabitatLayout {
     sync();
   }
 
+  _wireVoiceMoves(rooms) {
+    let drag = null;
+    let highlight = null;
+    const mark = row => {
+      if (row === highlight) return;
+      highlight?.removeAttribute('data-habitat-drop');
+      highlight = row;
+      row?.setAttribute('data-habitat-drop', '');
+    };
+    const destination = event => {
+      const row = event.target.closest('.channel-item[data-code]') ||
+        event.target.closest('.channel-voice-users')?.previousElementSibling;
+      return drag && row && row.dataset.code !== drag.from &&
+        window.app.channels.some(ch => ch.code === row.dataset.code && ch.canMoveVoiceMembers) ? row : null;
+    };
+    this._on(rooms, 'dragstart', event => {
+      const row = event.target.closest('.channel-voice-user[draggable="true"]');
+      if (!row) return;
+      event.stopPropagation();
+      drag = { from: row.parentElement.previousElementSibling.dataset.code, userId: Number(row.dataset.userId) };
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', row.dataset.username);
+    });
+    this._on(rooms, 'dragover', event => {
+      if (!drag) return;
+      event.stopPropagation();
+      const target = destination(event);
+      mark(target);
+      if (target) event.preventDefault();
+    });
+    this._on(rooms, 'dragleave', event => { if (!rooms.contains(event.relatedTarget)) mark(null); });
+    this._on(rooms, 'drop', event => {
+      if (!drag) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const target = destination(event);
+      if (target) window.app.socket.emit('voice-move-member', { ...drag, to: target.dataset.code });
+      mark(null);
+      drag = null;
+    });
+    this._on(document, 'dragend', () => { mark(null); drag = null; });
+    this._on(document, 'dragstart', () => {
+      mark(null);
+      drag = null;
+    }, true);
+  }
+
   _buildVoiceRooms() {
     const list = document.getElementById('channel-list');
     const create = this._region('create-channel');
@@ -428,6 +483,7 @@ class HabitatLayout {
     // The renderer keeps the original room buttons, moderation actions and live user rows.
     list.appendChild(section);
     this._voiceDirectory = section;
+    this._wireVoiceMoves(rooms);
     window.app._renderChannels();
     const paint = () => {
       for (const row of list.querySelectorAll('.channel-voice-user:not(:has([data-habitat-face]))')) {
@@ -435,6 +491,9 @@ class HabitatLayout {
         const code = row.parentElement.previousElementSibling?.dataset.code;
         const member = window.app._onlineByChannel?.get(code)?.find(user => String(user.id) === id)
           || window.app._memberById?.(id) || { id };
+        const app = window.app;
+        if (Number(id) !== app.user?.id && row.dataset.isBot !== 'true' &&
+            app.channels?.some(ch => ch.code === code && ch.canMoveVoiceMembers)) row.draggable = true;
         row.prepend(this._memberFace(member, row.dataset.username));
         this._make('span', { 'data-habitat-speaking': '' }, row).textContent = this._text('speaking');
       }
@@ -482,6 +541,9 @@ class HabitatLayout {
     const mark = this._make('span', { 'aria-hidden': 'true' }, intro);
     const title = this._make('h2', {}, intro);
     const hint = this._make('p', {}, intro);
+    const join = this._make('button', { type: 'button', class: 'btn-sm btn-accent', 'data-habitat-join-room': '' }, intro);
+    join.textContent = this._text('joinRoom');
+    this._on(join, 'click', () => window.app?._joinVoice());
     // A generated heading scrolls with the first page without becoming a
     // message. Haven relies on its real first child to paginate and trim.
     const historyTitle = 'data-habitat-history-title';
@@ -505,6 +567,8 @@ class HabitatLayout {
       mark.textContent = dm ? '@' : voiceRoom ? '' : '#';
       intro.setAttribute('data-habitat-intro', voiceRoom ? 'voice' : '');
       title.textContent = voiceRoom ? name.replace(/^#\s*/, '') : name;
+      hint.hidden = voiceRoom;
+      join.hidden = !voiceRoom || !window.app?._canUseVoice?.();
       hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
       syncHistory();
     };
@@ -587,15 +651,19 @@ class HabitatLayout {
         const frame = member?.querySelector('.pfp-border');
         // The member list can arrive after the call does: a face drawn without
         // the picture or frame it now has is drawn again.
-        const drawn = `${photo?.src || ''}|${frame?.getAttribute('data-border') || ''}`;
+        const drawn = JSON.stringify([photo?.src, frame?.dataset.border, frame?.dataset.bt, frame?.dataset.animate, photo?.dataset.animate]);
         const old = row.querySelector('[data-habitat-call-avatar]');
         if (old?.getAttribute('data-habitat-call-avatar') === drawn) continue;
         old?.remove();
         const face = this._make('span', { 'data-habitat-call-avatar': drawn, 'aria-hidden': 'true' }, row);
-        if (photo) this._make('img', { src: photo.src, alt: '', 'data-habitat-call-photo': '' }, face);
+        if (photo) this._make('img', { src: photo.src, alt: '', 'data-habitat-call-photo': '', 'data-animate': photo.dataset.animate || 'trigger' }, face);
         else face.textContent = Array.from(row.querySelector('.user-item-name')?.textContent || '?')[0];
         // The member's own picture frame comes along, as drawn in the member list.
-        if (frame) face.appendChild(frame.cloneNode(true));
+        if (frame) {
+          const marker = frame.cloneNode(false);
+          delete marker.dataset.pfpDone;
+          face.appendChild(marker);
+        }
         row.insertBefore(face, row.firstChild);
       }
     };
@@ -979,6 +1047,20 @@ class HabitatLayout {
         slider.value = String(next);
         apply(next);
       });
+      const source = app.channels?.find(ch => ch.canMoveVoiceMembers &&
+        app.voiceChannelUsers[ch.code]?.some(person => person.id === userId));
+      const destinations = source && app.channels.filter(ch => ch.canMoveVoiceMembers && ch.code !== source.code);
+      if (destinations?.length) {
+        const label = this._text('moveMember');
+        const picker = this._make('select', { 'aria-label': label, 'data-habitat-move-member': '' }, tools);
+        this._make('option', { value: '' }, picker).textContent = label;
+        for (const room of destinations) this._make('option', { value: room.code }, picker).textContent = room.name;
+        picker.addEventListener('change', () => {
+          if (picker.value) app.socket.emit('voice-move-member', { from: source.code, to: picker.value, userId });
+          picker.value = '';
+          app._closeProfilePopup();
+        });
+      }
       body.insertBefore(tools, body.querySelector('.profile-popup-actions'));
       // The card was placed before it grew.
       app._positionProfilePopup?.(card);
@@ -1235,6 +1317,11 @@ class HabitatLayout {
       this._setAttr(donors, 'aria-label', this._text('supporters'));
     }
 
+    const permissions = this._make('button', { type: 'button', 'data-habitat-permissions': '', 'aria-label': this._text('permissions') }, menu);
+    permissions.appendChild(this._icon('M12 3l8 3v6c0 5-5 8-8 10-3-2-8-5-8-10V6z M8.5 12l2.5 2.5 4.5-5'));
+    this._on(permissions, 'click', () => {
+      if (window.app?._hasPerm?.('manage_roles')) window.app._openPermMatrix();
+    });
     this._menu = menu;
     this._menuButton = button;
     this._on(button, 'click', () => this._toggleMenu());
@@ -1250,7 +1337,11 @@ class HabitatLayout {
 
   _toggleMenu(open = this._menu?.hidden) {
     if (!this._menu) return;
-    if (open) this._labelMenu();
+    if (open) {
+      const permissions = this._menu.querySelector('[data-habitat-permissions]');
+      if (permissions) permissions.hidden = !window.app?._hasPerm?.('manage_roles');
+      this._labelMenu();
+    }
     this._menu.hidden = !open;
     this._menuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
@@ -1456,7 +1547,7 @@ class HabitatLayout {
 HabitatLayout.TEXT = Object.freeze({
   en: Object.freeze({
     menu: 'Server menu', add: 'Add a channel', close: 'Close', supporters: 'Supporters',
-    speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
+    joinRoom: 'Join voice', moveMember: 'Move to voice channel…', permissions: 'Roles & permissions', speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
     callView: 'Call view', find: 'Find a conversation', channels: 'Channels', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
     channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.',
@@ -1472,7 +1563,7 @@ HabitatLayout.TEXT = Object.freeze({
   }),
   tr: Object.freeze({
     menu: 'Sunucu menüsü', add: 'Kanal ekle', close: 'Kapat', supporters: 'Destekçiler',
-    speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
+    joinRoom: 'Ses odasına katıl', moveMember: 'Ses odasına taşı…', permissions: 'Roller ve yetkiler', speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
     callView: 'Arama görünümü', find: 'Sohbet bul', channels: 'Kanallar', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
     channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.',
@@ -2009,7 +2100,13 @@ body.is-guest [data-habitat-inbox], body.is-guest [data-habitat-lists] [aria-con
   background: color-mix(in srgb, var(--habitat-avatar-color) 45%, var(--bg-tertiary));
   color: var(--text-primary); font: 700 .9375rem/1 var(--font-main);
 }
-[data-habitat-face] img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+[data-habitat-face]:has(> .pfp-border) { overflow: visible; }
+[data-habitat-face] > img { border-radius: inherit; }
+[data-habitat-move-member] { grid-column: 1 / -1; width: 100%; min-height: 2.5rem; }
+html[data-habitat-layout] [data-habitat-menu] [data-habitat-permissions][hidden] { display: none; }
+[data-habitat-rooms] .channel-voice-user[draggable="true"] { cursor: grab; }
+[data-habitat-rooms] .channel-item[data-habitat-drop] { outline: .125rem solid var(--accent); outline-offset: -.125rem; }
+[data-habitat-face] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dm-item > [data-habitat-dm-avatar] + .channel-hash { display: none; }
 [data-habitat-lists] button {
   flex: 1; min-width: 0; min-height: 2.125rem;
@@ -2062,6 +2159,8 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
   background: var(--bg-active); border-radius: 50%; font: 600 1.875rem/1 var(--font-main);
 }
 [data-habitat-intro] h2 { margin: .75rem 0 .25rem; overflow-wrap: anywhere; font: 750 1.625rem/1.15 var(--font-heading); }
+[data-habitat-join-room] { margin-block-start: .5rem; min-height: 2.5rem; }
+[data-habitat-join-room][hidden], html:has([data-habitat-rooms] .active[data-voice-connected]) [data-habitat-join-room] { display: none; }
 [data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
 @media (min-width: 901px) {
   html[data-habitat-layout-desktop]:has(#voice-join-btn[style*="inline-flex"]) #voice-join-mobile { display: none; }

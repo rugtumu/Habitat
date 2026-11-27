@@ -218,6 +218,8 @@ module.exports = function createChannelLists({ db, userHasPermission, roleGateAl
         if (!ch.is_dm) {
           ch.canManageSettings = isAdmin || userHasPermission(userId, 'manage_channel_settings', ch.id);
           ch.canManageSubs = isAdmin || userHasPermission(userId, 'manage_sub_channels', ch.id);
+          // Habitat fork: the move picker must respect the role assigned in each room.
+          ch.canMoveVoiceMembers = ch.voice_enabled !== 0 && (isAdmin || userHasPermission(userId, 'move_voice_members', ch.id));
         }
 
         if (ch.is_dm) {
@@ -515,6 +517,8 @@ module.exports = function createChannelLists({ db, userHasPermission, roleGateAl
         if (!ch.is_dm) {
           ch.canManageSettings = isAdmin || await asyncPermissions.userHasPermission(userId, 'manage_channel_settings', ch.id);
           ch.canManageSubs = isAdmin || await asyncPermissions.userHasPermission(userId, 'manage_sub_channels', ch.id);
+          // Habitat fork: the move picker must respect the role assigned in each room.
+          ch.canMoveVoiceMembers = ch.voice_enabled !== 0 && (isAdmin || await asyncPermissions.userHasPermission(userId, 'move_voice_members', ch.id));
         }
 
         if (ch.is_dm) {

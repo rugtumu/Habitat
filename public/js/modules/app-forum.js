@@ -964,7 +964,7 @@ _setupSettingsSearch() {
   if (!nav || !modal || document.getElementById('settings-search')) return;
   const wrap = document.createElement('div');
   wrap.className = 'settings-search-wrap';
-  wrap.innerHTML = `<input type="search" id="settings-search" class="settings-search" placeholder="${t('settings.search_placeholder')}" autocomplete="off">`;
+  wrap.innerHTML = `<input type="search" id="settings-search" class="settings-search" aria-label="${t('settings.search_placeholder')}" title="${t('settings.search_placeholder')}" placeholder="${t('gifs.tab_search')}" autocomplete="off">`;
   nav.insertBefore(wrap, nav.firstChild);
   const input = wrap.querySelector('input');
   const apply = () => {
@@ -986,9 +986,10 @@ _setupSettingsSearch() {
     modal.querySelectorAll('.settings-body').forEach(body => { body.scrollTop = 0; });
   };
   input.addEventListener('input', apply);
+  // Habitat fork: Escape also restores the category view and its folded lists.
   modal.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && this._shortcutKey(e) === 'f') { e.preventDefault(); input.focus(); input.select(); }
-    if (e.key === 'Escape' && document.activeElement === input && input.value) { e.stopPropagation(); input.value = ''; apply(); }
+    if (e.key === 'Escape' && document.activeElement === input && input.value) { e.stopPropagation(); input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); }
   });
 },
 
