@@ -982,7 +982,10 @@ class HabitatLayout {
       let focus = all.find(slot => slot.key === focusKey && !slot.away) || null;
       if (!focus) focusKey = null;
       if (!focus && autoFocus) focus = screens[0] || null;
-      alone.hidden = all.length !== 1 || !stage.hasAttribute('data-habitat-voice-room');
+      // A lone member's own camera fills the stage, and the notice would lie
+      // across the picture.
+      alone.hidden = all.length !== 1 || !all[0].row || !!all[0].camera
+        || !stage.hasAttribute('data-habitat-voice-room');
       invite.hidden = document.getElementById('sidebar-invite-panel')?.style.display === 'none'
         || !document.getElementById('right-btn-invite-popout');
       let large = spread ? screens : focus ? [focus] : [];

@@ -1,0 +1,206 @@
+/**
+ * @name        Habitat Grafit Light
+ * @description Paper surfaces, deep jade and Habitat’s daytime skyline.
+ * @author      Habitat
+ * @version     1.0
+ * @icon        ⬡
+ * @haven-theme-api 1
+ */
+@import url("habitat-grafit.theme.css");
+
+:root {
+  color-scheme: light;
+
+  --bg-primary:    #ffffff;
+  --bg-secondary:  #f4f6f6;
+  --bg-tertiary:   #ebeeee;
+  --bg-hover:      #e2e7e6;
+  --bg-active:     #d5dcdb;
+  --bg-input:      #ebeeee;
+  --bg-card:       #ffffff;
+
+  --hb-rail:       #e0e5e4;
+  --hb-rail-hover: #d3dad9;
+  --hb-rail-active: #c5cecc;
+  --hb-raise:      #ffffff;
+  --hb-settings-page: #ffffff;
+  --hb-settings-nav: #f4f6f6;
+  --hb-settings-well: #ebeeee;
+  --hb-settings-selected: #d5dcdb;
+  --hb-settings-line: #d9dfde;
+  --hb-profile-banner: #8cc7b5;
+  --hb-sky:        #bfe3d8;
+  --hb-horizon:    #f6ecd9;
+  --hb-moon:       #ffe2a6;
+  --hb-far-ridge:  #a9d2c5;
+  --hb-near-ridge: #7fbaa8;
+  --hb-ink-night:  #e3f1ec;
+  --hb-shadow-ink: rgba(23, 33, 31, .16);
+  --hb-shadow-line: rgba(23, 33, 31, .10);
+  --hb-elev-popover: 0 0 0 .0625rem var(--hb-shadow-line), 0 .5rem 1.5rem var(--hb-shadow-ink);
+  --hb-elev-dialog: 0 0 0 .0625rem var(--hb-shadow-line), 0 1.5rem 4rem var(--hb-shadow-ink);
+  --hb-ring-hairline: inset 0 0 0 .0625rem color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --hb-ring-speaking: inset 0 0 0 .125rem var(--led-on), 0 0 0 .25rem color-mix(in srgb, var(--led-on) 25%, transparent);
+
+  --accent:        #146a55;
+  --accent-hover:  #0f5645;
+  --accent-glow:   rgba(20, 106, 85, .14);
+  --accent-text:   #ffffff;
+
+  --text-primary:  #1a2120;
+  --text-secondary: #414c49;
+  --text-muted:    #55605d;
+  --hb-name-weight: 27%;
+  --text-link:     #0b6470;
+
+  --border:        #d9dfde;
+  --border-light:  #bcc6c4;
+  --border-color:  var(--border);
+
+  --success:       #1a6b2b;
+  --success-text:  #ffffff;
+  --danger:        #b02a21;
+  --danger-text:   #ffffff;
+  --warning:       #855600;
+  --warning-text:  #ffffff;
+  --led-on:        #228b3b;
+  --led-off:       #737f7c;
+  --led-glow:      rgba(34, 139, 59, .22);
+}
+
+/* Only the rail controls inherit these steps. The account and status menus
+   live inside the footer and use the ordinary card palette. */
+:is([data-haven-region="server-rail"], [data-haven-region="account"],
+    [data-haven-region="sidebar-footer"], [data-haven-region="status-bar"])
+  :is(button, .server-icon, .voice-bar-status):not(:where([data-habitat-menu] *, .status-picker *, .theme-popup *, [data-haven-region="voice-settings"] *)) {
+  --bg-hover: var(--hb-rail-hover);
+  --bg-active: var(--hb-rail-active);
+}
+[data-haven-region="account"] > #user-status-btn { --bg-tertiary: var(--hb-rail); }
+[data-haven-page="app"] [data-haven-region="status-bar"] { border-top-color: var(--border-light); }
+[data-haven-page="app"] .server-separator { background: var(--border-light); }
+
+[data-haven-page="app"] .main.has-banner:not(.banner-mode-shaded):not(.banner-mode-minimal):not(.banner-mode-transparent) > .server-banner-display > .server-banner-img,
+.dm-pip-banner { opacity: .14; }
+
+/* The shaded header has light cards and inputs of its own. Only lettering
+   directly on the glass gets the media ink. */
+.main:is(.banner-mode-shaded, .banner-mode-minimal) :is(.channel-info, .channel-topic-bar,
+    .header-actions-box > .icon-btn, .e2e-menu-wrapper > .icon-btn, [data-habitat-channel-tools] > summary,
+    .mobile-menu-btn, .mobile-users-btn),
+.main.banner-mode-minimal .channel-header :is(.btn-voice, .voice-active-indicator) {
+  --bg-hover: var(--hb-media-plate-hover);
+  --bg-active: var(--hb-media-plate-hover);
+  color: var(--hb-on-media);
+}
+
+[data-haven-page="app"] .mention.mention-self {
+  background: color-mix(in srgb, var(--role-color, var(--accent)) 20%, var(--bg-primary));
+}
+.mention.mention-everyone {
+  background: color-mix(in srgb, var(--warning) 12%, var(--bg-primary));
+  color: var(--warning);
+}
+
+/* Haven sets each author's colour inline. Mix the glyph ink with graphite
+   so badges keep their background and scrolling needs no per-name filter. */
+:is(.message-author, .reply-author, .thread-msg-author, .pinned-item-author, .search-result-author,
+    [data-haven-region="member-list"] .user-item-name[style], .user-role-badge, .role-member-badge,
+    .aml-role-badge, .profile-popup:not(.has-profile-theme) .profile-popup-role, .mention-role) {
+  -webkit-text-fill-color: color-mix(in srgb, currentColor var(--hb-name-weight), var(--text-primary));
+}
+/* The offline ring still conveys presence when the name is shown at full contrast. */
+[data-haven-region="member-list"] .user-item.offline { opacity: 1; color: var(--text-muted); }
+/* The gradient is already clipped to the letters. Multiply its stops by
+   the lightest allowed ink, preserving the role's shimmer and colour emoji. */
+:is(.message-author, .reply-author, .thread-msg-author, [data-haven-region="member-list"] .user-item-name,
+    .user-role-badge, .role-member-badge, .aml-role-badge, .profile-popup:not(.has-profile-theme) .profile-popup-role, .mention-role) > .role-gradient {
+  background-color: color-mix(in srgb, var(--bg-primary) var(--hb-name-weight), var(--text-primary));
+  background-blend-mode: multiply;
+}
+
+.chat-table th, .sub-panel-tile, .music-search-picker-thumb, .organize-tag-header:not(.selected),
+.donors-grid { background: var(--bg-tertiary); }
+
+.chat-table tbody tr:hover, .user-role-badge, .cfn-badge.cfn-off, .sub-panel-tile:hover,
+.e2e-dropdown-item:hover, .status-online-trigger:hover, .online-overlay-user:hover,
+.toast-action-btn, .music-search-picker-cancel, .music-pip-btn,
+.channel-roles-member:not(.selected):hover, .channel-roles-role-item:not(.active):hover, .channel-roles-badge,
+.cr-perm-toggle:hover, .rac-user-item:not(.active):hover, .rac-channel-item:not(.active):hover,
+.rac-perm-item:not(.checked, :has(:checked), .disabled):hover, .rac-channel-current-role, .rac-current-role, .role-sidebar-item:not(.active):hover,
+.role-detail-form .toggle-row:hover, .organize-tag-header:not(.selected):hover, .organize-item:not(.selected):hover,
+.organize-has-subs:hover, .organize-item .organize-tag-badge, .perm-user-row:hover, .donors-close-btn:hover,
+.donor-chip { background: var(--bg-hover); }
+
+.thread-message:hover { background: color-mix(in srgb, var(--bg-hover) 55%, transparent); }
+@media (hover: none) and (pointer: coarse) {
+  #messages > :is(.message, .message-compact).msg-selected { background: var(--bg-hover); }
+}
+
+.mic-meter, .music-pip-vol, .toast-action-btn:hover, .music-search-picker-cancel:hover,
+.music-pip-btn:hover, .donor-chip:hover { background: var(--bg-active); }
+.cfn-badge.cfn-on { color: var(--success); }
+.music-search-picker-play, .music-search-picker-more { color: var(--accent-text); }
+
+:is(.audit-log-row, .organize-item, .merge-repost, .music-search-picker-item) {
+  border-bottom-color: var(--border);
+}
+.modal-expand-btn, .donors-grid, .donor-chip { border-color: var(--border); }
+.modal-expand-btn:hover, .toast-action-btn, .music-pip-vol, .donor-chip:hover { border-color: var(--border-light); }
+.donors-sponsor-title, .donors-donor-title, .donor-chip.donor-sponsor { color: var(--warning); }
+.donors-tier-title::before, .donors-tier-title::after { background: var(--border); }
+.donors-tiers, .donors-grid { scrollbar-color: var(--border-light) transparent; }
+
+/* A browser ignores the entire selector list if it cannot parse the other engine's pseudo-element. */
+:is(.volume-slider, .slider-sm)::-webkit-slider-runnable-track {
+  background: var(--bg-active); border-color: var(--border-light);
+}
+:is(.volume-slider, .slider-sm)::-moz-range-track {
+  background: var(--bg-active); border-color: var(--border-light);
+}
+
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu)
+    button:is(.danger, .user-ctx-danger):is(:hover, :focus-visible),
+.channel-ctx-item.danger:hover, .manage-server-actions button.danger-action:hover {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-card));
+}
+
+.dm-pip-header, .dm-pip-input-area, .dm-pip-reply-bar {
+  background: var(--bg-secondary);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+[data-haven-page="app"] .dm-pip-panel { background-color: var(--bg-primary); }
+.dm-pip-panel::after { content: none; }
+
+.toast.error, .toast.info { background: var(--bg-card); color: var(--text-primary); }
+.toast, .image-context-menu, .voice-user-menu, .format-picker, .reaction-popout, .emoji-skin-menu,
+.group-invite, .haven-tooltip, .dm-pip-panel, .music-pip-overlay, .music-search-picker {
+  box-shadow: var(--hb-elev-popover);
+}
+.modal:not(.has-profile-theme), .donors-modal-box { box-shadow: var(--hb-elev-dialog); }
+
+/* These controls and labels can land on a white or black video frame. */
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-user-menu-btn {
+  background: var(--hb-media-plate); color: var(--hb-on-media);
+}
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-user-menu-btn:hover {
+  background: var(--hb-media-plate-hover);
+}
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons,
+.stream-no-audio-badge, .stream-audio-badge,
+#image-lightbox .lightbox-error { color: var(--hb-on-media); }
+
+.dm-pip-status-dot:not(.away, .dnd, .offline, .invisible), .online-overlay-status-dot.online { background: var(--success); }
+.dm-pip-status-dot.dnd { background: var(--danger); }
+.dm-pip-status-dot.offline, .online-overlay-status-dot.offline { background: var(--text-muted); }
+.user-status-dot.away, .aml-status-dot.aml-away, .dm-pip-status-dot.away { background: var(--warning); }
+/* The core away dot forces its own background. */
+.user-dot.away { background-color: var(--warning) !important; box-shadow: none; }
+
+/* The home bubble is filled with the accent, so its letter takes the ink
+   meant for accent fills rather than the page's text colour. */
+[data-haven-page="app"] .server-icon.home .server-icon-text { color: var(--accent-text); }
+
+/* Haven dims the section tools to 60%. On paper that leaves the marks under
+   3:1, so they rest a step stronger here. */
+[data-haven-page="app"] .channels-toggle :is(#sub-channel-panel-btn, #arrange-channels-btn, #organize-channels-btn):not(:hover, .active) { opacity: .8; }

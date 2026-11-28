@@ -201,12 +201,22 @@
       if (onSettled) onSettled();
       return;
     }
-    // Habitat fork: the verified Grafit stylesheet paints the header with --bg-primary.
-    // Its literal is needed before CSS loads. The shell uses Figtree for labels and
-    // Bricolage Grotesque for the channel and Welcome headings.
-    if (file === 'habitat-grafit.theme.css' && habitatApp) {
+    // Habitat fork: start the imported Grafit sheet early, including on sign-in.
+    // The app also needs the header colour and both shell fonts before first paint.
+    var grafitHeaders = {
+      'habitat-grafit.theme.css': '#24282b',
+      'habitat-grafit-light.theme.css': '#ffffff'
+    };
+    if (file === 'habitat-grafit-light.theme.css') {
+      var base = document.createElement('link');
+      base.rel = 'preload';
+      base.as = 'style';
+      base.href = '/themes/habitat-grafit.theme.css';
+      document.head.appendChild(base);
+    }
+    if (habitatApp && Object.prototype.hasOwnProperty.call(grafitHeaders, file)) {
       var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.content = '#24282b';
+      if (meta) meta.content = grafitHeaders[file];
       if (!_a11yState || _a11yState.prefs.font === 'theme') {
         ['figtree', 'bricolage-grotesque'].forEach(function(font) {
           var preload = document.createElement('link');

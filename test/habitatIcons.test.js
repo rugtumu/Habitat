@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const HavenGlyphs = require('../plugins/HavenGlyphs.plugin.js');
+const { contrast } = require('./fixtures/colorContrast');
 const icons = require('../scripts/habitat-icons.js');
 const { parseThemeMetadata } = require('../src/themeMetadata');
 
@@ -67,17 +68,6 @@ test('Habitat Grafit is a compatible palette theme with readable accent ink', ()
   assert.equal(meta.palette, true);
 
   const token = (name) => css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1];
-  const luminance = (hex) => {
-    const channel = (i) => {
-      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
-      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-    };
-    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  };
-  const contrast = (a, b) => {
-    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-    return (hi + 0.05) / (lo + 0.05);
-  };
   const pairs = [
     ['--accent-text', '--accent'], ['--danger-text', '--danger'], ['--warning-text', '--warning'],
     ['--text-primary', '--bg-primary'], ['--text-secondary', '--bg-secondary'],
@@ -88,6 +78,17 @@ test('Habitat Grafit is a compatible palette theme with readable accent ink', ()
     const ratio = contrast(token(fg), token(bg));
     assert.ok(ratio >= 4.5, `${fg} on ${bg} is ${ratio.toFixed(2)}:1, below 4.5:1`);
   }
+});
+
+test('Grafit Light imports the artwork and fonts and supplies its own gallery swatch', () => {
+  const css = themeSource('habitat-grafit-light.theme.css');
+  assert.match(css, /^\s*\/\*\*(?:(?!\*\/)[\s\S])*\*\/\s*@import url\("habitat-grafit\.theme\.css"\);/);
+  assert.doesNotMatch(css, /HABITAT-ICONS|@font-face|data:image\//);
+  const meta = parseThemeMetadata(css);
+  assert.equal(meta.name, 'Habitat Grafit Light');
+  assert.equal(meta.compatible, true);
+  assert.equal(meta.palette, true);
+  assert.deepEqual(meta.swatch, { bg: '#ffffff', panel: '#f4f6f6', accent: '#146a55', text: '#1a2120' });
 });
 
 test('Habitat Grafit ships every font it names, with the licenses beside them', () => {
@@ -198,6 +199,15 @@ test('the server banner cannot sit behind message text at full strength', () => 
   const dim = Number(rules.join('\n').match(/opacity:\s*([\d.]+)/)?.[1]);
   assert.ok(dim > 0 && dim <= 0.35, `the picture is drawn at ${dim}`);
   assert.match(rules.join('\n'), /mask-image:\s*linear-gradient\(to bottom,[^)]*transparent/);
+});
+
+test('Grafit Light only dims the default banner picture', () => {
+  const selector = themeSource('habitat-grafit.theme.css').match(/(\[data-haven-page="app"\] \.main\.has-banner[^{}]*> \.server-banner-img) \{/)[1];
+  const rules = themeSource('habitat-grafit-light.theme.css').match(/[^{}]*\.server-banner-(?:display|img)[^{}]*\{[^}]*\}/g);
+  assert.equal(rules.length, 1);
+  assert.ok(rules[0].trim().startsWith(selector));
+  const alpha = Number(rules[0].match(/opacity:\s*([.\d]+)/)[1]);
+  assert.ok(alpha > 0 && alpha <= .14);
 });
 
 test('the default profile geometry and action row leave member themes and hover previews alone', () => {

@@ -7,8 +7,8 @@ JavaScript with no build step). Upstream moves fast, so the fork stays small.
 ## Rules of the fork
 
 - **Prefer a theme or a plugin over a core edit.** Habitat's look lives in
-  `themes/habitat-grafit.theme.css` and `plugins/HabitatLayout.plugin.js`.
-  Read `docs/theme-authoring.md` before touching either.
+  the Grafit theme files and `plugins/HabitatLayout.plugin.js`.
+  Read `docs/theme-authoring.md` before changing a theme or the layout.
 - A core edit (anything under `public/js`, `src`, `server.js`) must be small and
   carry a `// Habitat fork:` comment saying why. Locale files keep "Haven"; the
   name is swapped at load time in `public/js/i18n.js`.
@@ -26,6 +26,7 @@ the page. Habitat omits the desktop promotion from the page and welcome queue.
 | What | Where |
 |---|---|
 | Theme: tokens, polish, motion, phone fixes | `themes/habitat-grafit.theme.css` |
+| Light palette and light-only surface repairs (imports Grafit) | `themes/habitat-grafit-light.theme.css` |
 | Icon and badge drawings (source) | `scripts/habitat-icons.js` |
 | Layout: sidebar, menus, add channel dialog, call buttons, call stage, voice list profiles, connection details | `plugins/HabitatLayout.plugin.js` |
 | Emoji to icon swap (upstream plugin, lightly extended) | `plugins/HavenGlyphs.plugin.js` |
@@ -119,7 +120,12 @@ HAVEN_DATA_DIR=/tmp/habitat-dev PORT=3100 HOST=127.0.0.1 FORCE_HTTP=true ADMIN_U
 ```
 
 Register as `admin` to get an admin account. Then set the look in the browser:
-theme Habitat Grafit, Settings > Layout > Habitat, Interface Icons > Glyphs.
+choose **Habitat Grafit** or **Habitat Grafit Light** in **Themes** (in the
+server-name menu with the Habitat layout),
+**Habitat** in Settings > Layout and **Glyphs** in Interface Icons. Publish both
+Grafit cards so members can choose either and server templates include the
+imported sheet. To make Light the server default, select it in Settings >
+Admin > Branding > Appearance & Welcome > Default Theme and click **Save Settings**.
 
 ```bash
 node --test test/habitat*.test.js
@@ -178,6 +184,8 @@ server's owner; the steps, checks and rollback are in
    locally with two accounts: the call stage and the connection details work
    through it. It is not switched on on the live server; the steps are in
    section 6 of `docs/examples/habitat-caddy-coturn/README.md`.
-3. **Light theme.** Habitat Grafit is dark only.
+3. **Light theme.** Grafit Light shares the base sheet’s fonts, icons and layout.
+   Visual review at 1440px and 375px, including a camera and screen share in
+   both themes, remains open.
 4. **Native apps.** The TestFlight and Play Store apps are upstream's and
    probably do not show the Habitat theme or layout. Not started.

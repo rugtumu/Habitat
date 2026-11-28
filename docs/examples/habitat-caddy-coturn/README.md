@@ -89,13 +89,16 @@ kurmak gerekmez.
 | Parça | Dosya | Ne yapar |
 |---|---|---|
 | Tema | `themes/habitat-grafit.theme.css` | Grafit zemin, logodaki yeşim vurgu |
+| Açık tema | `themes/habitat-grafit-light.theme.css` | Beyaz sohbet alanı ve gündüz manzarası. Yazı tipleri ve ikonlar için Grafit dosyasını yükler. |
 | Yerleşim | `plugins/HabitatLayout.plugin.js` | Hesap ve ses kontrolleri sol altta, kanal ekleme bir `+` düğmesinde, kenar çubuğu araçları sunucu adı menüsünde |
 | İkonlar | Haven Glyphs eklentisi | Arayüz emojilerinin yerine Habitat ikonları çizilir |
 
 **Admin, bir kez:**
 
-1. Kenar çubuğundaki tema düğmesinden **Habitat Grafit**'i bulun ve altındaki
-   **Publish** anahtarını açın. Sonra temayı kendiniz için seçin.
+1. **Themes** seçicisini açın (Habitat yerleşiminde sunucu adının menüsündedir).
+   **Habitat Grafit** ve **Habitat Grafit Light** kartlarının **Publish** anahtarlarını açın. Böylece üyeler iki temayı da seçebilir ve
+   sunucu şablonu açık temanın kullandığı Grafit dosyasını da içerir.
+   Kendi hesabınız için istediğiniz karta tıklayın.
 2. Ayarlar → Layout → **Sidebar Layout** altında **Habitat**'ı seçin.
 3. Ayarlar → **Interface Icons** altında **Glyphs**'i seçin.
 4. Ayarlar → Admin → **Defaults for New Members** bölümünde tema, yerleşim ve
@@ -104,7 +107,10 @@ kurmak gerekmez.
    **Apply once to everyone now** düğmesini kullanın; kendi ayarını değiştirmiş
    olanlara dokunulmaz.
 
-Her üye sonradan kendi tarayıcısında istediğini değiştirebilir. Yerleşim
+Yalnızca varsayılan temayı değiştirmek için Ayarlar → Admin → Branding →
+Appearance & Welcome → **Default Theme** alanında **Habitat Grafit Light**'ı
+seçip **Save Settings** düğmesine basın. Kendi temasını seçmiş üyeler o temayı kullanmaya devam eder.
+Her üye tema seçicisinden **Habitat Grafit Light**'a geçebilir. Yerleşim
 telefonda ve tablette de çalışır: kenar çubuğu uygulamanın kendi çekmecesinde
 aynı düzeni alır, telefonda mesaj kutusundaki araçlar tek bir `+` düğmesine
 katlanır. Arama kontrolleri 901 pikselden geniş pencerede sol alta iner; dar

@@ -480,6 +480,31 @@ test('theme stylesheet middleware blocks incompatible and alternate paths', asyn
   assert.equal((await fetch(`${base}/themes/future.theme.css`, { method: 'HEAD' })).status, 409);
 });
 
+test('Grafit Light and its relative import pass the theme list and stylesheet gates', () => {
+  const directory = path.join(ROOT, 'themes');
+  const file = 'habitat-grafit-light.theme.css';
+  const listed = readThemeMetadataSnapshot(directory);
+  assert.equal(validatedThemeDefault(directory, 'file:' + file, [file]), 'file:' + file);
+
+  // Use the actual middleware without a listener so this also runs offline.
+  function stylesheet(url) {
+    assert.equal(listed.find(theme => theme.file === path.posix.basename(url))?.compatible, true, url);
+    let body;
+    createThemeFileMiddleware(directory)({ originalUrl: url, baseUrl: '/themes' }, {
+      setHeader() {},
+      type(type) { assert.equal(type, 'text/css'); return this; },
+      send(content) { body = content; },
+    });
+    return body;
+  }
+  const url = '/themes/' + file;
+  const imports = [...stylesheet(url).matchAll(/@import url\("([^"]+)"\);/g)];
+  assert.equal(imports.length, 1);
+  const imported = new URL(imports[0][1], 'https://haven.test' + url);
+  assert.equal(imported.href, 'https://haven.test/themes/habitat-grafit.theme.css');
+  assert.match(stylesheet(imported.pathname), /HABITAT-ICONS:START/);
+});
+
 test('stored theme settings expose only compatible installed file themes', () => {
   const themesDir = path.join(ROOT, 'themes');
   const published = compatibleThemeFiles(themesDir, ['braid.theme.css', 'missing.theme.css']);
@@ -644,33 +669,42 @@ test('Haven, safe mode and a fresh account start from the dark default scheme', 
 });
 
 test('only a verified Grafit app uses its header color and its first-frame fonts', async () => {
-  const file = 'habitat-grafit.theme.css';
-  const theme = 'file:' + file;
-  const cache = [{ file, compatible: true, compatibility: 'compatible' }];
-  const css = fs.readFileSync(path.join(ROOT, 'themes', file), 'utf8');
+  const base = 'habitat-grafit.theme.css';
+  const css = fs.readFileSync(path.join(ROOT, 'themes', base), 'utf8');
   const headerToken = css.match(/\[data-haven-region="channel-header"\]\s*\{\s*background: var\((--[a-z-]+)\)/)[1];
-  const expectedColor = css.match(new RegExp(headerToken + ':\\s*(#[a-f0-9]+)'))[1];
   const latin = [...css.matchAll(/url\("(habitat-fonts\/[^"]+-latin\.woff2)"\)/g)].map(m => '/themes/' + m[1]);
   assert.equal(latin.length, 2);
-  for (const options of [{ theme, cache }, { theme: null, serverTheme: theme }, { theme, themes: cache }]) {
-    const boot = runThemeInit(options);
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(boot.themeColor.content, expectedColor);
-    assert.deepEqual(boot.links.filter(l => l.as === 'font').map(l => [l.rel, l.href, l.type, l.crossOrigin]),
-      latin.map(url => ['preload', url, 'font/woff2', 'anonymous']));
+
+  for (const file of [base, 'habitat-grafit-light.theme.css']) {
+    const theme = 'file:' + file;
+    const cache = [readThemeMetadataFile(path.join(ROOT, 'themes'), file)];
+    const palette = fs.readFileSync(path.join(ROOT, 'themes', file), 'utf8');
+    const expectedColor = palette.match(new RegExp(headerToken + ':\\s*(#[a-f0-9]+)'))[1];
+    const basePreload = file === base ? [] : [['preload', '/themes/' + base]];
+    for (const options of [{ theme, cache }, { theme: null, serverTheme: theme }, { theme, themes: cache }]) {
+      const boot = runThemeInit(options);
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(boot.themeColor.content, expectedColor);
+      assert.deepEqual(boot.links.filter(l => l.as === 'style').map(l => [l.rel, l.href]), basePreload);
+      assert.equal(boot.links.find(l => l.rel === 'stylesheet').href, '/themes/' + file);
+      assert.deepEqual(boot.links.filter(l => l.as === 'font').map(l => [l.rel, l.href, l.type, l.crossOrigin]),
+        latin.map(url => ['preload', url, 'font/woff2', 'anonymous']));
+    }
+    for (const options of [
+      { theme: 'haven', serverTheme: theme }, { search: '?haven-safe-mode=1' }, { appPage: false },
+      { session: { haven_customizations_reset_pending: '1' } }, { cache: [], themes: [] },
+    ]) {
+      const boot = runThemeInit({ theme, cache, ...options });
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(boot.themeColor.content, '#1a1a2e');
+      assert.equal(boot.links.some(l => l.as === 'font'), false);
+      assert.deepEqual(boot.links.filter(l => l.as === 'style').map(l => [l.rel, l.href]),
+        options.appPage === false ? basePreload : []);
+    }
+    const readable = runThemeInit({ theme, cache, stored: { 'haven-readable-font': 'system' } });
+    assert.equal(readable.themeColor.content, expectedColor);
+    assert.equal(readable.links.some(l => l.as === 'font'), false);
   }
-  for (const options of [
-    { theme: 'haven', serverTheme: theme }, { search: '?haven-safe-mode=1' }, { appPage: false },
-    { session: { haven_customizations_reset_pending: '1' } }, { cache: [], themes: [] },
-  ]) {
-    const boot = runThemeInit({ theme, cache, ...options });
-    await new Promise(resolve => setImmediate(resolve));
-    assert.equal(boot.themeColor.content, '#1a1a2e');
-    assert.equal(boot.links.some(l => l.as === 'font'), false);
-  }
-  const readable = runThemeInit({ theme, cache, stored: { 'haven-readable-font': 'system' } });
-  assert.equal(readable.themeColor.content, expectedColor);
-  assert.equal(readable.links.some(l => l.as === 'font'), false);
 });
 
 const habitat = 'HabitatLayout.plugin.js';

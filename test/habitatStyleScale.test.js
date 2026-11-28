@@ -26,8 +26,10 @@ function declarations(css) {
 }
 
 const grafitRules = declarations(theme);
+const light = fs.readFileSync(path.join(__dirname, '../themes/habitat-grafit-light.theme.css'), 'utf8');
+const lightRules = declarations(light.replace(/^@import[^;]+;/m, ''));
 const layoutRules = declarations(layout);
-const sources = [['Grafit', grafitRules], ['layout', layoutRules]];
+const sources = [['Grafit', grafitRules], ['layout', layoutRules], ['Grafit light', lightRules]];
 
 const textSizes = {
   '--hb-text-xs': '.75rem', '--hb-text-sm': '.875rem', '--hb-text-md': '1rem',
@@ -47,6 +49,12 @@ test('the layout supplies the shared scale once with zero specificity', () => {
     assert.equal(grafit[0].selector, ':root', property);
     if (property in textSizes) assert.equal(grafit[0].value, textSizes[property], property);
     assert.deepEqual(values(layoutRules), [{ ...grafit[0], selector: ':where(:root)' }], property);
+  }
+});
+
+test('Grafit Light inherits the media, type, geometry and motion scales', () => {
+  for (const { property } of lightRules) {
+    assert.doesNotMatch(property, /^--(?:hb-(?:scrim|media-|on-media|radius-|text-|ease|fast|base|stage-|msg-text|composer-text|channel-|member-|search-)|radius|font-|transition)/);
   }
 });
 
@@ -77,9 +85,9 @@ for (const [name, rules] of sources) {
           assert.match(item.trim(), /^(?:opacity|translate|scale|rotate)(?:\s|$)/, label);
         }
       }
-      if (selector === (name === 'Grafit' ? ':root' : ':where(:root)')) continue;
+      if (selector === (name === 'layout' ? ':where(:root)' : ':root')) continue;
       // Only the alpha of these black banner mask stops affects the picture.
-      if (selector === banner && ['mask-image', '-webkit-mask-image'].includes(property)) {
+      if (name !== 'Grafit light' && selector === banner && ['mask-image', '-webkit-mask-image'].includes(property)) {
         assert.equal(value, 'linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%)', label);
         continue;
       }
