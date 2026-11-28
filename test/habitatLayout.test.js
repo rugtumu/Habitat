@@ -842,6 +842,8 @@ test('a refused create keeps the settings for retry and only the creator’s mat
   const submit = a.create.querySelector('[type="submit"]');
   assert.ok(submit.disabled && !a.dialog.hidden);
   assert.equal(submit.textContent, 'Creating…');
+  assert.equal(submit.getAttribute('aria-busy'), 'true');
+  assert.equal(submit.style.inlineSize, '40px');
   a.socket.emit('channel-created', { name: 'studio', created_by: 21 });
   a.socket.emit('error-msg', 'Message not found');
   assert.ok(submit.disabled);
@@ -850,6 +852,11 @@ test('a refused create keeps the settings for retry and only the creator’s mat
   assert.equal(a.create.querySelector('[role="alert"]').textContent, error);
   assert.ok(!a.dialog.hidden && !submit.disabled);
   assert.equal(a.doc.activeElement, a.name);
+  assert.equal(submit.getAttribute('aria-busy'), 'false');
+  assert.equal(submit.style.inlineSize, '');
+  assert.equal(a.name.getAttribute('aria-invalid'), 'true');
+  a.name.fire('input');
+  assert.equal(a.name.getAttribute('aria-invalid'), null);
   assert.equal(a.name.value, 'studio');
   assert.equal(a.byId('new-channel-template').value, 'b:voice_room');
   a.create.fire('submit');

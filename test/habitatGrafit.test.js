@@ -107,6 +107,8 @@ test('member and temporary channel buttons match their rows with core CSS alone'
   assert.match(member, /font-family: inherit;/);
   assert.match(temp, /width: 100%;/);
   assert.match(temp, /font: inherit;/);
+  for (const setting of ['opacity: 0.5;', 'padding: 4px 12px;', 'font-size: 0.8rem;']) assert.ok(temp.includes(setting));
+  assert.ok(rule(theme, '[data-haven-page="app"] .channel-item.temp-channel-create-btn').includes('opacity: 1;'));
 });
 
 test('welcome text and system notices wrap even when a word exceeds the phone column', () => {

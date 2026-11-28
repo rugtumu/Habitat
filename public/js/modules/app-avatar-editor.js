@@ -1431,6 +1431,8 @@ async _commitAvatarSettings() {
     console.error('[Avatar] Save failed:', err);
     if (status) { status.textContent = '❌ ' + err.message; status.style.color = 'var(--danger, red)'; }
     this._showToast(t('media_runtime.avatar.save_failed', { error: err.message }), 'error');
+    // Habitat fork: leave Edit Profile open so the member can retry the failed save.
+    return false;
   }
 },
 

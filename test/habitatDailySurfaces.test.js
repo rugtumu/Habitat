@@ -698,6 +698,12 @@ test('a touch release leaves the invite target available for click and only a mo
   const panel = wrap.querySelector('.user-ctx-submenu');
   wrap.dispatch('pointerenter', { pointerType: 'mouse' });
   assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+  trigger.dispatch('click', { pointerType: 'mouse', detail: 1 });
+  assert.equal(trigger.getAttribute('aria-expanded'), 'true', 'clicking after mouse hover keeps it open');
+  trigger.dispatch('click', { detail: 0 });
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false', 'keyboard click toggles');
+  trigger.dispatch('click', { pointerType: 'touch', detail: 1 });
+  assert.equal(trigger.getAttribute('aria-expanded'), 'true', 'touch click toggles');
   wrap.dispatch('pointerleave', { pointerType: 'mouse' });
   assert.equal(trigger.getAttribute('aria-expanded'), 'false');
   trigger.dispatch('click');
@@ -759,6 +765,10 @@ test('a profile keeps its coordinates after presence replaces its anchor', () =>
   card.offsetHeight = 380;
   app._positionProfilePopup(card);
   assert.deepEqual([card.style.left, card.style.top], ['718px', '240px']);
+  card.offsetHeight = 560;
+  card.offsetWidth = 680;
+  app._positionProfilePopup(card);
+  assert.deepEqual([card.style.left, card.style.top], ['412px', '132px']);
   const fresh = doc.createElement('div');
   app._positionProfilePopup(fresh);
   assert.equal(fresh.style.left, '50%');

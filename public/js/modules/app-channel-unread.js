@@ -323,6 +323,7 @@ _updateBadge(code) {
     } else if (badge) {
       badge.remove();
     }
+    this._labelChannelRow(el, this.voiceCounts?.[code] || 0);
     // A forum's replies show as a dot of their own (app-forum-unread.js).
     if (this.forumUnread && code in this.forumUnread) this._updateForumDot?.(code, el);
     this._updateThreadDot?.(code, el);
@@ -711,6 +712,20 @@ _updateDmSectionBadge() {
   }
 },
 
+// Habitat fork: unread badges and voice counts can change independently of a full list redraw.
+_labelChannelRow(row, people) {
+  row._voiceLabelCount = people;
+  const name = row.querySelector('.channel-name')?.textContent;
+  if (!name) return;
+  const parts = [name];
+  if (row.hasAttribute('data-habitat-voice-room')) {
+    parts.push(t('app.sidebar.templates.voice_room'), t('settings.nav.members') + ' ' + people);
+  }
+  const badge = row.querySelector('.channel-badge');
+  if (badge) parts.push(badge.getAttribute('aria-label') || t('messages.new_messages') + ' ' + badge.textContent);
+  row.setAttribute('aria-label', parts.join(', '));
+},
+
 _updateChannelVoiceIndicators() {
   this._labelCallButton?.();
   document.querySelectorAll('.channel-item').forEach(el => {
@@ -718,6 +733,7 @@ _updateChannelVoiceIndicators() {
     let indicator = el.querySelector('.channel-voice-indicator');
     const count = this.voiceCounts[code] || 0;
     const users = this.voiceChannelUsers[code] || [];
+    if (el._voiceLabelCount !== count) this._labelChannelRow(el, count);
     // Habitat fork: keep the connected room visible when the member browses another conversation.
     el.toggleAttribute('data-voice-connected', !!this.voice?.inVoice && this.voice.currentChannel === code);
 
@@ -739,6 +755,9 @@ _updateChannelVoiceIndicators() {
         userList.className = 'channel-voice-users';
         el.after(userList);
       }
+      // Habitat fork: a keyboard-collapsed roster stays closed through presence redraws.
+      userList.hidden = !!this._collapsedVoicePeople?.has(code);
+      if (el.hasAttribute('data-habitat-voice-room')) el.setAttribute('aria-expanded', String(!userList.hidden));
       userList.innerHTML = users.map(u => {
         const isSelf = u.id === this.user.id;
         // Self-talking state is driven by the local analyser directly (not
@@ -761,6 +780,7 @@ _updateChannelVoiceIndicators() {
       });
     } else {
       if (indicator) indicator.remove();
+      el.removeAttribute('aria-expanded');
       // Remove voice user list
       const userList = el.nextElementSibling;
       if (userList && userList.classList.contains('channel-voice-users')) {

@@ -22,6 +22,10 @@ Threads align grouped replies and composer text on a shared column at each densi
 
 Emoji and reaction cells measure 32px with a fine pointer and 40px on touch. On the sign-in card, Login and Register share a segmented control. Link Server and admin recovery live under Other ways to sign in. Confirmations focus Cancel and return focus to the opener when dismissed.
 
+Grafit uses a 2px jade outline for keyboard focus. Disabled controls keep their shape at reduced opacity. A pending action keeps its width and shows a static ellipsis. Field errors sit below the input, share its danger colour and clear when the member edits it.
+
+Tab enters each main list once. Up and Down move between rows, Home and End reach the edges, and the menu key opens actions. Enter opens the conversation or member profile. In message history, Enter opens actions, E edits your own message, R replies, Delete asks for confirmation and Shift+Delete deletes immediately. Escape returns from history to the composer after open surfaces have been dismissed.
+
 Channel, DM, member and message menus put everyday actions first. Hairlines separate organisation and management, and destructive actions come last. Arrow keys, Home, End and initial letters move through available items. Escape returns focus to the opener.
 
 Grafit’s default profile has a 96px cover, an 80px avatar and a 24px display name. The action row includes the member’s DM, permitted call controls and a personal note saved on this browser for the signed-in account. Hover previews omit the controls. A member’s custom profile theme keeps its own presentation.

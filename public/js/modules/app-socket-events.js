@@ -518,6 +518,8 @@ _listenMessageChanges() {
         if (!contentEl) return;
         contentEl.innerHTML = this._formatContent(this._roleMenuText(data.messageId, displayContent), { e2e: wasE2E });
         msgEl.dataset.rawContent = displayContent;
+        // Habitat fork: edits and purges replace the spoken excerpt along with the rendered text.
+        this._labelMessageRow(msgEl);
         let editedTag = msgEl.querySelector('.edited-tag');
         if (!editedTag) {
           editedTag = document.createElement('span');
@@ -544,6 +546,7 @@ _listenMessageChanges() {
           catch { contentEl.textContent = placeholder; }
         }
         msgEl.dataset.rawContent = placeholder;
+        this._labelMessageRow(msgEl);
       });
     }
   });

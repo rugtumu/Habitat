@@ -925,7 +925,14 @@ _bindChannelMenu() {
     this._closeChannelCtxMenu();
     const ch = this.channels.find(c => c.code === code);
     if (!ch) return;
-    const name = await this._showPromptModal(t('modals.rename_channel.title'), t('modals.rename_channel.prompt', { name: ch.name }), ch.name);
+    const name = await this._showPromptModal(t('modals.rename_channel.title'), t('modals.rename_channel.prompt', { name: ch.name }), ch.name, {
+      // Habitat fork: mirror the server's channel name checks while the field is still open.
+      validate(value) {
+        if (!value) return t('channel.errors.name_required');
+        if (value.length > 50) return t('channel.errors.name_too_long');
+        if (!/^[\w\s\-!?.,'&+\p{L}\p{M}\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}\uFE0F\u200D]+$/u.test(value)) return t('channel.errors.name_invalid_chars');
+      }
+    });
     if (name && name.trim() && name.trim() !== ch.name) {
       this.socket.emit('rename-channel', { code, name: name.trim() });
     }

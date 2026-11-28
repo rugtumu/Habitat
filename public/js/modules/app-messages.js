@@ -1000,6 +1000,17 @@ _renderAttachmentTags(tags) {
   return `<div class="message-tags">${icon}<span class="message-tags-label">${t('tags.attachment_tags')}</span>${chips}</div>`;
 },
 
+// Habitat fork: name the row from data already on it. Covered content stays covered in the spoken excerpt.
+_labelMessageRow(row) {
+  if (row.localName !== 'li') return;
+  const d = row.dataset;
+  let excerpt = (d.rawContent || '').slice(0, 100).replace(/\|\|[^]*?(?:\|\||$)/g, '…');
+  if (d.nsfw === '1' && !d.nsfwShown) excerpt = t('msg_toolbar.nsfw_hidden');
+  if (row.classList.contains('message-burned')) excerpt = t('messages.burn_done');
+  else if (d.burnSeconds && !d.burnStartedAt && String(this.user?.id) !== d.userId) excerpt = t('messages.burn_reveal');
+  row.setAttribute('aria-label', [d.personaUsername || d.username, d.timeShort || d.time, excerpt].filter(Boolean).join(', '));
+},
+
 _createMessageEl(msg, prevMsg) {
   // Persisted welcome message (new-member greeting). Rendered as a simple,
   // non-interactive system line reusing the .welcome-message styling: no
@@ -1167,7 +1178,8 @@ _createMessageEl(msg, prevMsg) {
   const replyHtml = msg.replyContext ? this._renderReplyBanner(msg.replyContext) : '';
 
   if (isCompact) {
-    const el = document.createElement('div');
+    // Habitat fork: native list items need only a spoken label. The floating DM keeps its own markup.
+    const el = document.createElement(msg._isDmRender ? 'div' : 'li');
     el.className = 'message-compact'
       + (needsStatusSlot ? ' message-has-status' : '')
       + (msg.pinned ? ' pinned' : '')
@@ -1219,6 +1231,7 @@ _createMessageEl(msg, prevMsg) {
     // message land here, as part of a run.
     if (msg.highlight) this._applyMessageHighlight(el, msg.highlight);
     if (msg.nsfw) this._applyMessageNsfw(el, true);
+    this._labelMessageRow(el);
     return el;
   }
 
@@ -1298,7 +1311,7 @@ _createMessageEl(msg, prevMsg) {
     ? `<span class="guest-msg-badge" style="background:rgba(136,136,136,0.18);color:#aaa;font-size:0.62rem;padding:1px 5px;border-radius:3px;margin-left:4px;letter-spacing:0.04em" title="${t('app.messages.temporary_guest')}">${t('app.messages.guest_badge')}</span>`
     : '';
 
-  const el = document.createElement('div');
+  const el = document.createElement(msg._isDmRender ? 'div' : 'li');
   el.className = 'message'
     + (needsStatusSlot ? ' message-has-status' : '')
     + (isImage ? ' message-has-image' : '')
@@ -1367,6 +1380,7 @@ _createMessageEl(msg, prevMsg) {
   `;
   if (msg.highlight) this._applyMessageHighlight(el, msg.highlight);
   if (msg.nsfw) this._applyMessageNsfw(el, true);
+  this._labelMessageRow(el);
   return el;
 },
 

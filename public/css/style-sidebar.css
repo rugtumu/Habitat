@@ -390,10 +390,16 @@ html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="m
   border: 0;
   color: inherit;
   font: inherit;
+  opacity: 0.5;
+  padding: 4px 12px;
+  font-size: 0.8rem;
   text-align: start;
 }
 
-.temp-channel-create-btn:hover { opacity: 0.8 !important; }
+.temp-channel-create-btn:hover { opacity: 0.8; }
+
+/* Habitat fork: hiding a roster must override the voice stylesheet's flex display. */
+.channel-voice-users[hidden] { display: none; }
 
 .channel-item.active::before {
   content: '';

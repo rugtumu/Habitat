@@ -343,6 +343,9 @@ _wireBurnMessages(root) {
 _startBurnCountdown(el, burnSeconds, startedAtIso) {
   const started = Date.parse(startedAtIso);
   if (!Number.isFinite(started)) return;
+  // Habitat fork: the spoken excerpt changes once when a covered message opens.
+  el.dataset.burnStartedAt = startedAtIso;
+  this._labelMessageRow(el);
   if (el._burnTimer) clearInterval(el._burnTimer);
   const tick = () => {
     const left = Math.max(0, Math.ceil((started + burnSeconds * 1000 - Date.now()) / 1000));
@@ -370,6 +373,7 @@ _replaceBurnedMessage(el) {
   content.innerHTML = `<span class="muted-text burn-complete-label" style="font-style:italic">🔥 ${this._escapeHtml(doneText)}</span>`;
   el.classList.remove('message-burn-pending');
   el.classList.add('message-burned');
+  this._labelMessageRow(el);
 },
 
 _isImageUrl(str) {
@@ -1473,7 +1477,7 @@ _questionDialog(title, message, resolve, cancelValue) {
   return { overlay, row: overlay.querySelector('.modal-actions'), closeButton, close };
 },
 
-_showPromptModal(title, message, defaultValue = '', { password = false, maxLength } = {}) {
+_showPromptModal(title, message, defaultValue = '', { password = false, maxLength, validate } = {}) {
   return new Promise(resolve => {
     const { overlay, row, close } = this._questionDialog(title, message, resolve, null);
     const input = document.createElement('input');
@@ -1493,9 +1497,15 @@ _showPromptModal(title, message, defaultValue = '', { password = false, maxLengt
       <button class="btn-sm btn-accent" id="prompt-modal-ok">${t('modals.common.ok')}</button>`;
     const cancel = row.querySelector('#prompt-modal-cancel');
     cancel.addEventListener('click', () => close(null));
-    row.querySelector('#prompt-modal-ok').addEventListener('click', () => close(input.value));
+    // Habitat fork: rename errors must be correctable before the prompt closes.
+    const submit = () => {
+      const error = validate?.(input.value.trim());
+      if (error) return HabitatForm.invalid(input, error);
+      close(input.value);
+    };
+    row.querySelector('#prompt-modal-ok').addEventListener('click', submit);
     input.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); close(input.value); }
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); submit(); }
     });
     // Habitat fork: the opening keystroke must finish before the field receives input.
     setTimeout(() => {

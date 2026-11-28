@@ -923,7 +923,19 @@ _bindAdminControls() {
   document.getElementById('invite-new-channels-none')?.addEventListener('click', () => {
     document.querySelectorAll('.invite-new-channel-cb').forEach(cb => { cb.checked = false; });
   });
-  document.getElementById('invite-create-btn')?.addEventListener('click', () => {
+  document.getElementById('invite-create-btn')?.addEventListener('click', async e => {
+    // Habitat fork: the server replies to creation with a toast or a specific refusal.
+    const button = e.currentTarget;
+    if (button.disabled) return;
+    const slugField = document.getElementById('invite-new-slug');
+    const usesField = document.getElementById('invite-new-maxuses');
+    const expiryField = document.getElementById('invite-new-expiry');
+    for (const field of [usesField, expiryField]) {
+      if (!field.validity.valid) return HabitatForm.invalid(field, field.validationMessage);
+    }
+    if (slugField.value.trim() && !/^[a-zA-Z0-9_-]{3,32}$/.test(slugField.value.trim())) {
+      return HabitatForm.invalid(slugField, t('settings.admin.vanity_invalid'));
+    }
     const label = document.getElementById('invite-new-label')?.value.trim() || '';
     const cbs = Array.from(document.querySelectorAll('.invite-new-channel-cb'));
     const total = cbs.length;
@@ -940,12 +952,27 @@ _bindAdminControls() {
     const slug = document.getElementById('invite-new-slug')?.value.trim() || '';
     const payload = { label, channels, maxUses, expiresInHours };
     if (slug) payload.code = slug;
-    this.socket.emit('create-invite-code', payload);
-    // Reset the form fields (channel checks reset on the next list render).
-    const lblEl = document.getElementById('invite-new-label'); if (lblEl) lblEl.value = '';
-    const slugEl = document.getElementById('invite-new-slug'); if (slugEl) slugEl.value = '';
-    const muEl = document.getElementById('invite-new-maxuses'); if (muEl) muEl.value = '1';
-    const expEl = document.getElementById('invite-new-expiry'); if (expEl) expEl.value = '720';
+    const labelField = document.getElementById('invite-new-label');
+    HabitatForm.busy(button, true);
+    try {
+      const created = await HabitatForm.socketRequest(this, 'create-invite-code', payload, 'toast', {
+        accept: notice => notice?.type === 'success' && notice.message?.startsWith('Invite link created: '),
+        refusal(message) {
+          if (/^(Custom code|That code is already)/i.test(message)) return slugField;
+          if (/^(maxUses|Invite links are limited)/i.test(message)) return usesField;
+          if (/^Invalid channel selection/i.test(message)) return document.getElementById('invite-new-channels');
+          return /permission to manage invite links|already have 25 invite links/i.test(message);
+        }
+      });
+      if (!created) return;
+      // Leave edits made during the round trip for the next invite.
+      if (labelField.value.trim() === label) labelField.value = '';
+      if (slugField.value.trim() === slug) slugField.value = '';
+      if (usesField.value === maxUsesValue) usesField.value = '1';
+      if (expiryField.value === expiryValue) expiryField.value = '720';
+    } finally {
+      HabitatForm.busy(button, false);
+    }
   });
 
   // One delegated handler for all per-card actions (the list re-renders often).

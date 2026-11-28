@@ -121,6 +121,8 @@ _renderUserItem(u) {
   const statusClass = u.status === 'dnd' ? 'dnd' : u.status === 'away' ? 'away'
     : u.status === 'invisible' ? 'invisible' : (u.online === false ? 'away' : '');
 
+  // Habitat fork: announce presence along with the member's name when the row takes focus.
+  const statusKey = 'app.profile.' + (u.online === false ? 'offline' : statusClass || 'online');
   const statusTextHtml = u.statusText
     ? `<span class="user-status-text" title="${this._escapeHtml(u.statusText)}">${this._escapeHtml(u.statusText)}</span>`
     : '';
@@ -180,8 +182,8 @@ _renderUserItem(u) {
   // Tooltip removed: the full profile popup (hover/click) provides this info.
 
   const dmBtn = u.id === this.user.id
-    ? `<button class="user-action-btn user-dm-btn" data-dm-uid="${u.id}" title="${t('users.notes_to_self_hint')}">📝</button>`
-    : `<button class="user-action-btn user-dm-btn" data-dm-uid="${u.id}" title="${t('users.direct_message')}">💬</button>`;
+    ? `<button tabindex="-1" class="user-action-btn user-dm-btn" data-dm-uid="${u.id}" title="${t('users.notes_to_self_hint')}">📝</button>`
+    : `<button tabindex="-1" class="user-action-btn user-dm-btn" data-dm-uid="${u.id}" title="${t('users.direct_message')}">💬</button>`;
 
   // DM + gear. The gear opens the same unified menu as right-click (mod actions
   // sit behind a divider there); it stays visible so touch and keyboard users
@@ -193,7 +195,7 @@ _renderUserItem(u) {
   const canBanThis = this._hasPerm('ban_user') && u.id !== this.user.id;
   const hasGear = canModThis || canPromote || canBanThis;
   const gearBtn = hasGear
-    ? `<button class="user-action-btn user-gear-btn" data-uid="${u.id}" data-uname="${this._escapeHtml(u.username)}" title="${t('users.more_actions')}">⚙️</button>`
+    ? `<button tabindex="-1" class="user-action-btn user-gear-btn" data-uid="${u.id}" data-uname="${this._escapeHtml(u.username)}" title="${t('users.more_actions')}">⚙️</button>`
     : '';
   const modBtns = (dmBtn || gearBtn)
     ? `<div class="user-admin-actions">${dmBtn}${gearBtn}</div>`
@@ -209,12 +211,12 @@ _renderUserItem(u) {
 
   // Habitat fork: keep the birthday beside the profile button so its accessible name stays intact.
   return `
-    <div class="user-item${onlineClass}${subLineHtml ? ' has-sub' : ''}" data-user-id="${u.id}">
+    <div class="user-item${onlineClass}${subLineHtml ? ' has-sub' : ''}" data-user-id="${u.id}" role="listitem" aria-label="${this._escapeHtml(nameText)}, ${t(statusKey)}">
       ${avatarHtml}
       <div class="user-item-text">
         <div class="user-item-line">
           ${roleDot}${roleIconBefore}${this._birthdayMarkHtml(u.birthday)}
-          <button type="button" class="user-item-name"${nameStyle}${this._nicknames[u.id] ? ` title="${this._escapeHtml(u.username)}"` : ''}>${nameHtml}</button>
+          <button type="button" tabindex="-1" class="user-item-name"${nameStyle}${this._nicknames[u.id] ? ` title="${this._escapeHtml(u.username)}"` : ''}>${nameHtml}</button>
           ${roleIconAfter}
           ${roleBadge}
           ${guestBadge}
@@ -1090,9 +1092,14 @@ _promoteHoverPopup(popup) {
 
 _positionProfilePopup(popup) {
   const anchor = this._profilePopupAnchor;
-  // Habitat fork: presence can replace the opener while the card is open. Keep its last placement.
+  // Habitat fork: presence can replace the opener while the card or viewport is still resizing.
   if (!anchor?.isConnected) {
-    if (popup.style.left && popup.style.top) return;
+    if (popup.style.left?.endsWith('px') && popup.style.top?.endsWith('px')) {
+      const clamp = (value, limit) => Math.max(8, Math.min(parseFloat(value), limit - 8)) + 'px';
+      popup.style.left = clamp(popup.style.left, window.innerWidth - popup.offsetWidth);
+      popup.style.top = clamp(popup.style.top, window.innerHeight - popup.offsetHeight);
+      return;
+    }
     // Center a new card whose opener is already gone.
     popup.style.left = '50%';
     popup.style.top = '50%';

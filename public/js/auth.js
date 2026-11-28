@@ -229,6 +229,7 @@
     eulaCheckbox.checked = true;
     ageCheckbox.checked  = true;
     localStorage.setItem('haven_eula_accepted', '2.0');
+    hideError();
     eulaModal.style.display = 'none';
   });
 
@@ -245,11 +246,11 @@
 
   function checkEula() {
     if (!ageCheckbox.checked) {
-      showError(t('auth.errors.must_be_18'));
+      showError(t('auth.errors.must_be_18'), ageCheckbox.id);
       return false;
     }
     if (!eulaCheckbox.checked) {
-      showError(t('auth.errors.must_accept_tos'));
+      showError(t('auth.errors.must_accept_tos'), eulaCheckbox.id);
       return false;
     }
     return true;
@@ -264,8 +265,6 @@
   const forcedChangeForm = document.getElementById('forced-change-form');
   const banAppealForm = document.getElementById('ban-appeal-form');
   const errorEl = document.getElementById('auth-error');
-  const errorHome = errorEl.parentNode;
-  const errorNext = errorEl.nextSibling;
   let invalidField;
 
   // Pending TOTP challenge state (set after successful password auth)
@@ -380,19 +379,15 @@
 
   // Habitat fork: field validation belongs beneath the input. Service errors keep the shared notice.
   document.addEventListener('invalid', e => {
-    if (e.target === e.target.closest('.auth-form')?.querySelector(':invalid')) showError(e.target.validationMessage, e.target.id);
+    const form = e.target.closest('form.auth-form');
+    if (!form || !e.target.id) return;
+    e.preventDefault();
+    if (e.target === form.querySelector(':invalid')) showError(e.target.validationMessage, e.target.id);
   }, true);
-  document.addEventListener('input', e => {
-    if (e.target === invalidField) hideError();
-  });
   function showError(msg, fieldId) {
     hideError();
     invalidField = fieldId && document.getElementById(fieldId);
-    if (invalidField) {
-      invalidField.setAttribute('aria-invalid', 'true');
-      invalidField.setAttribute('aria-errormessage', 'auth-error');
-      invalidField.insertAdjacentElement('afterend', errorEl);
-    }
+    if (invalidField) return HabitatForm.invalid(invalidField, msg);
     errorEl.textContent = msg;
     errorEl.style.display = 'block';
   }
@@ -401,9 +396,7 @@
     errorEl.style.display = 'none';
     errorEl.style.color = '';
     if (invalidField) {
-      invalidField.removeAttribute('aria-invalid');
-      invalidField.removeAttribute('aria-errormessage');
-      errorHome.insertBefore(errorEl, errorNext);
+      HabitatForm.clear(invalidField);
       invalidField = null;
     }
   }
@@ -518,12 +511,12 @@
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
 
-    if (!username || !password) return showError(t('auth.errors.fill_all_fields'));
+    if (!username || !password) return showError(t('auth.errors.fill_all_fields'), username ? 'login-password' : 'login-username');
 
     // Habitat fork: keep the pending request visible and prevent duplicate submissions.
     const submit = loginForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    submit.disabled = true;
+    HabitatForm.busy(submit, true);
     loginForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/login', {
@@ -564,7 +557,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      submit.disabled = false;
+      HabitatForm.busy(submit, false);
       loginForm.removeAttribute('aria-busy');
     }
   });
@@ -616,7 +609,12 @@
     if (!_pendingChallenge) return showError(t('auth.errors.session_expired'));
 
     const code = document.getElementById('totp-code').value.trim();
-    if (!code) return showError(t('auth.errors.enter_auth_code'));
+    if (!code) return showError(t('auth.errors.enter_auth_code'), 'totp-code');
+
+    // Habitat fork: the second sign-in step uses the same single-submit guard.
+    const submit = totpForm.querySelector('[type="submit"]');
+    if (submit.disabled) return;
+    HabitatForm.busy(submit, true);
 
     try {
       const res = await fetch('/api/auth/totp/validate', {
@@ -626,7 +624,7 @@
       });
 
       const data = await res.json();
-      if (!res.ok) return showError(data.error || t('auth.errors.verification_failed'));
+      if (!res.ok) return showError(data.error || t('auth.errors.verification_failed'), /code/i.test(data.error) ? 'totp-code' : null);
 
       // ── Forced change-password after admin reset (#5300) ──
       if (data.mustChangePassword) {
@@ -645,6 +643,8 @@
       await enterApp(data.user, password);
     } catch (err) {
       showError(t('auth.errors.connection_error'));
+    } finally {
+      HabitatForm.busy(submit, false);
     }
   });
 
@@ -704,10 +704,14 @@
     const useRecall = !!oldPw;
 
     if (!useRecall) {
-      if (!newPw || newPw.length < 8) return showError(t('auth.forced_change.errors.too_short'));
-      if (newPw !== confirmPw) return showError(t('auth.forced_change.errors.mismatch'));
+      if (!newPw || newPw.length < 8) return showError(t('auth.forced_change.errors.too_short'), 'forced-new-password');
+      if (newPw !== confirmPw) return showError(t('auth.forced_change.errors.mismatch'), 'forced-confirm-password');
     }
 
+    // Habitat fork: keep recovery submissions single-flight until key derivation finishes.
+    const submit = forcedChangeForm.querySelector('[type="submit"]');
+    if (submit.disabled) return;
+    HabitatForm.busy(submit, true);
     try {
       const body = useRecall ? { oldPassword: oldPw }
                              : { newPassword: newPw };
@@ -719,7 +723,7 @@
       const data = await res.json();
       if (!res.ok) {
         if (data.code === 'old_password_invalid') {
-          return showError(t('auth.forced_change.errors.old_invalid'));
+          return showError(t('auth.forced_change.errors.old_invalid'), 'forced-old-password');
         }
         return showError(data.error || t('auth.errors.connection_error'));
       }
@@ -738,6 +742,8 @@
       await enterApp(data.user, wrapSource);
     } catch (err) {
       showError(t('auth.errors.connection_error'));
+    } finally {
+      HabitatForm.busy(submit, false);
     }
   });
 
@@ -1114,7 +1120,7 @@
     const tokenInput = document.getElementById('reg-token');
     const registrationToken = tokenInput ? tokenInput.value.trim() : '';
 
-    if (!username || !password || !confirm) return showError(t('auth.errors.fill_all_fields'));
+    if (!username || !password || !confirm) return showError(t('auth.errors.fill_all_fields'), !username ? 'reg-username' : !password ? 'reg-password' : 'reg-confirm');
     if (password !== confirm) return showError(t('auth.errors.passwords_no_match'), 'reg-confirm');
     if (password.length < 8) return showError(t('auth.errors.password_too_short'), 'reg-password');
 
@@ -1124,7 +1130,7 @@
     // Habitat fork: keep the pending request visible and prevent duplicate submissions.
     const submit = registerForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    submit.disabled = true;
+    HabitatForm.busy(submit, true);
     registerForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/register', {
@@ -1153,7 +1159,10 @@
           await _initRegistrationForm();
         }
 
-        showError(error);
+        // Habitat fork: service refusals stay in the notice. Account fields own their validation.
+        const field = /^password/i.test(error) ? 'reg-password' : /registration token/i.test(error) ? 'reg-token'
+          : /username|that name/i.test(error) ? 'reg-username' : null;
+        showError(error, field);
         return;
       }
 
@@ -1168,7 +1177,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      submit.disabled = false;
+      HabitatForm.busy(submit, false);
       registerForm.removeAttribute('aria-busy');
     }
   });

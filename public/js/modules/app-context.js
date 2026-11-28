@@ -132,7 +132,14 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
       // the list it just grew would open below the fold. Scroll it in.
       if (open) menu.scrollTop = inviteItem.offsetTop;
     };
-    inviteBtn.addEventListener('click', () => expand(inviteBtn.getAttribute('aria-expanded') !== 'true'));
+    // Habitat fork: mouse hover already opened the submenu. Touch and keyboard activate it as a toggle.
+    let pointerType = '';
+    inviteBtn.addEventListener('pointerdown', ev => { pointerType = ev.pointerType; });
+    inviteBtn.addEventListener('click', ev => {
+      const mouse = ev.detail !== 0 && (ev.pointerType || pointerType) === 'mouse';
+      expand(mouse || inviteBtn.getAttribute('aria-expanded') !== 'true');
+      pointerType = '';
+    });
     inviteItem.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') expand(true); });
     // Habitat fork: touch releases the pointer before the channel button receives its click.
     inviteItem.addEventListener('pointerleave', ev => {

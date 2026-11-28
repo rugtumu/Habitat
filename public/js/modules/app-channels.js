@@ -405,7 +405,10 @@ async switchChannel(code) {
   // Habitat fork: a join or create reply returns focus to the channel dialog's opener.
   const addDialog = document.querySelector('[data-habitat-dialog]');
   if (msgInput && !isTouchDevice && (!addDialog || addDialog.hidden)) {
-    setTimeout(() => { if (!addDialog || addDialog.hidden) msgInput.focus(); }, 50);
+    setTimeout(() => {
+      // Habitat fork: a keyboard activation should leave the channel list ready for another arrow.
+      if ((!addDialog || addDialog.hidden) && !document.activeElement?.closest?.('#channel-list [role="listitem"], #dm-list [role="listitem"]')) msgInput.focus();
+    }, 50);
   }
 
   // Show E2E encryption menu only in DM channels
@@ -722,6 +725,8 @@ _renderChannels() {
   const renderChannelItem = (ch, isSub) => {
     const el = document.createElement('div');
     el.className = 'channel-item' + (isSub ? ' sub-channel-item' : '') + (ch.is_private ? ' private-channel' : '') + (ch.code === this.currentChannel ? ' active' : '');
+    // Habitat fork: a list item can contain a separate options button.
+    el.role = 'listitem';
     el.dataset.code = ch.code;
     if (isSub) el.dataset.parentId = ch.parent_channel_id;
 
@@ -766,9 +771,9 @@ _renderChannels() {
     el.innerHTML = `
       ${hasSubs ? `<span class="channel-collapse-arrow${isCollapsed ? ' collapsed' : ''}" title="${t('channels.expand_collapse')}">▾</span>` : ''}
       <span class="channel-hash"${expiryTitle}>${hashIcon}</span>
-      ${voiceRow ? '<button type="button" class="channel-name">' : '<span class="channel-name">'}${this._escapeHtml(ch.name)}${voiceRow ? '</button>' : '</span>'}
+      ${voiceRow ? '<button type="button" tabindex="-1" class="channel-name">' : '<span class="channel-name">'}${this._escapeHtml(ch.name)}${voiceRow ? '</button>' : '</span>'}
       ${indicators}
-      <button class="channel-more-btn" title="${t('channels.channel_options')}">⋯</button>
+      <button tabindex="-1" class="channel-more-btn" title="${t('channels.channel_options')}">⋯</button>
     `;
 
     // If parent has sub-channels, clicking the arrow toggles them
@@ -951,6 +956,8 @@ _renderChannels() {
       catLabel.className = 'section-label category-label';
       catLabel.style.cssText = 'padding:10px 12px 4px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;user-select:none;cursor:pointer;display:flex;align-items:center;gap:4px';
       catLabel.dataset.category = cat;
+      catLabel.role = 'listitem';
+      catLabel.ariaLabel = cat;
       const arrow = document.createElement('span');
       arrow.className = 'cat-collapse-arrow' + (catCollapsed ? ' collapsed' : '');
       arrow.textContent = '▾';
@@ -1021,6 +1028,8 @@ _renderChannels() {
           tagLabel.dataset.parentId = ch.id;
           tagLabel.dataset.parentCode = ch.code;
           tagLabel.dataset.tagName = tagName;
+          tagLabel.role = 'listitem';
+          tagLabel.ariaLabel = tagName;
           if (cat) tagLabel.dataset.catSubGroup = cat;
           tagLabel.style.cssText = 'padding:4px 12px 2px 28px;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.35;user-select:none;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px';
           const tagArrow = document.createElement('span');
@@ -1225,6 +1234,7 @@ _renderChannels() {
 
     const renderDmItem = (ch) => {
       const el = document.createElement('div');
+      el.role = 'listitem';
       el.className = 'channel-item dm-item' + (ch.code === this.currentChannel ? ' active' : '');
       el.dataset.code = ch.code;
       // Habitat fork: muted DM names follow the same state as channel names.
@@ -1251,6 +1261,7 @@ _renderChannels() {
       }
       // "..." more button for DM context menu
       const moreBtn = document.createElement('button');
+      moreBtn.tabIndex = -1;
       moreBtn.className = 'channel-more-btn dm-more-btn';
       moreBtn.textContent = '⋯';
       moreBtn.title = t('channels.more_options');
@@ -1308,6 +1319,8 @@ _renderChannels() {
         // Category header
         const header = document.createElement('div');
         header.className = 'dm-category-header';
+        header.role = 'listitem';
+        header.ariaLabel = tag;
         header.innerHTML = `<span class="dm-category-arrow${isCollapsed ? ' collapsed' : ''}">▾</span> <span class="dm-category-name">${this._escapeHtml(tag)}</span>`;
         header.style.cursor = 'pointer';
         header.addEventListener('click', () => {
@@ -1333,6 +1346,8 @@ _renderChannels() {
         const uncatCollapsed = uncatCats['__uncategorized__']?.collapsed || false;
         const header = document.createElement('div');
         header.className = 'dm-category-header';
+        header.role = 'listitem';
+        header.ariaLabel = t('channels.uncategorized');
         header.style.opacity = '0.5';
         header.style.cursor = 'pointer';
         header.innerHTML = `<span class="dm-category-arrow${uncatCollapsed ? ' collapsed' : ''}">▾</span> <span class="dm-category-name">${t('channels.uncategorized')}</span>`;

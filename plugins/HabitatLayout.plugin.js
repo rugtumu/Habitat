@@ -2111,18 +2111,19 @@ class HabitatLayout {
       item.icon = this._make('span', { 'aria-hidden': 'true' }, entry);
     }
     this._move(field, entry);
-    const hintId = 'habitat-join-hint';
-    if (!create) this._make('small', { id: hintId }, fields).textContent = this._text('joinHint');
     item.error = this._make('small', { id: panelId + '-error', role: 'alert', hidden: '' }, fields);
-    this._setAttr(field, 'aria-describedby', (create ? '' : hintId + ' ') + item.error.id);
+    if (!create) item.hint = this._make('small', { id: 'habitat-join-hint' }, fields);
+    if (item.hint) item.hint.textContent = this._text('joinHint');
+    this._setAttr(field, 'aria-describedby', item.hint?.id || null);
     this._setAttr(field, 'aria-invalid', null);
+    this._on(field, 'input', () => this._showAddError(item, ''));
     if (create) this._buildChannelOptions(item, sidebar);
 
     const footer = this._make('footer', {}, form);
     const cancel = this._make('button', { type: 'button' }, footer);
     cancel.textContent = this._text('cancel');
     this._on(cancel, 'click', () => this._toggleDialog(false));
-    item.submit = this._make('button', { type: 'submit', class: 'btn-accent' }, footer);
+    item.submit = this._make('button', { type: 'submit', class: 'btn-accent', 'data-pending-label': '' }, footer);
     this._on(tab, 'click', () => this._selectAddTab(item));
     this._on(form, 'submit', event => {
       event.preventDefault();
@@ -2279,6 +2280,12 @@ class HabitatLayout {
     const waiting = !!this._addRequest;
     item.tab.disabled = waiting && item !== this._activeAddForm && !this._addRequest.dismissed;
     item.form.setAttribute('aria-busy', String(waiting));
+    if (waiting && !item.submit.disabled && !item.form.hidden) {
+      const width = item.submit.getBoundingClientRect().width;
+      if (width) item.submit.style.inlineSize = width + 'px';
+    }
+    if (!waiting) item.submit.style.inlineSize = '';
+    item.submit.setAttribute('aria-busy', String(waiting));
     item.submit.disabled = waiting;
     item.fields.disabled = waiting && !this._addRequest.dismissed;
     let key = item.submitKey || 'join';
@@ -2289,6 +2296,9 @@ class HabitatLayout {
   _showAddError(item, message) {
     item.error.textContent = message;
     item.error.hidden = !message;
+    const description = [item.hint?.id, message && item.error.id].filter(Boolean).join(' ');
+    if (description) item.field.setAttribute('aria-describedby', description);
+    else item.field.removeAttribute('aria-describedby');
     if (message) {
       item.field.setAttribute('aria-invalid', 'true');
       item.field.focus();
@@ -3022,7 +3032,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   background: var(--accent); color: var(--accent-text); font-weight: 600;
 }
 [data-habitat-dialog] footer button[type="submit"]:hover { background: var(--accent-hover); }
-[data-habitat-dialog] footer button:disabled { opacity: .65; cursor: wait; }
+[data-habitat-dialog] footer button:disabled { opacity: var(--hb-disabled-opacity, .65); cursor: default; }
 @media (max-width: 479px) {
   [data-habitat-dialog] { align-items: end; padding: .5rem; }
   [data-habitat-dialog-panel] { width: 100%; padding: 1rem; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
@@ -3118,8 +3128,8 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
   display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
   border: 0; border-radius: 50%; color: var(--hb-on-media); background: var(--hb-on-media-fill); cursor: pointer;
 }
-html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: .45; cursor: default; }
-[data-habitat-stage-controls] > button:disabled { opacity: .45; cursor: default; scale: 1; }
+html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: var(--hb-disabled-opacity, .65); cursor: default; }
+[data-habitat-stage-controls] > button:disabled { opacity: var(--hb-disabled-opacity, .65); cursor: default; scale: 1; }
 [data-habitat-stage-controls] > button[hidden] { display: none; }
 [data-habitat-stage-controls] > button[aria-pressed="true"] { color: var(--danger-text); background: var(--danger); }
 [data-habitat-stage-controls] > :is([data-habitat-for="voice-cam-btn"], [data-habitat-for="screen-share-btn"])[aria-pressed="true"] {

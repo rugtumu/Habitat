@@ -42,6 +42,7 @@ badge run `node scripts/habitat-icons.js`; never edit between the
 - Grafit marks ordinary channel unreads with a dot and a bolder name. Personal mentions and replies show their count. DMs and collapsed groups keep numeric badges. The quick switcher uses the same marks and groups text channels, voice rooms and DMs. Private text channels use a lock in the top-level icon slot.
 - Escape closes the front surface before it closes a thread or jumps to the latest message. Shift+Escape uses the same bulk read as the channel and DM menus.
 - The main conversation and composer share a density-dependent text column. The thread feed and reply field share a narrower column in docked and floating views. The Settings sample follows Cozy’s avatar and gap. Keep date labels inside messages so pagination still counts the original rows.
+- Channel, DM, member and message lists use one roving row stop. Preserve channel codes, user IDs and message IDs on redraw. The focused row’s own buttons stay reachable with Tab.
 - Member rows open profiles. Birthday marks appear beside member names and on profiles. Scores stay on profiles. On touch the profile carries the DM and moderation actions. Another member’s default card can show a personal note saved in this browser.
 - The default message toolbar shows React, Reply, Edit on your own messages, and More. Quote is under More. Personal orders fill available slots.
 - Sizes in `rem`. Colours through the tokens at the top of the theme.

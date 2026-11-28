@@ -243,8 +243,16 @@ _bindEscapeShortcuts() {
       trigger.focus();
       return;
     }
-    const opener = el._anchorEl;
+    let opener = el._anchorEl;
     menus[el.id]();
+    // Habitat fork: a presence or history redraw can replace the row while focus is in its menu.
+    if (opener && !opener.isConnected) {
+      const row = opener.closest?.('[role="listitem"], li[data-msg-id]');
+      const d = row?.dataset;
+      if (d?.msgId) opener = document.querySelector('#messages > [data-msg-id="' + CSS.escape(d.msgId) + '"]');
+      else if (d?.userId) opener = document.querySelector('#online-users [data-user-id="' + CSS.escape(d.userId) + '"]');
+      else if (d?.code) opener = document.querySelector('.channel-item[data-code="' + CSS.escape(d.code) + '"]');
+    }
     if (!opener?.isConnected) return;
     if (opener.tabIndex < 0 && !opener.hasAttribute('tabindex')) {
       opener.tabIndex = -1;
@@ -340,6 +348,12 @@ _bindEscapeShortcuts() {
     // Drafts and pop-outs keep the main channel in place while their input owns Escape.
     if (top('.edit-textarea, #voice-record-bar, .lp-size-menu') ||
         e.target?.closest?.('[data-habitat-focus], .fullscreen-call-toolbar')) return;
+    // Habitat fork: leave the message list for the composer after any front surface has had Escape.
+    if (field?.id === 'messages' || field?.matches?.('#messages > li[data-msg-id]')) {
+      consume(e);
+      document.getElementById('message-input')?.focus();
+      return;
+    }
     const thread = top('#thread-panel');
     if (thread) {
       // Habitat fork: keep drafts with their thread. A floating thread owns Escape only inside its panel.
@@ -820,8 +834,11 @@ _uploadWithProgress(url, formData) {
     xhr.setRequestHeader('X-Upload-Id', uploadId);
     if (!this._uploadProcessing) this._uploadProcessing = new Map();
 
+    // Habitat fork: parallel files share a picker. Release it after the last upload settles.
+    const picker = document.getElementById('upload-btn');
     const settle = () => {
       this._activeUploads.delete(xhr);
+      if (!this._activeUploads.size) HabitatForm.busy(picker, false);
       this._uploadProcessing.delete(uploadId);
       if (bar && this._activeUploads.size === 0) bar.style.display = 'none';
     };
@@ -881,7 +898,8 @@ _uploadWithProgress(url, formData) {
     });
 
     this._activeUploads.add(xhr);
-    xhr.send(formData);
+    HabitatForm.busy(picker, true);
+    try { xhr.send(formData); } catch (error) { settle(); reject(error); }
   });
 },
 

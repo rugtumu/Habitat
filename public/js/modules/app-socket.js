@@ -350,7 +350,13 @@ _listenSession() {
     else if (kind === 'stickers') this._loadStickers?.();
   });
 
+  // Habitat fork: the composer keeps its draft while Send waits for the connection.
+  const send = document.getElementById('send-btn');
+  // The helper comes from a separate script. Connecting must never depend on it.
+  const syncSend = () => { if (send && typeof HabitatForm !== 'undefined') HabitatForm.busy(send, !this.socket.connected); };
+  syncSend();
   this.socket.on('connect', () => {
+    syncSend();
     this._setLed('connection-led', 'on');
     this._setLed('status-server-led', 'on');
     document.getElementById('status-server-text').textContent = t('app.status.connected');
@@ -741,6 +747,7 @@ _listenSession() {
   });
 
   this.socket.on('disconnect', () => {
+    syncSend();
     this._setLed('connection-led', 'danger pulse');
     this._setLed('status-server-led', 'danger pulse');
     document.getElementById('status-server-text').textContent = t('app.status.disconnected');

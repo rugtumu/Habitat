@@ -32,7 +32,10 @@ _setupMessageNsfw() {
     if (!box) return;
     e.preventDefault();
     e.stopPropagation();
-    box.closest('[data-nsfw="1"]').dataset.nsfwShown = '1';
+    // Habitat fork: the spoken excerpt follows the same reveal action as the visible message.
+    const row = box.closest('[data-nsfw="1"]');
+    row.dataset.nsfwShown = '1';
+    this._labelMessageRow(row);
   }, true);
 },
 
@@ -41,6 +44,7 @@ _applyMessageNsfw(el, nsfw) {
   if (!nsfw) {
     delete el.dataset.nsfw;
     delete el.dataset.nsfwShown;
+    if (el.isConnected) this._labelMessageRow(el);
     return;
   }
   el.dataset.nsfw = '1';
@@ -50,6 +54,7 @@ _applyMessageNsfw(el, nsfw) {
   // With the blur switched off in Settings, a marked message shows as is.
   if (this._blurNsfw && !this._blurNsfw()) el.dataset.nsfwShown = '1';
   else delete el.dataset.nsfwShown;
+  if (el.isConnected) this._labelMessageRow(el);
 },
 
 // Whether the menu offers the mark on this message. The server checks again.

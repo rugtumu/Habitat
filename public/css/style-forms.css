@@ -79,3 +79,24 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* Habitat fork: retain the label's intrinsic width while its button shows a static busy mark. */
+button[aria-busy="true"]:not([data-pending-label]) {
+  position: relative;
+  -webkit-text-fill-color: transparent;
+}
+button[aria-busy="true"]:not([data-pending-label]) > * { visibility: hidden; }
+button[aria-busy="true"]:not([data-pending-label])::after {
+  content: "…";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: inherit;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  pointer-events: none;
+}
+.field-error { display: block; color: var(--danger); }
+[aria-invalid="true"] { border-color: var(--danger); }

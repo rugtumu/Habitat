@@ -405,21 +405,23 @@ _updateChannelFunctionsPanel(ch) {
   this._setCfnBadge('welcome', ch.show_welcome === 1, t(ch.show_welcome === 1 ? 'channel_functions.on' : 'channel_functions.off'));
   // Streams and music greyed when voice is disabled (they depend on voice)
   const streamsRow = document.querySelector('.cfn-row[data-fn="streams"]');
-  if (streamsRow) streamsRow.classList.toggle('cfn-disabled', voiceOff);
   const musicRow = document.querySelector('.cfn-row[data-fn="music"]');
-  if (musicRow) musicRow.classList.toggle('cfn-disabled', voiceOff);
   // Voice Limit (0 = unlimited = ∞; minimum meaningful limit is 2)
   const limit = ch.voice_user_limit || 0;
   this._setCfnBadge('user-limit', limit >= 2, limit >= 2 ? String(limit) : '∞');
   // User limit greyed when voice is disabled
   const userLimitRow = document.querySelector('.cfn-row[data-fn="user-limit"]');
-  if (userLimitRow) userLimitRow.classList.toggle('cfn-disabled', voiceOff);
   // Voice Bitrate (0 = auto / no cap)
   const bitrate = ch.voice_bitrate || 0;
   this._setCfnBadge('voice-bitrate', bitrate > 0, bitrate > 0 ? bitrate + ' kbps' : t('channel_functions.voice_bitrate_auto'));
   // Voice bitrate greyed when voice is disabled
   const bitrateRow = document.querySelector('.cfn-row[data-fn="voice-bitrate"]');
-  if (bitrateRow) bitrateRow.classList.toggle('cfn-disabled', voiceOff);
+  // Habitat fork: keyboard menus and the theme read the same availability as the pointer handler.
+  for (const row of [streamsRow, musicRow, userLimitRow, bitrateRow]) {
+    if (!row) continue;
+    row.classList.toggle('cfn-disabled', voiceOff);
+    row.setAttribute('aria-disabled', String(voiceOff));
+  }
   // Announcement channel
   const isAnnouncement = ch.notification_type === 'announcement';
   this._setCfnBadge('announcement', isAnnouncement, t(isAnnouncement ? 'channel_functions.on' : 'channel_functions.off'));
@@ -702,7 +704,7 @@ _focusContextMenu(menu, opener) {
   menu.setAttribute('role', 'menu');
   const selector = 'button, .cfn-row';
   const visibleItems = () => [...menu.querySelectorAll(selector)].filter(el =>
-    !el.disabled && !el.classList.contains('cfn-disabled') && el.getClientRects().length);
+    !el.disabled && el.getAttribute('aria-disabled') !== 'true' && !el.classList.contains('cfn-disabled') && el.getClientRects().length);
   for (const item of menu.querySelectorAll(selector)) {
     item.setAttribute('role', item.hasAttribute('aria-checked') ? 'menuitemcheckbox' : 'menuitem');
     item.tabIndex = -1;

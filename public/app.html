@@ -176,12 +176,13 @@
           <div class="sidebar-split" id="sidebar-split" data-mod-id="channels">
           <div class="sidebar-section channel-section" id="channels-pane" data-haven-region="channels">
             <h5 class="section-label channels-toggle" id="channels-toggle" style="cursor:pointer;user-select:none"><span class="channels-toggle-arrow" id="channels-toggle-arrow">▾</span><span class="section-label-text" style="flex:1" data-i18n="app.sidebar.channels">Channels</span><button class="icon-btn small" id="sub-channel-panel-btn" data-i18n-title="app.actions.sub_channel_subscriptions" title="Sub-channel subscriptions" style="font-size:0.85rem;padding:2px 6px;opacity:0.6;position:relative;z-index:2;display:none">📡</button><button class="icon-btn small arrange-channels-btn" id="arrange-channels-btn" data-i18n-title="channels.arrange.button" title="Arrange my channels" style="font-size:0.85rem;padding:2px 6px;opacity:0.6;position:relative;z-index:2">⇅</button><button class="icon-btn small" id="organize-channels-btn" data-i18n-title="app.actions.organize_channels" title="Organize channels" style="display:none;font-size:0.85rem;padding:2px 6px;opacity:0.6;position:relative;z-index:2">📋</button></h5>
-            <div class="channel-list" id="channel-list"></div>
+            <!-- Habitat fork: named lists keep their keyboard entry point when their rows are rebuilt. -->
+            <div class="channel-list" id="channel-list" role="list" tabindex="0" data-i18n-aria-label="app.sidebar.channels" aria-label="Channels"></div>
           </div>
           <div class="sidebar-split-handle" id="sidebar-split-handle" data-i18n-title="app.actions.drag_to_resize" title="Drag to resize"></div>
           <div class="sidebar-section dm-section-pane" id="dm-pane" data-haven-region="direct-messages">
             <h5 class="section-label dm-section-label dm-toggle" id="dm-toggle-header" style="cursor:pointer;user-select:none"><span class="dm-toggle-arrow" id="dm-toggle-arrow">▾</span><span class="section-label-text" style="flex:1" data-i18n="app.sidebar.direct_messages">Direct Messages</span><span style="display:flex;align-items:center;gap:4px;position:relative;z-index:2"><span class="dm-unread-count" id="dm-unread-badge" style="display:none"></span><button class="icon-btn small" id="new-group-dm-btn" data-i18n-title="groups.new_group" title="New group DM" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">👥</button><button class="icon-btn small" id="dm-sort-btn" data-i18n-title="channels.dm_sort" title="Sort DMs" aria-haspopup="menu" aria-expanded="false" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">⇅</button><button class="icon-btn small" id="organize-dms-btn" data-i18n-title="app.actions.organize_dms" title="Organize DMs" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">📋</button></span></h5>
-            <div class="dm-list-scroll" id="dm-list"></div>
+            <div class="dm-list-scroll" id="dm-list" role="list" tabindex="0" data-i18n-aria-label="app.sidebar.direct_messages" aria-label="Direct messages"></div>
           </div>
         </div>
         </div>
@@ -566,10 +567,10 @@
             </div>
             <div id="pinned-list" class="pinned-list"></div>
           </div>
-          <div class="messages" id="messages" data-haven-region="message-list">
-            <!-- Floating "⋯" button for touch-device message actions fallback -->
-            <button id="msg-more-btn" data-i18n-aria-label="app.actions.message_actions" aria-label="Message actions">⋯</button>
-          </div>
+          <!-- Floating "⋯" button for touch-device message actions fallback -->
+          <button id="msg-more-btn" data-i18n-aria-label="app.actions.message_actions" aria-label="Message actions">⋯</button>
+          <!-- Habitat fork: keep the history entry point outside individual messages and their toolbars. -->
+          <ul class="messages" id="messages" role="list" tabindex="0" data-i18n-aria-label="settings.sounds_section.messages" aria-label="Messages" data-haven-region="message-list"></ul>
           <!-- Habitat fork: keep history feedback outside the list so pagination and scroll geometry stay intact. -->
           <div class="history-status" role="status">
             <span class="history-loading" data-i18n="history.loading">Loading messages…</span>
@@ -806,7 +807,8 @@
               <button type="button" class="user-search-clear" id="user-search-clear" style="display:none"
                       data-i18n-title="right_sidebar.search_clear" title="Clear">&times;</button>
             </div>
-            <div id="online-users" class="user-list">
+            <!-- Habitat fork: the member list keeps its name across presence updates. -->
+            <div id="online-users" role="list" tabindex="0" data-i18n-aria-label="settings.nav.members" aria-label="Members" class="user-list">
               <p class="muted-text" data-i18n="right_sidebar.select_channel">Select a channel</p>
             </div>
           </div>
@@ -4682,7 +4684,8 @@
           </label>
           <div>
             <h6 style="margin:0 0 4px;font-size:0.82rem;font-weight:600" data-i18n="settings.admin.invite_links.channels_granted">Channels this link grants</h6>
-            <div id="invite-new-channels" style="margin-top:6px;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:6px">
+            <!-- Habitat fork: channel selection errors describe the checkbox group. -->
+            <div id="invite-new-channels" role="group" aria-labelledby="invite-new-channels-label" tabindex="-1" style="margin-top:6px;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:6px">
               <p class="muted-text" style="margin:4px 0;font-size:0.85rem" data-i18n="settings.admin.loading_channels">Loading channels…</p>
             </div>
             <div style="display:flex;gap:4px;margin-top:4px">
@@ -5467,6 +5470,10 @@
   </div>
 
   <!-- Habitat fork: members open the app without a desktop download prompt. -->
+  <!-- Habitat fork: both pages use the same accessible request and field states. -->
+  <script src="/js/form-state.js"></script>
+  <!-- Habitat fork: keyboard navigation binds once to each persistent list. -->
+  <script src="/js/list-navigation.js"></script>
   <script src="/js/i18n.js?v=4.29.11"></script>
   <script src="/socket.io/socket.io.js"></script>
 

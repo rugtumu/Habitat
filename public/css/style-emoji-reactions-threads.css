@@ -881,6 +881,9 @@
   .message-compact:hover .msg-toolbar { display: flex; }
 }
 
+/* Habitat fork: a hardware keyboard can also be attached to a coarse-pointer device. */
+#messages > li[data-msg-id]:not(.editing)[tabindex="0"]:focus-within .msg-toolbar { display: flex !important; }
+
 /* Hide toolbar while in edit mode */
 .message.editing .msg-toolbar,
 .message-compact.editing .msg-toolbar { display: none !important; }

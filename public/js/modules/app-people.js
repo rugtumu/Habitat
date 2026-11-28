@@ -156,7 +156,8 @@ _bindPeople() {
       const existingPopup = document.getElementById('profile-popup');
       // A hover preview is already up: promote it to the full card in place
       // instead of re-fetching.
-      if (existingPopup && this._isHoverPopup) {
+      // Habitat fork: the pointer can be resting on a different member than keyboard focus.
+      if (existingPopup && this._isHoverPopup && this._openProfileUserId === userId) {
         this._promoteHoverPopup(existingPopup);
         return;
       }
@@ -337,6 +338,9 @@ _bindPeople() {
 },
 
 _openRenameModal() {
+  // Habitat fork: don't let a late save close a newly opened copy of the editor.
+  this._profileEditSession = {};
+  document.querySelectorAll('#rename-modal [aria-invalid="true"]').forEach(HabitatForm.clear);
   document.getElementById('rename-modal').style.display = 'flex';
   const input = document.getElementById('rename-input');
   input.value = this.user.displayName || this.user.username;
@@ -370,50 +374,74 @@ _openRenameModal() {
   this._refreshProfileThemePreview();
 },
 
-_saveRename() {
+async _saveRename() {
+  // Habitat fork: Enter and Save share one request, including the asynchronous avatar upload.
+  const button = document.getElementById('save-rename-btn');
+  if (button.disabled) return;
   const input = document.getElementById('rename-input');
+  const invalid = key => {
+    HabitatForm.invalid(input, t(key));
+    this._showToast(t(key), 'error');
+  };
   // Mirrors normalizeDisplayName on the server (#5509) so a name in any
   // script gets an instant answer here rather than a bare error-msg back.
   const newName = input.value.normalize('NFC').trim().replace(/\s+/g, ' ');
   if (!newName || [...newName].length < 2) {
-    return this._showToast(t('toasts.display_name_too_short'), 'error');
+    return invalid('toasts.display_name_too_short');
   }
   if (!/^[\p{L}\p{N}\p{M}_ ]+$/u.test(newName)) {
-    return this._showToast(t('toasts.display_name_invalid_chars'), 'error');
+    return invalid('toasts.display_name_invalid_chars');
   }
   if (/\p{M}{4,}/u.test(newName)) {
-    return this._showToast(t('toasts.display_name_too_many_marks'), 'error');
+    return invalid('toasts.display_name_too_many_marks');
   }
-  // Only an actual change goes to the server; a bio or avatar save with the
-  // name left alone used to announce a rename to the whole channel.
+  const date = document.getElementById('edit-profile-birthday');
+  if (!date.validity.valid) return HabitatForm.invalid(date, date.validationMessage);
+  const bio = document.getElementById('edit-profile-bio');
+  const session = this._profileEditSession;
+  const modal = document.getElementById('rename-modal');
+  const stillOpen = () => session === this._profileEditSession && modal.style.display !== 'none';
+  const changes = [];
   if (newName !== (this.user.displayName || this.user.username)) {
-    this.socket.emit('rename-user', { username: newName });
+    changes.push([input, 'rename-user', { username: newName }, 'renamed', /display name|that name|stacked accent|underscores/i]);
   }
-  // Save bio, only when it was changed here: a save that is about the name
-  // or the avatar leaves the bio as the server has it.
-  const bioInput = document.getElementById('edit-profile-bio');
-  if (bioInput && bioInput.value !== this._bioOpened) {
-    this.socket.emit('set-bio', { bio: bioInput.value });
+  if (bio && bio.value !== this._bioOpened) {
+    changes.push([bio, 'set-bio', { bio: bio.value }, 'bio-updated', /bio/i]);
   }
-  // Only an actual birthday change goes out. The date goes once, the first
-  // time; after that only the two toggles can change (the server holds it).
-  const birthday = this.user.birthday ? null : (document.getElementById('edit-profile-birthday').value || null);
+  const birthday = this.user.birthday ? null : date.value || null;
   const hidden = document.getElementById('edit-profile-birthday-hidden').checked;
   const hideYear = document.getElementById('edit-profile-birthday-hide-year').checked;
   if (birthday || hidden !== (this.user.birthdayHidden === true) || hideYear !== (this.user.birthdayHideYear !== false)) {
-    this.socket.emit('set-birthday', birthday ? { birthday, hidden, hideYear } : { hidden, hideYear });
+    changes.push([date, 'set-birthday', birthday ? { birthday, hidden, hideYear } : { hidden, hideYear }, 'birthday-updated', /birthday/i]);
   }
   if (this._pendingBannerColor !== (this.user.bannerColor || null)) {
-    this.socket.emit('set-banner-color', { color: this._pendingBannerColor });
+    changes.push([document.getElementById('banner-color-input'), 'set-banner-color', { color: this._pendingBannerColor },
+      'banner-color-updated', /banner color/i]);
   }
   const theme = this._pendingProfileTheme || null;
   if (JSON.stringify(theme) !== JSON.stringify(this.user.profileTheme || null)) {
-    this.socket.emit('set-profile-theme', theme || { top: null, bottom: null });
+    changes.push([document.getElementById('profile-theme-top'), 'set-profile-theme', theme || { top: null, bottom: null },
+      'profile-theme-updated', /profile theme/i]);
   }
-  // Also commit any pending avatar and groups changes
-  this._commitAvatarSettings();
-  this._GroupManagerSaveGroups();
-  document.getElementById('rename-modal').style.display = 'none';
+
+  // Habitat fork: profile writes have separate receipts. Send one at a time so a moderation refusal belongs to its field.
+  HabitatForm.busy(button, true);
+  try {
+    for (const [field, event, data, receipt, refused] of changes) {
+      const ok = await HabitatForm.socketRequest(this, event, data, receipt, {
+        accept: response => event !== 'rename-user' || response?.user?.displayName === newName,
+        refusal: (message, moderated) => (moderated || refused.test(message)) && field,
+        profileText: field === input || field === bio,
+        active: stillOpen
+      });
+      if (!ok || !stillOpen()) return;
+      if (field === bio) this._bioOpened = data.bio;
+    }
+    if (await this._GroupManagerSaveGroups() === false || !stillOpen()) return;
+    if (await this._commitAvatarSettings() !== false && stillOpen()) modal.style.display = 'none';
+  } finally {
+    HabitatForm.busy(button, false);
+  }
 },
 
 // The banner preview in Edit Profile, painted the way the card will be: the
@@ -606,7 +634,7 @@ _showGroupManager() {
   );
 },
 
-_GroupManagerSaveGroups() {
+async _GroupManagerSaveGroups() {
   // Only send a selection while the group manager is open. Save Profile calls
   // this unconditionally, and with the manager closed there are no checkboxes
   // in the DOM, so an empty list would go out and the server would read it as
@@ -614,22 +642,23 @@ _GroupManagerSaveGroups() {
   const manager = document.getElementById('user-profile-groups-manager');
   if (!manager || manager.style.display === 'none') return;
   const selectedGroupIds = Array.from(manager.querySelectorAll('.user-group-checkbox:checked')).map(el => parseInt(el.dataset.role, 10)).filter(Number.isInteger);
-  this._roleEmit('update-groups', {groupIds: selectedGroupIds}, (res) => {
-    if (res.error) {
-      return this._showToast(res.error, 'error');
-    }
-
-    // Update local user roles with the groups returned by the server.
-    if (Array.isArray(res.groups)) {
-      this.user.roles = [
-        ...(this.user.roles || []).filter(r => r.level !== 0),
-        ...res.groups
-      ];
-    }
-
-    this._showToast(t('modals.edit_profile.groups_saved'), 'success');
-    this._renderUserProfileGroupsList();
-  });
+  // Habitat fork: profile Save stays pending while an open group's selection is being saved.
+  let res;
+  try {
+    res = await this.socket.timeout(10000).emitWithAck('update-groups', { groupIds: selectedGroupIds });
+  } catch {
+    this._showToast(t('toasts.role_server_no_response'), 'error');
+    return false;
+  }
+  if (res.error) {
+    this._showToast(res.error, 'error');
+    return false;
+  }
+  if (Array.isArray(res.groups)) {
+    this.user.roles = [...(this.user.roles || []).filter(r => r.level !== 0), ...res.groups];
+  }
+  this._showToast(t('modals.edit_profile.groups_saved'), 'success');
+  this._renderUserProfileGroupsList();
 },
 
 _showGroupChannelInfo(info, persistent = false) {

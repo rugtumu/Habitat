@@ -45,6 +45,9 @@
   border-color: var(--accent);
 }
 
+/* Habitat fork: the semantic history list keeps the same scroll geometry as the original container. */
+ul.messages { margin: 0; list-style: none; }
+
 .messages {
   flex: 1;
   overflow-y: auto;

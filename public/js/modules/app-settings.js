@@ -403,7 +403,11 @@ _bindSettings() {
   this._updateTimezoneSummary?.();
 
   // ── Password change ──────────────────────────────────
-  document.getElementById('change-password-btn').addEventListener('click', async () => {
+  // Habitat fork: keep failures beside the field and keep one password request in flight.
+  document.getElementById('change-password-btn').addEventListener('click', async e => {
+    const button = e.currentTarget;
+    if (button.disabled) return;
+    const invalid = (id, message) => HabitatForm.invalid(document.getElementById(id), message);
     const cur  = document.getElementById('current-password').value;
     const np   = document.getElementById('new-password').value;
     const conf = document.getElementById('confirm-password').value;
@@ -411,10 +415,11 @@ _bindSettings() {
     hint.textContent = '';
     hint.className = 'settings-hint';
 
-    if (!cur || !np) return hint.textContent = t('settings.password_section.fill_fields');
-    if (np.length < 8) return hint.textContent = t('settings.password_section.too_short');
-    if (np !== conf)   return hint.textContent = t('settings.password_section.mismatch');
+    if (!cur || !np) return invalid(!cur ? 'current-password' : 'new-password', t('settings.password_section.fill_fields'));
+    if (np.length < 8) return invalid('new-password', t('settings.password_section.too_short'));
+    if (np !== conf)   return invalid('confirm-password', t('settings.password_section.mismatch'));
 
+    HabitatForm.busy(button, true);
     // Flag to prevent force-logout from kicking us out
     this._justChangedPassword = true;
 
@@ -429,6 +434,9 @@ _bindSettings() {
       });
       const data = await res.json();
       if (!res.ok) {
+        this._justChangedPassword = false;
+        if (/^current password/i.test(data.error)) return HabitatForm.invalid(document.getElementById('current-password'), data.error);
+        if (/^(new password|password must)/i.test(data.error)) return HabitatForm.invalid(document.getElementById('new-password'), data.error);
         hint.textContent = data.error || t('settings.password_section.failed');
         hint.classList.add('error');
         return;
@@ -465,6 +473,8 @@ _bindSettings() {
       this._justChangedPassword = false;
       hint.textContent = t('settings.password_section.network_error');
       hint.classList.add('error');
+    } finally {
+      HabitatForm.busy(button, false);
     }
   });
 
