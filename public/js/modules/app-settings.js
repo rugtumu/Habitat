@@ -35,6 +35,8 @@ _applyComposerButtons() {
     // Habitat fork: use the original controls in the field so upload and picker handlers survive.
     // Explicit compact mode keeps every tool under +. A phone also folds the secondary tools.
     if (inlineTools && (k === 'upload' || k === 'emoji')) {
+      // Habitat fork: the field uses DOM order even when another theme renders it as a flex row.
+      b.style.order = '';
       box.parentNode.insertBefore(b, k === 'upload' ? document.getElementById('message-input') : document.getElementById('send-btn'));
     } else if (!compact && folded.includes(k)) menu.appendChild(b);
   });

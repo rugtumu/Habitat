@@ -383,6 +383,16 @@ html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="m
 .channel-item:hover { background: var(--bg-hover); }
 .channel-item.active { background: var(--bg-active); }
 
+/* Habitat fork: the creation shortcut is a button occupying a full channel row. */
+.temp-channel-create-btn {
+  width: 100%;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
 .temp-channel-create-btn:hover { opacity: 0.8 !important; }
 
 .channel-item.active::before {

@@ -11,11 +11,22 @@ const setup = (saved, compact = false) => {
   const attrs = new Set(compact ? ['data-compact-composer'] : []);
   const mk = (id) => ({ id, style: {}, parent: null, classList: { remove() {} } });
   const box = { children: [], appendChild(el) { el.parent && el.parent.children.splice(el.parent.children.indexOf(el), 1); el.parent = this; this.children.push(el); } };
-  const field = { children: [], insertBefore: box.appendChild };
+  const field = { children: [], insertBefore(el, ref) {
+    if (el === ref) return;
+    if (el.parent) el.parent.children.splice(el.parent.children.indexOf(el), 1);
+    assert.ok(this.children.includes(ref));
+    this.children.splice(this.children.indexOf(ref), 0, el);
+    el.parent = this;
+  } };
+  const plus = mk('composer-plus-btn'), input = mk('message-input'), send = mk('send-btn');
+  box.id = 'actions';
+  field.children.push(plus, box, input, send);
+  plus.parent = field;
+  Object.defineProperty(plus, 'nextElementSibling', { get: () => field.children[field.children.indexOf(plus) + 1] });
   box.parentNode = field;
   const menu = { children: [], appendChild: box.appendChild, classList: { remove() {} } };
   KEYS.forEach((k, i) => { box.appendChild(mk(`${k}-btn`)); box.appendChild({ id: `div${i}`, style: {}, parent: null }); });
-  const byId = Object.fromEntries(box.children.map(el => [el.id, el]));
+  const byId = Object.fromEntries([...box.children, plus, input, send].map(el => [el.id, el]));
   const document = { querySelector: () => box, getElementById: id => (id === 'composer-overflow' ? menu : byId[id] || null), documentElement: { hasAttribute: a => attrs.has(a), toggleAttribute: (a, on) => (on ? attrs.add(a) : attrs.delete(a)) } };
   const context = vm.createContext({ module: { exports: {} }, localStorage: { getItem: k => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, v), removeItem: k => data.delete(k) }, document, t: k => k, window: {}, console });
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'public/js/modules/app-settings.js'), 'utf8').replace(/^export default/m, 'module.exports ='), context, { filename: 'app-settings.js' });
@@ -31,11 +42,13 @@ test('the saved layout is cleaned: unknown buttons dropped, missing ones added i
   assert.deepEqual(plain(setup().app._composerButtonsCfg()), { order: KEYS, folded: [] });
 });
 test('Habitat groups secondary tools until the member saves a personal layout', () => {
-  const { app, attrs, box, menu, data } = setup();
+  const { app, attrs, box, menu, data, byId } = setup();
   attrs.add('data-habitat-layout');
   app._applyComposerButtons();
   assert.deepEqual(ids(box), []);
-  assert.deepEqual(ids(box.parentNode), ['upload', 'emoji']);
+  assert.deepEqual(box.parentNode.children.map(el => el.id), ['actions', 'upload-btn', 'message-input', 'composer-plus-btn', 'emoji-btn', 'send-btn']);
+  assert.equal(byId['upload-btn'].style.order, '');
+  assert.equal(byId['emoji-btn'].style.order, '');
   assert.deepEqual(ids(menu), KEYS.filter(key => key !== 'emoji' && key !== 'upload'));
   data.set('haven_composer_buttons', JSON.stringify({ folded: [] }));
   app._applyComposerButtons();
@@ -44,15 +57,17 @@ test('Habitat groups secondary tools until the member saves a personal layout', 
   attrs.delete('data-habitat-layout');
   app._applyComposerButtons();
   assert.deepEqual(ids(box), KEYS);
+  assert.deepEqual(box.parentNode.children.map(el => el.id), ['composer-plus-btn', 'actions', 'message-input', 'send-btn']);
 });
 test('a phone keeps attach and emoji in the field and gives an explicit compact choice back its tools', () => {
   const { app, attrs, box, data } = setup(undefined, true);
   attrs.add('data-habitat-layout');
   app._applyComposerButtons();
-  assert.deepEqual(ids(box.parentNode), ['upload', 'emoji']);
+  assert.deepEqual(box.parentNode.children.map(el => el.id), ['actions', 'upload-btn', 'message-input', 'composer-plus-btn', 'emoji-btn', 'send-btn']);
+  assert.deepEqual(ids(box), KEYS.filter(key => key !== 'emoji' && key !== 'upload'));
   data.set('haven_compact_composer', 'true');
   app._applyComposerButtons();
-  assert.deepEqual(ids(box.parentNode), []);
+  assert.deepEqual(ids(box.parentNode), ['composer-plus', 'send']);
   assert.deepEqual(ids(box), KEYS);
 });
 

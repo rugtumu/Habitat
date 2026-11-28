@@ -1680,6 +1680,7 @@ test('a click on someone under a voice room opens their profile, and the card ca
     doc.body.appendChild(plain);
     FakeMutationObserver.notify(doc.body);
     assert.equal(plain.querySelector('[data-habitat-voice-tools]'), null);
+    if (id === 1) assert.equal(plain.querySelector('[data-habitat-profile-action="note"]'), null);
     plain.remove();
   }
   const custom = card(5);
@@ -2110,16 +2111,38 @@ test('a personal profile note reopens for the same account and can be cleared', 
   });
   window.t = key => key;
   const prompts = [];
-  let answer = 'Lunch on Tuesday';
+  const long = '<img src=x>' + 'x'.repeat(520);
+  let answer = long;
   const card = el(doc, 'div', {}, [el(doc, 'div', { class: 'profile-popup-actions' })]);
   const layout = new HabitatLayout();
   Object.assign(window.app, { user: { id: 2 }, _closeProfilePopup() {},
-    _showPromptModal(label, hint, value) { prompts.push(value); return answer; },
+    _showPromptModal(label, hint, value, options) {
+      assert.match(hint, /this browser only/);
+      assert.equal(options.maxLength, 500);
+      prompts.push(value); return answer;
+    },
   });
   layout._profileActions(card, 5, false);
   const note = card.querySelector('[data-habitat-profile-action="note"]');
+  assert.equal(note.getAttribute('aria-pressed'), 'false');
   note.click();
   await Promise.resolve();
+  assert.equal(saved.get('habitat_profile_note_2_5'), long.slice(0, 500));
+  const reopened = el(doc, 'div', { id: 'profile-popup', 'data-habitat-avatar-id': '5' }, [
+    el(doc, 'div', { class: 'profile-popup-body' }, [el(doc, 'div', { class: 'profile-popup-actions' })])
+  ]);
+  doc.body.appendChild(reopened);
+  saved.set('habitat_profile_note_2_5', long);
+  layout.start();
+  const section = reopened.querySelector('[data-habitat-profile-note]');
+  assert.equal(section.children[0].textContent, 'Note');
+  assert.equal(section.children[1].textContent, long.slice(0, 500));
+  assert.equal(section.children[1].children.length, 0);
+  assert.equal(saved.get('habitat_profile_note_2_5'), long, 'viewing a legacy note preserves the original');
+  assert.equal(reopened.querySelector('[data-habitat-profile-action="note"]').getAttribute('aria-pressed'), 'true');
+  layout.stop();
+  assert.equal(reopened.querySelector('[data-habitat-profile-note]'), null);
+  assert.equal(reopened.querySelector('[data-habitat-profile-action]'), null);
   window.app.user = { id: 3 };
   answer = null;
   note.click();
@@ -2128,6 +2151,45 @@ test('a personal profile note reopens for the same account and can be cleared', 
   answer = '';
   note.click();
   await Promise.resolve();
-  assert.deepEqual(prompts, ['', '', 'Lunch on Tuesday']);
+  assert.deepEqual(prompts, ['', '', long.slice(0, 500)]);
   assert.equal(saved.size, 0);
+});
+
+test('composer tools have distinct names and titles during layout ownership and give their labels back', () => {
+  const { doc } = buildApp();
+  doc.documentElement.lang = 'en';
+  const composer = region(doc, 'composer');
+  doc.body.appendChild(composer);
+  const tools = [['upload-btn', 'Upload File', 'media.upload_file_title', 'Attach a file'],
+    ['composer-plus-btn', 'More', 'app.input_bar.plus_btn', 'More tools']];
+  for (const [id, name, key] of tools) {
+    composer.appendChild(el(doc, 'button', { id, title: name, 'aria-label': name,
+      'data-i18n-title': key, 'data-i18n-aria-label': key }));
+  }
+  const before = snapshot(doc.documentElement);
+  const layout = new HabitatLayout();
+  layout.start();
+  for (const [id, , , label] of tools) {
+    const button = doc.getElementById(id);
+    assert.equal(button.getAttribute('title'), label);
+    assert.equal(button.getAttribute('aria-label'), label);
+    assert.equal(button.getAttribute('data-i18n-title'), null);
+    assert.equal(button.getAttribute('data-i18n-aria-label'), null);
+  }
+  layout._disengage();
+  assert.equal(snapshot(doc.documentElement), before);
+  layout._engage();
+  doc.documentElement.lang = 'fr';
+  window.t = key => key === 'media.upload_file_title' ? 'Joindre un fichier' : 'Plus';
+  doc.fire('haven:localechange');
+  assert.equal(doc.getElementById('upload-btn').getAttribute('aria-label'), 'Joindre un fichier');
+  window.i18n = { applyDOM(root) {
+    assert.equal(root, composer);
+    for (const button of root.children) {
+      button.setAttribute('title', window.t(button.getAttribute('data-i18n-title')));
+      button.setAttribute('aria-label', window.t(button.getAttribute('data-i18n-aria-label')));
+    }
+  } };
+  layout.stop();
+  assert.equal(doc.getElementById('composer-plus-btn').getAttribute('title'), 'Plus');
 });

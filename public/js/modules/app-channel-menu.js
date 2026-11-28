@@ -222,11 +222,11 @@ _bindChannelMenu() {
     const panel = document.getElementById('channel-functions-panel');
     if (!panel) return;
     const isHidden = panel.style.display === 'none' || panel.style.display === '';
-    // Habitat fork: keep the switches in the menu's scroll area, including on phones.
+    // Habitat fork: keep the trigger in place while the new switches fill the menu's scroll area.
     panel.style.display = isHidden ? 'block' : 'none';
     e.currentTarget.setAttribute('aria-expanded', String(isHidden));
     e.currentTarget.querySelector('.cfn-arrow').textContent = isHidden ? '▼' : '▶';
-    this._fitCtxMenu(this._ctxMenuEl, this._ctxMenuEl._anchorEl.getBoundingClientRect());
+    this._fitCtxMenu(this._ctxMenuEl);
   });
   // Channel Functions panel: row clicks
   document.getElementById('channel-functions-panel')?.addEventListener('click', (e) => {

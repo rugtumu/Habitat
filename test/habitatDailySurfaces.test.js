@@ -502,3 +502,111 @@ test('the alternate sign-in controls still open the linked-server form and admin
   assert.equal(doc.getElementById('admin-recover-section').style.display, '');
   assert.equal(doc.activeElement.id, 'login-username');
 });
+
+test('a touch release leaves the invite target available for click and only a mouse collapses on leave', () => {
+  const doc = page();
+  const app = load(doc, ['context']);
+  const sent = [];
+  Object.assign(app, { user: { id: 1, isAdmin: true }, channels: [{ name: 'General', id: 8 }],
+    _hasPerm: () => true, _canManageBadges: () => false, _addGroupMemberActions() {}, _closeProfilePopup() {},
+    _placeUserContextMenu(menu) { doc.body.appendChild(menu); }, _fitCtxMenu(menu, anchor) { assert.equal(anchor, undefined); },
+    socket: { emit: (event, data) => sent.push([event, data.targetUserId, data.channelId]) } });
+  app._showUserContextMenu({ target: { closest: () => null } }, 2);
+  const wrap = doc.querySelector('.user-ctx-submenu-wrapper');
+  const trigger = wrap.querySelector('button');
+  const panel = wrap.querySelector('.user-ctx-submenu');
+  wrap.dispatch('pointerenter', { pointerType: 'mouse' });
+  assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+  wrap.dispatch('pointerleave', { pointerType: 'mouse' });
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+  trigger.dispatch('click');
+  for (const pointerType of ['touch', 'pen']) {
+    wrap.dispatch('pointerleave', { pointerType });
+    assert.equal(panel.style.display, 'block');
+  }
+  panel.querySelector('button').dispatch('click');
+  assert.deepEqual(sent, [['invite-to-channel', 2, 8]]);
+  assert.equal(doc.getElementById('user-context-menu'), null);
+});
+
+test('Channel Functions grows under the pointer, ignores pointer leave and reopens collapsed', () => {
+  const doc = page();
+  doc.body.innerHTML = '<button id="copy-code-btn"></button><div id="channel-ctx-menu">' +
+    '<button data-action="channel-functions"><span class="cfn-arrow"></span></button><div id="channel-functions-panel"></div></div>';
+  const app = load(doc, ['channel-context', 'channel-menu'], { window: { innerHeight: 900, innerWidth: 800 },
+    requestAnimationFrame: fn => fn(), localStorage: { getItem: () => null } });
+  Object.assign(app, { user: { isAdmin: true }, channels: [{ code: 'a' }], _bindChannelForms() {},
+    _initDmSortMenu() {}, _initDmContextMenu() {}, _focusContextMenu() {}, _updateChannelFunctionsPanel() {} });
+  app._bindChannelMenu();
+  const menu = app._ctxMenuEl, panel = doc.getElementById('channel-functions-panel');
+  const trigger = menu.querySelector('button'), arrow = trigger.querySelector('.cfn-arrow');
+  const anchor = { getBoundingClientRect: () => ({ left: 20, top: 540, bottom: 556 }) };
+  menu.offsetWidth = 250;
+  let closedHeight = 250;
+  Object.defineProperty(menu, 'offsetHeight', { get() {
+    return Math.min(parseFloat(menu.style.maxHeight) || Infinity, panel.style.display === 'block' ? 510 : closedHeight);
+  } });
+  app._openChannelCtxMenu('a', anchor);
+  assert.equal(menu.style.top, '560px');
+  trigger.dispatch('click');
+  trigger.dispatch('pointerleave', { pointerType: 'touch' });
+  assert.equal(panel.style.display, 'block');
+  assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+  assert.equal(arrow.textContent, '▼');
+  assert.equal(menu.style.top, '560px');
+  assert.equal(menu.style.maxHeight, '332px');
+  app._closeChannelCtxMenu();
+  closedHeight = 420;
+  app._openChannelCtxMenu('a', anchor);
+  assert.equal(menu.style.maxHeight, '');
+  assert.equal(menu.style.top, '116px', 'opening a tall menu can still flip above');
+  assert.equal(panel.style.display, 'none');
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(arrow.textContent, '▶');
+});
+
+test('a profile keeps its coordinates after presence replaces its anchor', () => {
+  const doc = page();
+  const app = load(doc, ['users'], { window: { innerWidth: 1100, innerHeight: 700 } });
+  const card = doc.createElement('div');
+  Object.assign(card, { offsetWidth: 280, offsetHeight: 340 });
+  app._profilePopupAnchor = { isConnected: true,
+    getBoundingClientRect: () => ({ left: 620, right: 710, top: 240, bottom: 268 }) };
+  app._positionProfilePopup(card);
+  assert.deepEqual([card.style.left, card.style.top], ['718px', '240px']);
+  app._profilePopupAnchor = { isConnected: false, getBoundingClientRect: () => assert.fail('detached row measured') };
+  card.offsetHeight = 380;
+  app._positionProfilePopup(card);
+  assert.deepEqual([card.style.left, card.style.top], ['718px', '240px']);
+  const fresh = doc.createElement('div');
+  app._positionProfilePopup(fresh);
+  assert.equal(fresh.style.left, '50%');
+  app._profilePopupAnchor = { isConnected: true, getBoundingClientRect: () => ({ left: 80, right: 100, top: 50, bottom: 70 }) };
+  app._positionProfilePopup(fresh);
+  assert.equal(fresh.style.left, '108px');
+  assert.equal(fresh.style.transform, '');
+});
+
+test('the member row marks birthdays only on the day and keeps scores on the profile', () => {
+  const doc = page();
+  const app = load(doc, ['users', 'birthdays'], { localStorage: { getItem: () => null } });
+  Object.assign(app, { user: { id: 1 }, _nicknames: {}, serverSettings: {}, _hasPerm: () => false,
+    _canModerate: () => false, _sidebarActivityHtml: () => '', _pfpBorderMarker: () => '', _getUserColor: () => '',
+    _getNickname: (id, name) => name, _nowZonedParts: () => ({ year: 2026, monthIndex: 10, day: 28 }),
+    _profileScoreBadge: () => assert.fail('score lookup in a member row') });
+  for (const [birthday, count] of [['11-28', 1], ['11-29', 0], [null, 0]]) {
+    doc.body.innerHTML = app._renderUserItem({ id: 2, username: 'Kim', highScore: 42, birthday });
+    assert.equal(doc.querySelectorAll('.birthday-mark').length, count);
+    assert.equal(doc.querySelector('.user-item-name').textContent, 'Kim');
+    assert.equal(doc.querySelector('.user-score-badge'), null);
+  }
+});
+
+test('the note prompt enforces its requested limit on the editor itself', async () => {
+  const doc = page();
+  const app = load(doc, ['utilities']);
+  const answer = app._showPromptModal('Note', 'This note is kept in this browser only.', '', { maxLength: 500 });
+  assert.equal(doc.getElementById('prompt-modal-input').maxLength, 500);
+  doc.getElementById('prompt-modal-cancel').dispatch('click');
+  assert.equal(await answer, null);
+});

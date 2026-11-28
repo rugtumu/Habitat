@@ -149,6 +149,27 @@ class HabitatLayout {
     window.app?._applyComposerButtons?.();
   }
 
+  _labelComposerTools() {
+    this._composerLabelLocale = document.documentElement.lang;
+    for (const [id, key] of [['upload-btn', 'attachFile'], ['composer-plus-btn', 'moreTools']]) {
+      const button = document.getElementById(id);
+      if (!button) continue;
+      const nativeKey = button.getAttribute('data-i18n-title');
+      const label = () => HabitatLayout.TEXT[(document.documentElement.lang || 'en').slice(0, 2)]?.[key]
+        || window.t?.(nativeKey) || this._text(key);
+      this._setAttr(button, 'data-i18n-title', null);
+      this._setAttr(button, 'data-i18n-aria-label', null);
+      const name = label();
+      this._setAttr(button, 'title', name);
+      this._setAttr(button, 'aria-label', name);
+      this._on(document, 'haven:localechange', () => {
+        const name = label();
+        button.setAttribute('title', name);
+        button.setAttribute('aria-label', name);
+      });
+    }
+  }
+
   _applyDesktop(mode = 'desktop') {
     if (this._placements.length || this._built.length) return;
     const navigation = this._region('navigation-sidebar');
@@ -168,6 +189,7 @@ class HabitatLayout {
     this._blocked = false;
 
     try {
+      this._labelComposerTools();
       this._buildAccountTools(account, actions);
       this._buildMenu(header, actions);
       this._buildAccountMenu(account);
@@ -1398,18 +1420,31 @@ class HabitatLayout {
       });
     }
     const noteLabel = window.t('mod_cases.add_note');
-    add('note', noteLabel, '📝', async () => {
-      const key = 'habitat_profile_note_' + app.user.id + '_' + userId;
+    const noteKey = () => 'habitat_profile_note_' + app.user.id + '_' + userId;
+    const limit = 500;
+    const readNote = key => (localStorage.getItem(key) || '').trim().slice(0, limit);
+    const note = add('note', noteLabel, '📝', async () => {
+      const key = noteKey();
       app._closeProfilePopup();
       try {
-        const text = await app._showPromptModal(noteLabel, window.t('app.messages.only_visible_to_you'), localStorage.getItem(key) || '');
+        const text = await app._showPromptModal(noteLabel, this._text('noteHint'), readNote(key), { maxLength: limit });
         if (text === null) return;
-        if (text.trim()) localStorage.setItem(key, text.trim());
+        const value = text.trim().slice(0, limit);
+        if (value) localStorage.setItem(key, value);
         else localStorage.removeItem(key);
       } catch {
         app._showToast(window.t('badges.save_failed'), 'error');
       }
     });
+    let saved = '';
+    try { saved = readNote(noteKey()); } catch { /* The rest of the card also works without storage. */ }
+    note.setAttribute('aria-pressed', String(Boolean(saved)));
+    if (saved) {
+      const section = this._make('div', { 'data-habitat-profile-note': '' }, row.parentNode);
+      this._make('div', { class: 'profile-popup-section-label' }, section).textContent = this._text('noteHeading');
+      this._make('div', {}, section).textContent = saved;
+      row.parentNode.insertBefore(section, row);
+    }
     const volume = add('volume', this._text('volume'), '🔊', () => {
       const tools = card.querySelector('[data-habitat-voice-tools]');
       tools.hidden = !tools.hidden;
@@ -2399,7 +2434,7 @@ class HabitatLayout {
     this._signalSync?.(false);
     this._signalSync = null;
     const card = document.getElementById('profile-popup');
-    for (const extra of card?.querySelectorAll('[data-habitat-voice-tools], [data-habitat-profile-action]') || []) extra.remove();
+    for (const extra of card?.querySelectorAll('[data-habitat-voice-tools], [data-habitat-profile-action], [data-habitat-profile-note]') || []) extra.remove();
     if (card) window.app?._positionProfilePopup?.(card);
     document.documentElement.removeAttribute('data-habitat-in-voice');
     document.documentElement.removeAttribute('data-habitat-layout');
@@ -2420,6 +2455,12 @@ class HabitatLayout {
       else element.setAttribute(name, value);
     }
     this._attrRestores = [];
+    // If the language changed while Habitat owned the labels, restore Haven's current translation.
+    if (this._composerLabelLocale != null && this._composerLabelLocale !== document.documentElement.lang) {
+      const composer = this._region('composer');
+      if (composer) window.i18n?.applyDOM(composer);
+    }
+    this._composerLabelLocale = null;
     for (let index = this._placements.length - 1; index >= 0; index--) {
       const [element, parent, next] = this._placements[index];
       if (parent) parent.insertBefore(element, next?.parentNode === parent ? next : null);
@@ -2465,6 +2506,8 @@ HabitatLayout.TEXT = Object.freeze({
     returnCamera: 'Return camera for {name}', returnScreen: 'Return screen for {name}', minimizeStreams: 'Minimize streams',
     showGrid: 'Return to grid', closeCameras: 'Close cameras', closeStreams: 'Close streams',
     callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
+    attachFile: 'Attach a file', moreTools: 'More tools',
+    noteHeading: 'Note', noteHint: 'This note is kept in this browser only (500 characters maximum).',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
     callAsk: 'Start a call with this person?', callLeaves: 'You will leave the call you are in.',
     roomEmpty: 'No one is here yet. Be the first in.', roomOne: '1 person is here', roomMany: '{n} people are here',
@@ -2503,6 +2546,8 @@ HabitatLayout.TEXT = Object.freeze({
     returnCamera: '{name} için kamerayı geri getir', returnScreen: '{name} için ekranı geri getir', minimizeStreams: 'Yayınları küçült',
     showGrid: 'Izgaraya dön', closeCameras: 'Kameraları kapat', closeStreams: 'Yayınları kapat',
     callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
+    attachFile: 'Dosya ekle', moreTools: 'Diğer araçlar',
+    noteHeading: 'Not', noteHint: 'Bu not yalnızca bu tarayıcıda saklanır (en fazla 500 karakter).',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
     callAsk: 'Bu kişiyi aramak istiyor musun?', callLeaves: 'İçinde olduğun çağrıdan çıkacaksın.',
     roomEmpty: 'Henüz kimse yok. İlk sen katıl.', roomOne: '1 kişi burada', roomMany: '{n} kişi burada',
@@ -3116,6 +3161,8 @@ html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: 
 [data-habitat-connection] dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; text-align: end; }
 html[data-habitat-layout] .voice-bar-status[role="button"] { cursor: pointer; }
 html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
+[data-habitat-profile-note] { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+[data-habitat-profile-action="note"][aria-pressed="true"] { outline: .125rem solid var(--accent); outline-offset: -.125rem; }
 [data-habitat-voice-tools] {
   display: grid; gap: .5rem; margin-block: .75rem; padding-block: .75rem; border-block: 1px solid var(--border);
 }

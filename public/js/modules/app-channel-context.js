@@ -68,10 +68,11 @@ _openChannelCtxMenu(code, btnEl) {
   menu.querySelectorAll('.mod-only').forEach(el => {
     el.style.display = isMod ? '' : 'none';
   });
-  // Always reset the Channel Functions panel to closed when the menu opens
+  // Habitat fork: reopen with the panel, its arrow and its accessible state in agreement.
   const cfnPanel = document.getElementById('channel-functions-panel');
   if (cfnPanel) cfnPanel.style.display = 'none';
-  const cfnArrow = menu.querySelector('[data-action="channel-functions"] .cfn-arrow');
+  cfnCtxBtn?.setAttribute('aria-expanded', 'false');
+  const cfnArrow = cfnCtxBtn?.querySelector('.cfn-arrow');
   if (cfnArrow) cfnArrow.textContent = '▶';
   // Show/hide "Mark as Read" based on unread count
   const markReadBtn = menu.querySelector('[data-action="mark-read"]');
@@ -169,7 +170,6 @@ _openChannelCtxMenu(code, btnEl) {
   menu.style.left = rect.left + 'px';
   // Habitat fork: focus the permitted items after Haven has set their visibility.
   muteBtn?.setAttribute('aria-checked', String(muted.includes(code)));
-  cfnCtxBtn?.setAttribute('aria-expanded', 'false');
   this._focusContextMenu(menu, btnEl);
   requestAnimationFrame(() => this._fitCtxMenu(menu, rect));
 },
@@ -665,7 +665,7 @@ _openDmCtxMenu(code, anchorEl, mouseEvent) {
         if (!alone || this._dmCtxMenuCode !== code) return;
         groupDelBtn.style.display = '';
         // Habitat fork: the roster reply can add a row after the menu was fitted.
-        this._fitCtxMenu(menu, anchor);
+        this._fitCtxMenu(menu);
       });
     }
   }
@@ -767,10 +767,12 @@ _fitCtxMenu(menu, anchor) {
   // Use layout dimensions so the entrance animation cannot skew the clamp.
   const left = parseFloat(menu.style.left);
   const top = parseFloat(menu.style.top);
+  // Habitat fork: on open measure the whole menu. Later growth scrolls below its placed top.
+  menu.style.maxHeight = anchor ? '' : Math.max(0, window.innerHeight - pad - top) + 'px';
   const width = menu.offsetWidth, height = menu.offsetHeight;
   const lastTop = window.innerHeight - pad - height;
-  const above = anchor.top - 4 - height;
-  const preferred = top > lastTop && above >= pad ? above : top;
+  const above = anchor && anchor.top - 4 - height;
+  const preferred = anchor && top > lastTop && above >= pad ? above : top;
   menu.style.left = Math.max(pad, Math.min(left, window.innerWidth - pad - width)) + 'px';
   menu.style.top = Math.max(pad, Math.min(preferred, lastTop)) + 'px';
 },

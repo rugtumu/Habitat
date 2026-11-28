@@ -2265,12 +2265,18 @@ html[data-habitat-layout] #channel-list .channel-voice-user[data-habitat-leave] 
    18 and 20px marks. Each place now gives every mark the same square. */
 html[data-habitat-layout] :is([data-haven-region="voice-controls"], [data-haven-region="account"]) button > :is(.haven-glyph, svg),
 html[data-habitat-layout] [data-habitat-stage-controls] > button > :is(.haven-glyph, svg) {
-  display: grid; place-items: center; flex: none; width: var(--hb-mark, 1.125rem); height: var(--hb-mark, 1.125rem);
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center;
+  flex: none; width: var(--hb-mark, 1.125rem); height: var(--hb-mark, 1.125rem);
   font-size: var(--hb-mark, 1.125rem); line-height: 1;
 }
+html[data-habitat-layout] :is(.voice-user-item, .channel-voice-user) .haven-glyph {
+  display: inline-block; width: 1em; height: 1em;
+}
+html[data-habitat-layout] :is(.voice-user-item, .channel-voice-user) .haven-glyph::before,
 html[data-habitat-layout] :is([data-haven-region="voice-controls"], [data-haven-region="account"]) button > .haven-glyph::before,
 html[data-habitat-layout] [data-habitat-stage-controls] > button > .haven-glyph::before {
-  width: 100%; height: 100%;
+  display: block; width: 100%; height: 100%;
+  mask-size: contain; mask-position: center;
 }
 html[data-habitat-layout] [data-habitat-stage-controls] { --hb-mark: 1.375rem; }
 /* The account gear opens Settings. More on the stage opens the in-call device panel. */
@@ -2540,7 +2546,7 @@ html:not([data-density="compact"], [data-density="spacious"]) #messages > .messa
   padding: .25rem var(--hb-feed-inset) .25rem var(--hb-text-column);
   margin: 0; border: 0; background: none;
   color: var(--text-secondary); font: 400 var(--hb-text-sm)/1.4 var(--font-main);
-  text-align: start; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  text-align: start; white-space: normal; overflow-wrap: anywhere;
 }
 #messages > :is(.system-message:not(.e2e-notice), .welcome-message)::before {
   content: ''; position: absolute; inset-inline-start: calc(var(--hb-feed-inset) + var(--msg-pad-x));
@@ -2642,9 +2648,6 @@ html:not([data-compact-composer]) #message-input-area:has(> #emoji-btn) > .input
 
 [data-haven-page="app"] #online-users { gap: 0; }
 #online-users .user-item-text { gap: 0; }
-#online-users .user-item-name {
-  padding: 0; border: 0; background: none; text-align: start; font-family: inherit; cursor: pointer;
-}
 #online-users .user-item-sub :is(.user-status-text, .user-activity) { font-size: var(--hb-text-xs); }
 #online-users .user-status-dot { bottom: 0; right: 0; }
 #online-users :is(.offline .user-status-dot, .user-status-dot.invisible) { background: var(--bg-secondary); }

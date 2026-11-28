@@ -96,3 +96,34 @@ test('app and sign-in viewports allow pinch zoom and retain their existing layou
       ...(file.endsWith('/app.html') ? ['viewport-fit=cover', 'interactive-widget=resizes-content'] : [])]);
   }
 });
+
+test('member and temporary channel buttons match their rows with core CSS alone', () => {
+  const member = rule(read('public/css/style-messages.css'), 'button.user-item-name');
+  const temp = rule(read('public/css/style-sidebar.css'), '.temp-channel-create-btn');
+  for (const css of [member, temp]) {
+    for (const reset of ['background: none;', 'border: 0;', 'text-align: start;']) assert.ok(css.includes(reset));
+  }
+  assert.match(member, /padding: 0;/);
+  assert.match(member, /font-family: inherit;/);
+  assert.match(temp, /width: 100%;/);
+  assert.match(temp, /font: inherit;/);
+});
+
+test('welcome text and system notices wrap even when a word exceeds the phone column', () => {
+  const notice = rule(theme, '#messages > :is(.system-message:not(.e2e-notice), .welcome-message)');
+  assert.match(notice, /white-space: normal;/);
+  assert.match(notice, /overflow-wrap: anywhere;/);
+  assert.doesNotMatch(notice, /ellipsis|nowrap/);
+});
+
+test('stage and voice marks use a bounded square with a centered, contained mask', () => {
+  const contexts = [':is(.voice-user-item, .channel-voice-user) .haven-glyph',
+    ':is([data-haven-region="voice-controls"], [data-haven-region="account"]) button > .haven-glyph',
+    '[data-habitat-stage-controls] > button > .haven-glyph'];
+  const marks = rule(theme, contexts.map(s => 'html[data-habitat-layout] ' + s + '::before').join(',\n'));
+  for (const declaration of ['width: 100%;', 'height: 100%;', 'mask-size: contain;', 'mask-position: center;']) {
+    assert.ok(marks.includes(declaration), declaration);
+  }
+  const dock = rule(theme, '[data-habitat-stage-controls] > button > :is(.haven-glyph, svg)');
+  assert.match(dock, /grid-template: minmax\(0, 1fr\) \/ minmax\(0, 1fr\)/);
+});

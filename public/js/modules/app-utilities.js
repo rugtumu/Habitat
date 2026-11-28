@@ -1472,7 +1472,7 @@ _questionDialog(title, message, resolve, cancelValue) {
   return { overlay, row: overlay.querySelector('.modal-actions'), closeButton, close };
 },
 
-_showPromptModal(title, message, defaultValue = '', { password = false } = {}) {
+_showPromptModal(title, message, defaultValue = '', { password = false, maxLength } = {}) {
   return new Promise(resolve => {
     const { overlay, row, close } = this._questionDialog(title, message, resolve, null);
     const input = document.createElement('input');
@@ -1481,6 +1481,8 @@ _showPromptModal(title, message, defaultValue = '', { password = false } = {}) {
     input.type = password ? 'password' : 'text';
     if (password) input.autocomplete = 'current-password';
     input.setAttribute('aria-label', title);
+    // Habitat fork: show the profile note's storage limit while the member types.
+    if (maxLength !== undefined) input.maxLength = maxLength;
     input.value = defaultValue;
     const modal = overlay.querySelector('.modal');
     modal.classList.add('modal-prompt');

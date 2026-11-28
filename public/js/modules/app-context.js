@@ -127,11 +127,14 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
     const expand = open => {
       inviteBtn.setAttribute('aria-expanded', String(open));
       submenu.style.display = open ? 'block' : 'none';
-      this._fitCtxMenu(menu, { top: e.clientY });
+      this._fitCtxMenu(menu);
     };
     inviteBtn.addEventListener('click', () => expand(inviteBtn.getAttribute('aria-expanded') !== 'true'));
     inviteItem.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') expand(true); });
-    inviteItem.addEventListener('pointerleave', () => { if (!submenu.contains(document.activeElement)) expand(false); });
+    // Habitat fork: touch releases the pointer before the channel button receives its click.
+    inviteItem.addEventListener('pointerleave', ev => {
+      if (ev.pointerType === 'mouse' && !submenu.contains(document.activeElement)) expand(false);
+    });
     inviteItem.appendChild(submenu);
     menu.appendChild(inviteItem);
   }

@@ -1028,6 +1028,16 @@ html[lang="fa"] :is(input:not([type]), input[type="text"], input[type="search"],
   line-height: 1.15;
 }
 
+/* Habitat fork: the focusable member name should look like the text around it. */
+button.user-item-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .user-item-name {
   font-size: 0.8125rem;
   color: var(--text-secondary);

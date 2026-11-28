@@ -207,13 +207,13 @@ _renderUserItem(u) {
   const subLine = activityHtml || statusTextHtml;
   const subLineHtml = subLine ? `<div class="user-item-sub">${subLine}</div>` : '';
 
-  // Habitat fork: the name opens the existing profile on Enter, Space or tap.
+  // Habitat fork: keep the birthday beside the profile button so its accessible name stays intact.
   return `
     <div class="user-item${onlineClass}${subLineHtml ? ' has-sub' : ''}" data-user-id="${u.id}">
       ${avatarHtml}
       <div class="user-item-text">
         <div class="user-item-line">
-          ${roleDot}${roleIconBefore}
+          ${roleDot}${roleIconBefore}${this._birthdayMarkHtml(u.birthday)}
           <button type="button" class="user-item-name"${nameStyle}${this._nicknames[u.id] ? ` title="${this._escapeHtml(u.username)}"` : ''}>${nameHtml}</button>
           ${roleIconAfter}
           ${roleBadge}
@@ -1090,13 +1090,16 @@ _promoteHoverPopup(popup) {
 
 _positionProfilePopup(popup) {
   const anchor = this._profilePopupAnchor;
-  if (!anchor) {
-    // Center fallback
+  // Habitat fork: presence can replace the opener while the card is open. Keep its last placement.
+  if (!anchor?.isConnected) {
+    if (popup.style.left && popup.style.top) return;
+    // Center a new card whose opener is already gone.
     popup.style.left = '50%';
     popup.style.top = '50%';
     popup.style.transform = 'translate(-50%, -50%)';
     return;
   }
+  if (popup.style.transform === 'translate(-50%, -50%)') popup.style.transform = '';
   const rect = anchor.getBoundingClientRect();
   // Measure the real rendered box. Width is a rem value in CSS and height varies
   // with content, so hardcoded guesses under-clamped once font-size/zoom differed
