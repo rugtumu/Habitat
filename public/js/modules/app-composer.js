@@ -8,6 +8,15 @@ _enterSends(e) {
   return e.ctrlKey || e.metaKey || document.documentElement.hasAttribute('data-hide-send-btn') || !window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 },
 
+// Habitat fork: a restored draft and live typing follow the same theme height limit.
+_resizeComposerDraft(input) {
+  input.style.height = 'auto';
+  if (input.value) {
+    const fallback = window.innerWidth <= 480 ? 90 : 120;
+    input.style.height = `min(${input.scrollHeight}px, var(--hb-draft-limit, ${fallback}px))`;
+  }
+},
+
 _bindComposer() {
   const msgInput = document.getElementById('message-input');
 
@@ -150,9 +159,8 @@ _bindComposer() {
   });
 
   msgInput.addEventListener('input', () => {
-    const maxH = window.innerWidth <= 480 ? 90 : 120;
-    msgInput.style.height = 'auto';
-    msgInput.style.height = Math.min(msgInput.scrollHeight, maxH) + 'px';
+    // Habitat fork: measure against the same cap as a restored draft.
+    this._resizeComposerDraft(msgInput);
 
     const now = Date.now();
     if (now - this.lastTypingEmit > 2000 && this.currentChannel) {

@@ -61,7 +61,7 @@ test('the scaled composer override is desktop-only and leaves compact to core', 
   const desktopBlocks = [...theme.matchAll(/@media \(min-width: 901px\) \{([\s\S]*?)\n\}/g)].map(m => m[1]).join('\n');
   const composer = page + ' [data-haven-region="composer"] > textarea';
   const size = 'font-size: calc(var(--hb-composer-text) * var(--msg-text-scale, 1)) !important;';
-  assert.match(rule(theme, ':root'), /--hb-composer-text: \.9375rem;/);
+  assert.match(rule(theme, ':root'), /--hb-composer-text: 1rem;/);
   assert.match(rule(desktopBlocks, composer), /font-size: var\(--hb-composer-text\)/);
   assert.ok(rule(desktopBlocks, relativeSize + comfortable + ' ' + composer).includes(size));
   assert.equal(theme.split(size).length - 1, 1);

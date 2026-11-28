@@ -1005,10 +1005,12 @@ _createMessageEl(msg, prevMsg) {
   // non-interactive system line reusing the .welcome-message styling: no
   // avatar, toolbar, reactions, or grouping. Covers history load and live
   // append alike. Uses textContent so the name/template can't inject HTML.
+  // Habitat fork: dated system rows participate in the same day dividers as chat.
   if (msg && msg.type === 'welcome') {
     const el = document.createElement('div');
     el.className = 'welcome-message';
     el.dataset.type = 'welcome';
+    el.dataset.time = msg.created_at;
     if (Number.isInteger(msg.id) && msg.id > 0) el.dataset.msgId = msg.id;
     el.textContent = msg.content;
     return el;
@@ -1018,6 +1020,8 @@ _createMessageEl(msg, prevMsg) {
     const el = document.createElement('div');
     el.className = 'system-message group-notice';
     el.dataset.type = 'notice';
+    // Habitat fork: a group join can be the first entry of a day.
+    el.dataset.time = msg.created_at;
     if (Number.isInteger(msg.id) && msg.id > 0) el.dataset.msgId = msg.id;
     el.textContent = this._groupNoticeText?.(msg.content) || '';
     return el;
@@ -1026,6 +1030,8 @@ _createMessageEl(msg, prevMsg) {
     const el = document.createElement('div');
     el.className = 'system-message missed-call-notice';
     el.dataset.type = 'missed_call';
+    // Habitat fork: a missed call can introduce a new day in DM history.
+    el.dataset.time = msg.created_at;
     if (Number.isInteger(msg.id) && msg.id > 0) el.dataset.msgId = msg.id;
     const mine = msg.user_id === this.user?.id;
     el.textContent = `${mine ? t('calls.missed_own') : t('calls.missed', { name: this._getNickname(msg.user_id, msg.real_username || msg.username) })} · ${this._formatTime(msg.created_at)}`;
@@ -1485,12 +1491,22 @@ _promoteCompactToFull(compactEl) {
   }
 },
 
-_appendSystemMessage(text) {
+// Habitat fork: pin and moderation icons occupy the avatar column beside the notice.
+_appendSystemMessage(text, symbol) {
   const container = document.getElementById('messages');
   const wasAtBottom = this._coupledToBottom;
   const el = document.createElement('div');
   el.className = 'system-message';
+  el.dataset.time = new Date().toISOString();
+  el.title = text;
   el.textContent = text;
+  if (symbol) {
+    const mark = document.createElement('span');
+    mark.className = 'system-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = symbol + ' ';
+    el.prepend(mark);
+  }
   container.appendChild(el);
   if (wasAtBottom) this._scrollToBottom(true);
 },

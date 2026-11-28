@@ -26,18 +26,7 @@ _renderOnlineUsers(users) {
     return;
   }
 
-  // Build a score lookup from high scores data
-  const scoreLookup = {};
-  if (this.highScores.flappy) {
-    this.highScores.flappy.forEach(s => { scoreLookup[s.user_id] = s.score; });
-  }
-  // Also use highScore from server-sent user data
-  users.forEach(u => {
-    if (u.highScore && u.highScore > (scoreLookup[u.id] || 0)) {
-      scoreLookup[u.id] = u.highScore;
-    }
-  });
-
+  // Habitat fork: only opening a profile needs a score lookup.
   // Sort: online first, then by role level, then alphabetically inside each
   // level. Straight alphabetical buried whoever is actually in charge somewhere
   // in the middle of the list, which is the opposite of what you want when you
@@ -61,14 +50,15 @@ _renderOnlineUsers(users) {
   const onlineUsers = sorted.filter(u => u.online !== false);
   const offlineUsers = sorted.filter(u => u.online === false);
 
+  // Habitat fork: presence alone supplies both groups of rows.
   let html = '';
   if (onlineUsers.length > 0) {
     html += `<div class="user-group-label">${t('users.online_count', { count: onlineUsers.length })}</div>`;
-    html += onlineUsers.map(u => this._renderUserItem(u, scoreLookup)).join('');
+    html += onlineUsers.map(u => this._renderUserItem(u)).join('');
   }
   if (offlineUsers.length > 0) {
     html += `<div class="user-group-label offline-label">${t('users.offline_count', { count: offlineUsers.length })}</div>`;
-    html += offlineUsers.map(u => this._renderUserItem(u, scoreLookup)).join('');
+    html += offlineUsers.map(u => this._renderUserItem(u)).join('');
   }
   if (!onlineUsers.length && !offlineUsers.length) {
     html = `<p class="muted-text">${t('users.no_one_here')}</p>`;
@@ -115,22 +105,18 @@ _renderOnlineUsers(users) {
   });
 },
 
-_renderUserItem(u, scoreLookup) {
-  const onlineClass = u.online === false ? ' offline' : '';
-  const score = scoreLookup[u.id] || 0;
-  // Per-device "hide other players' badges" preference. Only suppress badges
-  // for users other than self. Own badge stays visible to me unless the
-  // server-side "hide own from server" preference also stripped it.
-  const hideOthers = localStorage.getItem('haven_hide_other_scores') === 'true';
-  const hideOwn    = localStorage.getItem('haven_hide_own_score')    === 'true';
-  const isOwnUser  = u.id === this.user?.id;
-  // Show badge unless: hideOthers is on and this is someone else,
-  //                 OR hideOwn is on and this is the current user.
-  const showBadge = score > 0 && (!hideOthers || isOwnUser) && !(hideOwn && isOwnUser);
-  const scoreBadge = showBadge
-    ? `<span class="user-score-badge" title="${t('users.flappy_score_title', { score })}">🚢${score}</span>`
-    : '';
+// Habitat fork: a score belongs on the profile and follows the existing visibility choices.
+_profileScoreBadge(profile) {
+  const own = profile.id === this.user?.id;
+  if (localStorage.getItem(own ? 'haven_hide_own_score' : 'haven_hide_other_scores') === 'true') return '';
+  const score = Math.max(Number(this._memberById?.(profile.id)?.highScore || 0),
+    Number(this.highScores?.flappy?.find(entry => entry.user_id === profile.id)?.score || 0));
+  return Number.isFinite(score) && score > 0
+    ? `<span class="user-score-badge" title="${t('users.flappy_score_title', { score })}">🚢${score}</span>` : '';
+},
 
+_renderUserItem(u) {
+  const onlineClass = u.online === false ? ' offline' : '';
   // Status dot color
   const statusClass = u.status === 'dnd' ? 'dnd' : u.status === 'away' ? 'away'
     : u.status === 'invisible' ? 'invisible' : (u.online === false ? 'away' : '');
@@ -221,20 +207,20 @@ _renderUserItem(u, scoreLookup) {
   const subLine = activityHtml || statusTextHtml;
   const subLineHtml = subLine ? `<div class="user-item-sub">${subLine}</div>` : '';
 
+  // Habitat fork: the name opens the existing profile on Enter, Space or tap.
   return `
     <div class="user-item${onlineClass}${subLineHtml ? ' has-sub' : ''}" data-user-id="${u.id}">
       ${avatarHtml}
       <div class="user-item-text">
         <div class="user-item-line">
-          ${roleDot}${roleIconBefore}${this._birthdayMarkHtml(u.birthday)}
-          <span class="user-item-name"${nameStyle}${this._nicknames[u.id] ? ` title="${this._escapeHtml(u.username)}"` : ''}>${nameHtml}</span>
+          ${roleDot}${roleIconBefore}
+          <button type="button" class="user-item-name"${nameStyle}${this._nicknames[u.id] ? ` title="${this._escapeHtml(u.username)}"` : ''}>${nameHtml}</button>
           ${roleIconAfter}
           ${roleBadge}
           ${guestBadge}
         </div>
         ${subLineHtml}
       </div>
-      ${scoreBadge}
       ${modBtns}
     </div>
   `;
@@ -883,6 +869,8 @@ _showProfilePopup(profile) {
     ? `<button class="profile-popup-action-btn profile-edit-btn" id="profile-popup-edit-btn">✏️ ${t('users.edit_profile')}</button><button class="profile-popup-action-btn profile-dm-btn" data-dm-uid="${profile.id}" title="${t('users.notes_to_self')}">📝 ${t('users.notes_to_self')}</button>`
     : `<button class="profile-popup-action-btn profile-dm-btn" data-dm-uid="${profile.id}">💬 ${t('users.message_btn')}</button>${gearBtnHtml}`;
 
+  // Habitat fork: show the permitted score with the member's other profile details.
+  const scoreBadge = this._profileScoreBadge(profile);
   const popup = document.createElement('div');
   popup.id = 'profile-popup';
   // Habitat fork: the default avatar follows the account across views and renames.
@@ -908,6 +896,7 @@ _showProfilePopup(profile) {
       <div class="profile-popup-divider"></div>
       <div id="profile-popup-activity-slot">${this._profileActivityHtml(profile.activity)}</div>
       ${rolesHtml ? `<div class="profile-popup-section-label">${t('users.profile_roles_label')}</div><div class="profile-popup-roles">${rolesHtml}</div>` : ''}
+      ${scoreBadge}
       ${this._badgeRowHtml(profile)}
       ${joinDate ? `<div class="profile-popup-section-label">${t('users.member_since_label')}</div><div class="profile-popup-join-date">${joinDate}${birthdayHtml}</div>` : ''}
       <div class="profile-popup-actions">${actionsHtml}</div>

@@ -78,7 +78,12 @@
   --hb-stage-pad: .875rem;
   --hb-stage-surface: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 5%, var(--bg-tertiary)), var(--bg-tertiary) 70%);
   --hb-msg-text: 1.0625rem;
-  --hb-composer-text: .9375rem;
+  --hb-composer-text: 1rem;
+  --hb-channel-height: 2.25rem;
+  --hb-channel-mark: 1.25rem;
+  --hb-channel-end: .5rem;
+  --hb-member-height: 2.5rem;
+  --hb-search-height: 2.25rem;
   --hb-rail:       #14171a;
   --hb-raise:      #31373b;
   --hb-settings-page: #242529;
@@ -335,8 +340,8 @@ html[data-haven-theme-api="1"] :focus-visible {
   font-style: normal;
 }
 [data-haven-page="app"] .private-channel:not(.sub-channel-item, .dm-item) > .channel-hash {
-  width: 1.375rem;
-  height: 1.375rem;
+  width: var(--hb-channel-mark);
+  height: var(--hb-channel-mark);
   opacity: 1;
   font-size: 0;
   background: currentColor;
@@ -347,12 +352,6 @@ html[data-haven-theme-api="1"] :focus-visible {
   mask-size: 1.125rem;
 }
 [data-haven-page="app"] .private-channel:not(.sub-channel-item, .dm-item) > .channel-hash > .haven-glyph { display: none; }
-
-/* The participant list belongs to the preceding room. Only the next channel gets a line. */
-[data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-item,
-[data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-voice-users + .channel-item {
-  border-block-start: .0625rem solid color-mix(in srgb, var(--border) 50%, transparent);
-}
 
 /* The original text remains the total unread count for Haven and other themes.
    Announcements force their own colours in core, including on personal mentions. */
@@ -427,9 +426,10 @@ html[data-haven-theme-api="1"] :focus-visible {
   clip-path: polygon(0 0, 100% 0, 100% 19%, 14% 19%, 14% 100%, 0 100%);
 }
 [data-haven-page="app"] .reaction-badge {
-  min-height: 1.625rem;
+  min-height: 1.75rem;
+  transition: none;
   background: var(--bg-hover);
-  border-radius: var(--radius);
+  border-radius: var(--hb-radius-pill);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -442,11 +442,6 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 [data-haven-page="app"] .mention.mention-self {
   background: color-mix(in srgb, var(--role-color, var(--accent)) 28%, var(--bg-primary));
-}
-
-[data-haven-page="app"] .new-messages-divider {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 /* Dark ink keeps labels legible on the light accent. */
@@ -462,69 +457,14 @@ html[data-haven-theme-api="1"] :focus-visible {
   background: var(--accent-hover);
 }
 
-/* Desktop only: the composer reads as one field with its tools on the right. */
 @media (min-width: 901px) {
-  [data-haven-page="app"] [data-haven-region="composer"] {
-    gap: 0;
-    padding: .25rem 1rem 1.25rem;
-  }
-
   [data-haven-page="app"] [data-haven-region="composer"] > textarea {
-    order: 1;
-    min-height: 2.75rem;
-    padding: .75rem 1rem;
-    border: 0;
-    border-radius: var(--hb-radius-lg) 0 0 var(--hb-radius-lg);
-    background: var(--bg-input);
-    box-shadow: none;
     font-size: var(--hb-composer-text);
   }
-
   :root[data-text-size]:not([data-text-size="100"]):not([data-density="compact"]) [data-haven-page="app"] [data-haven-region="composer"] > textarea {
     font-size: calc(var(--hb-composer-text) * var(--msg-text-scale, 1)) !important;
   }
-
-  [data-haven-page="app"] [data-haven-region="composer"] > .input-actions-box {
-    order: 2;
-    align-self: stretch;
-    border: 0;
-    border-radius: 0;
-    background: var(--bg-input);
-  }
-
-  [data-haven-page="app"] [data-haven-region="composer"] > .input-actions-box .input-actions-divider {
-    display: none;
-  }
-
-  [data-haven-page="app"] [data-haven-region="composer"] > .btn-send {
-    order: 3;
-    align-self: stretch;
-    height: auto;
-    border: 0;
-    border-radius: 0 var(--hb-radius-lg) var(--hb-radius-lg) 0;
-    background: var(--bg-input);
-    color: var(--accent);
-    box-shadow: none;
-  }
-
-  [data-haven-page="app"] [data-haven-region="composer"] > .btn-send:hover {
-    background: var(--bg-active);
-  }
-
-  [data-haven-page="app"] [data-haven-region="composer"]:focus-within > textarea,
-  [data-haven-page="app"] [data-haven-region="composer"]:focus-within > .input-actions-box,
-  [data-haven-page="app"] [data-haven-region="composer"]:focus-within > .btn-send {
-    background: var(--bg-active);
-  }
-
-  [data-haven-page="app"] [data-haven-region="composer"] > textarea:focus-visible {
-    outline: 0;
-  }
-
-  /* The tools moved to the right end of the field, so the pickers they open
-     follow them there instead of opening at the far left. */
-  [data-haven-page="app"] [data-haven-region="composer"] > .emoji-picker,
-  [data-haven-page="app"] [data-haven-region="composer"] > .gif-picker {
+  [data-haven-page="app"] [data-haven-region="composer"] > :is(.emoji-picker, .gif-picker) {
     left: auto;
     right: 1rem;
   }
@@ -577,20 +517,11 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .avatar-squircle ~ .pfp-border { clip-path: inset(-12.5% round 28%); }
 [data-haven-page="app"] .avatar-rounded ~ .pfp-border { clip-path: inset(-12.5% round .5rem); }
 
-/* A shifted frame can use almost the whole gap on a phone. Borrow a little
-   of the feed's left padding so grouped follow-ups still align with the name. */
-[data-haven-region="message-list"] .message-row > .pfp-host {
-  margin-inline: -.1875rem .1875rem;
-}
-[data-haven-region="member-list"] .user-avatar-wrapper:has(> .pfp-border) {
-  margin-inline-end: .25rem;
-}
-
 [data-haven-page="app"] [data-haven-region="member-list"] .user-group-label {
   display: flex;
   align-items: center;
   gap: .5rem;
-  margin-block-start: .75rem;
+  margin-block: 1.5rem .25rem;
 }
 [data-haven-page="app"] [data-haven-region="member-list"] .user-group-label::after {
   content: '';
@@ -1228,9 +1159,9 @@ html[data-habitat-layout-desktop="1"] {
    Haven's density and accessibility settings still size the avatar gutter. */
 [data-haven-page="app"] .message-user-sep {
   border-top: 0;
-  margin-block-start: .375rem;
+  margin-block-start: .5rem;
 }
-html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: 1.0625rem; font-weight: 700; }
+html:not([data-density="compact"]) [data-haven-page="app"] .message-author { font-size: var(--hb-text-md); font-weight: 700; }
 html:not([data-density="compact"]) [data-haven-page="app"] .message-time { font-size: .75rem; }
 html:not([data-density="compact"]) [data-haven-page="app"] :is(.message-content, .thread-msg-content) {
   font-size: calc(var(--hb-msg-text) * var(--msg-text-scale, 1));
@@ -1246,9 +1177,11 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   border-radius: var(--radius);
 }
 [data-haven-page="app"] .channel-item {
-  min-height: 2.375rem;
-  padding-inline: .625rem;
-  gap: .625rem;
+  height: var(--hb-channel-height);
+  min-height: var(--hb-channel-height);
+  padding: 0 .5rem;
+  margin: 0 0 .125rem;
+  gap: .5rem;
   font-weight: 500;
 }
 [data-haven-page="app"] .channel-item.active {
@@ -1258,8 +1191,10 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] .channel-hash {
   display: inline-grid;
   place-items: center;
-  min-width: 1.375rem;
-  font: 500 1.375rem/1 var(--font-main);
+  width: var(--hb-channel-mark);
+  height: var(--hb-channel-mark);
+  flex: none;
+  font: 500 var(--hb-text-lg)/1 var(--font-main);
 }
 [data-haven-page="app"] .channel-item.active .channel-hash { color: var(--accent); }
 [data-haven-page="app"] .channel-item:has(> .channel-badge:not(.thread-mention-badge)) .channel-name {
@@ -1267,12 +1202,10 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   font-weight: 700;
 }
 [data-haven-page="app"] .dm-item .channel-hash {
-  width: 1.875rem;
-  height: 1.875rem;
   border-radius: 50%;
   background: var(--bg-active);
   color: var(--text-link);
-  font-size: 1.0625rem;
+  font-size: var(--hb-text-md);
 }
 [data-haven-page="app"] .category-label:not(.cat-pill) {
   opacity: 1 !important; /* The classic renderer puts half opacity directly on the heading. */
@@ -1286,8 +1219,9 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   font-weight: 700;
 }
 [data-haven-page="app"] [data-haven-region="member-list"] .user-item {
-  min-height: 2.75rem;
-  padding-inline: .5rem;
+  height: var(--hb-member-height);
+  flex: none;
+  padding: 0 .5rem;
   gap: .5rem;
 }
 [data-haven-page="app"] [data-haven-region="member-list"] :is(.user-avatar-wrapper, .user-item-avatar, .user-item-avatar-img) {
@@ -1300,7 +1234,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   font-size: 1rem;
   font-weight: 600;
 }
-[data-haven-page="app"] .user-search-input { min-height: 2.125rem; }
+
 [data-haven-page="app"] .user-group-label {
   font-size: .75rem;
   letter-spacing: .01em;
@@ -1441,11 +1375,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   [data-haven-page="app"] .channel-header { gap: .25rem; }
   [data-haven-page="app"] .modal.modal-settings { width: 100%; max-width: 100%; max-height: 100dvh; }
   [data-haven-page="app"] .settings-nav.sp-nav { padding: .5rem; }
-  [data-haven-page="app"] [data-haven-region="composer"] > textarea {
-    min-width: 0; border: 1px solid var(--border-light); border-radius: var(--hb-radius-xl);
-    background: var(--bg-input); padding-inline: .75rem;
-  }
-  [data-haven-page="app"] .message-user-sep { margin-block-start: .375rem; }
+
 }
 
 [data-haven-page="auth"] .auth-appearance {
@@ -1477,16 +1407,6 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   }
   [data-haven-page="auth"] .auth-header .auth-server-logo { margin-inline: 0; }
   [data-haven-page="auth"] .auth-card > :is(.auth-appearance, .auth-lang-bar, .auth-version) { grid-column: 1 / -1; }
-}
-
-@media (min-width: 901px) {
-  html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > .btn-composer-plus {
-    align-self: stretch; height: auto; margin: 0; border: 0; border-radius: var(--hb-radius-lg) 0 0 var(--hb-radius-lg);
-    background: var(--bg-input); color: var(--text-secondary);
-  }
-  html[data-composer-folded]:not([data-compact-composer]) [data-haven-region="composer"] > textarea {
-    border-start-start-radius: 0; border-end-start-radius: 0;
-  }
 }
 
 /* A short conversation rests above the composer. Longer histories consume
@@ -1563,7 +1483,6 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
   font: 700 var(--hb-text-lg)/1.2 var(--font-heading);
 }
 @media (max-width: 900px) {
-  [data-haven-page="app"] .channel-item { min-height: 2.75rem; }
   html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
     height: 5rem;
     min-height: 5rem;
@@ -1582,22 +1501,6 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
     border-radius: var(--hb-radius-xl) var(--hb-radius-xl) 0 0;
   }
   [data-haven-page="app"] .profile-popup-action-btn { min-height: 2.75rem; }
-  [data-haven-page="app"] [data-haven-region="composer"] {
-    gap: .25rem;
-    align-items: center;
-    padding-bottom: max(.625rem, env(safe-area-inset-bottom));
-  }
-  [data-haven-page="app"] [data-haven-region="composer"] > :is(.btn-composer-plus, .btn-send) {
-    width: 2.5rem;
-    height: 2.5rem;
-    border: 0;
-    border-radius: 50%;
-  }
-  [data-haven-page="app"] [data-haven-region="composer"] > .btn-composer-plus {
-    color: var(--text-secondary);
-    background: var(--bg-input);
-  }
-  [data-haven-page="app"] [data-haven-region="composer"] > textarea { min-height: 2.5rem; }
   /* The composer is the containing block, including its safe-area padding.
      Emoji writes a one-time inline bottom when the visual viewport exists. */
   [data-haven-page="app"] [data-haven-region="composer"] > :is(.emoji-picker, .gif-picker) {
@@ -2047,8 +1950,8 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 
 /* A room stays on one row, with the people connected to it directly underneath. */
 [data-habitat-voice-section] {
-  margin-block: .75rem .25rem;
-  padding-block-start: .5rem;
+  margin-block: 1.5rem 0;
+  padding-block-start: 0;
   border-block-start: .0625rem solid var(--border);
 }
 [data-habitat-no-rooms] { margin: .125rem .75rem .5rem; color: var(--text-muted); font-size: var(--hb-text-sm); }
@@ -2056,9 +1959,9 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 [data-habitat-rooms] [data-voice-connected] .channel-voice-indicator { color: var(--success); }
 [data-habitat-room-heading] { display: flex; align-items: center; padding-inline: .5rem; }
 [data-habitat-room-heading] button {
-  display: inline-flex; align-items: center; gap: .25rem; min-height: 2rem;
-  padding: .25rem; border: 0; background: transparent; color: var(--text-secondary);
-  font: 700 var(--hb-text-xs)/1.25 var(--font-main); cursor: pointer;
+  display: inline-flex; align-items: center; gap: .25rem; min-height: 1.5rem;
+  padding: 0; border: 0; background: transparent; color: var(--text-secondary);
+  font: 600 var(--hb-text-xs)/1.25 var(--font-main); cursor: pointer;
 }
 [data-habitat-room-heading] button:first-child { flex: 1; }
 [data-habitat-room-heading] button:hover { color: var(--text-primary); }
@@ -2069,20 +1972,20 @@ html[data-habitat-layout] [data-habitat-room-heading] svg { width: 1rem; height:
   border: 0; padding: 0; text-align: start; background: transparent; color: inherit; font: inherit; cursor: pointer;
 }
 [data-habitat-rooms] .channel-item .channel-hash {
-  height: 1.375rem; width: 1.375rem; flex: none; font-size: 0; background-color: currentColor; mask: var(--hb-icon-voice) center / 1.125rem no-repeat;
+  height: var(--hb-channel-mark); width: var(--hb-channel-mark); flex: none; font-size: 0; background-color: currentColor; mask: var(--hb-icon-voice) center / 1.125rem no-repeat;
 }
 [data-habitat-rooms] .channel-voice-indicator .voice-icon { display: none; }
 html[data-habitat-layout] #channel-list .channel-voice-users {
-  margin: .125rem .5rem .375rem 1.25rem; padding: 0 0 0 .625rem;
+  margin: 0 .5rem .125rem calc(.5rem + var(--hb-channel-mark) / 2); padding: 0 0 0 .5rem;
   border-inline-start: .0625rem solid var(--border-light); gap: .125rem;
 }
 html[data-habitat-layout] #channel-list .channel-item[style*="display: none"] + .channel-voice-users { display: none; }
 html[data-habitat-layout] #channel-list .channel-voice-user {
-  gap: .5rem; min-height: 1.875rem; padding: .125rem .375rem; font-size: .875rem;
+  gap: .5rem; height: 2rem; padding: 0 .25rem; font-size: .875rem;
 }
 html[data-habitat-layout] #channel-list .channel-voice-user:has([data-habitat-face])::before { content: none; }
 html[data-habitat-layout] #channel-list .channel-voice-user [data-habitat-face] {
-  width: 1.375rem; height: 1.375rem;
+  width: 1.5rem; height: 1.5rem;
 }
 html[data-habitat-layout] #channel-list .channel-voice-user.talking {
   color: var(--text-primary); background: color-mix(in srgb, var(--success) 12%, transparent);
@@ -2392,6 +2295,7 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
 }
 
 @media (pointer: coarse) {
+  :root { --hb-channel-height: 2.75rem; --hb-member-height: 2.75rem; --hb-search-height: 2.75rem; }
   [data-haven-page="app"] :is([data-habitat-add-button], .mobile-panel-close,
     [data-habitat-room-heading] button, [data-habitat-jump], [data-habitat-call-view],
     [data-habitat-room-members], .mobile-srv-bubble, [data-habitat-servers-button],
@@ -2417,6 +2321,7 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
      appended it before or after the menu button. The hit box uses the row height. */
   [data-haven-page="app"] .channel-item:has(> .channel-more-btn) {
     min-height: 2.75rem;
+    --hb-channel-end: 3rem;
     padding-inline-end: 3rem;
   }
   [data-haven-page="app"] .channel-item > .channel-more-btn {
@@ -2433,6 +2338,235 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
     pointer-events: auto;
     color: var(--text-muted);
   }
+}
+
+/* The mark and the name keep their slots when a counter or an action appears. */
+[data-haven-page="app"] .dm-item > [data-habitat-dm-avatar] {
+  width: 1.5rem; height: 1.5rem;
+  margin-inline-end: calc(var(--hb-channel-mark) - 1.5rem);
+}
+/* Haven gives nested rows important physical padding. The branch mark already
+   identifies the child, so its name can sit in the same column as the parent. */
+[data-haven-page="app"] .channel-item.sub-channel-item {
+  padding-inline: .5rem var(--hb-channel-end) !important;
+}
+[data-haven-page="app"] .channel-item[data-muted] .channel-name { opacity: .65; font-style: normal; }
+[data-haven-page="app"] .channel-item > .channel-collapse-arrow {
+  position: static; order: 1; transform: none; transition: rotate var(--hb-fast) var(--hb-ease);
+}
+[data-haven-page="app"] .channel-item > .channel-collapse-arrow.collapsed { rotate: -90deg; }
+[data-haven-page="app"] .channel-item.temp-channel-create-btn {
+  width: 100%; gap: .5rem; padding: 0 .5rem; background: transparent; color: var(--text-secondary);
+  font-size: var(--hb-text-sm); text-align: start;
+}
+[data-haven-page="app"] .temp-channel-create-btn > :first-child {
+  width: var(--hb-channel-mark); text-align: center;
+}
+[data-haven-page="app"] .temp-channel-create-btn:hover { background: var(--bg-hover); }
+[data-haven-page="app"] :is(#channels-pane, #dm-pane) { padding-inline: .5rem; }
+[data-haven-page="app"] :is(#channel-list, #dm-list) { padding-block: 0; }
+[data-haven-page="app"] :is(#channels-toggle, #dm-toggle-header, #channel-list > .category-label, .dm-category-header, .user-group-label) {
+  margin-block: 1.5rem .25rem;
+  padding: 0 .5rem;
+  color: var(--text-secondary);
+  font: 600 var(--hb-text-xs)/1.25 var(--font-main);
+  text-transform: none;
+  letter-spacing: normal;
+}
+[data-haven-page="app"] :is(#channel-list > .category-label, .dm-category-header) { border-top: 1px solid var(--border); }
+/* List categories come from Haven with inline type and important pill padding.
+   The optional grid of category tabs retains its own dimensions. */
+#channel-list > .category-label {
+  padding: 0 .5rem !important; font-size: var(--hb-text-xs) !important;
+  text-transform: none !important; letter-spacing: normal !important; opacity: 1 !important;
+  margin-inline: 0; border-inline: 0; border-bottom: 0; border-radius: 0; background: transparent;
+}
+[data-haven-page="app"] [data-habitat-room-heading] { margin-block-end: .25rem; }
+[data-haven-page="app"] :is(#channels-toggle, #dm-toggle-header) { min-height: 1.5rem; }
+[data-haven-page="app"] :is(#channels-toggle, #dm-toggle-header, [data-habitat-room-heading]) button:not([aria-controls]) {
+  width: 1.5rem; height: 1.5rem;
+  padding: 0 !important; /* Haven sets heading button padding inline. */
+  transition: opacity var(--hb-fast) var(--hb-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-haven-page="app"] :is(#channels-toggle, #dm-toggle-header, [data-habitat-room-heading]):not(:hover, :focus-within) button:not([aria-controls]) {
+    opacity: 0 !important; /* The opacity on Haven's native actions is inline. */
+  }
+}
+
+/* Keep the density variables local to the conversation and its Settings sample.
+   The gutter must be calculated here, where the adjusted variables resolve. */
+html:not([data-density="compact"], [data-density="spacious"]) :is(#message-area, .density-sample) {
+  --msg-avatar: 2.5rem;
+  --msg-gap: 1rem;
+  --msg-pad-x: 0rem;
+  --msg-pad-y: 0rem;
+}
+#message-area {
+  --hb-feed-inset: 1rem;
+  --msg-gutter: calc(var(--msg-pad-x) + var(--msg-avatar) + var(--msg-gap));
+  --hb-text-column: calc(var(--hb-feed-inset) + var(--msg-gutter));
+}
+#messages:not(.forum-view, .forum-gallery, .forum-feed) {
+  padding-inline: 0;
+  padding-bottom: 0;
+}
+#messages:not(.forum-view, .forum-gallery, .forum-feed) > .message > .message-row {
+  padding-inline: calc(var(--hb-feed-inset) + var(--msg-pad-x));
+}
+#messages > .message-compact {
+  padding-inline: var(--hb-text-column) var(--hb-feed-inset);
+}
+#messages > .message-compact .compact-time { left: calc(var(--hb-feed-inset) + var(--msg-pad-x)); }
+html:not([data-density="compact"], [data-density="spacious"]) #messages:not(.forum-view, .forum-gallery, .forum-feed) {
+  gap: 0;
+}
+html:not([data-density="compact"], [data-density="spacious"]) #messages:not(.forum-view, .forum-gallery, .forum-feed) > .message {
+  margin-block-start: 1rem; padding-block-start: 0;
+}
+html:not([data-density="compact"], [data-density="spacious"]) #messages > .message-compact {
+  --hb-followup-end: 0;
+  margin-block-start: .125rem; padding-block: 0;
+}
+#messages > :is(.message, .message-compact) { transition: none; }
+#messages > :is(.message, .message-compact):hover {
+  background-color: color-mix(in srgb, var(--bg-hover) 55%, transparent);
+  transition: none;
+}
+#messages:not(.forum-view, .forum-gallery, .forum-feed) .msg-toolbar { --hb-toolbar-top: 1; top: 0; bottom: auto; right: var(--hb-feed-inset); translate: 0 -50%; }
+#messages > :is(.system-message:not(.e2e-notice), .welcome-message) {
+  position: relative; flex: none; max-width: none;
+  padding: .25rem var(--hb-feed-inset) .25rem var(--hb-text-column);
+  margin: 0; border: 0; background: none;
+  color: var(--text-secondary); font: 400 var(--hb-text-sm)/1.4 var(--font-main);
+  text-align: start; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+#messages > :is(.system-message:not(.e2e-notice), .welcome-message)::before {
+  content: ''; position: absolute; inset-inline-start: calc(var(--hb-feed-inset) + var(--msg-pad-x));
+  width: var(--msg-avatar); height: 100%; top: 0;
+  background: currentColor; mask: var(--hb-icon-info) center / 1rem no-repeat;
+}
+#messages > .system-message:has(> .system-mark)::before { content: none; }
+#messages > .system-message > .system-mark {
+  position: absolute; inset-inline-start: calc(var(--hb-feed-inset) + var(--msg-pad-x));
+  width: var(--msg-avatar); text-align: center;
+}
+#messages :is(.habitat-day-divider, .new-messages-divider) {
+  display: flex; align-items: center; gap: .5rem; padding: .25rem var(--hb-feed-inset);
+  color: var(--text-secondary); font: 600 var(--hb-text-xs)/1.25 var(--font-main);
+}
+#messages .new-messages-divider { color: var(--danger); }
+#messages .new-messages-divider span { color: inherit; font-size: inherit; }
+#messages :is(.habitat-day-divider, .new-messages-divider)::before,
+#messages :is(.habitat-day-divider, .new-messages-divider)::after {
+  content: ''; flex: 1; height: 1px; background: currentColor; opacity: .5;
+}
+
+#messages > .message-compact:has(> .habitat-day-divider) {
+  display: block;
+}
+#messages > :is(.message-compact, .system-message, .welcome-message) > .habitat-day-divider {
+  margin-inline: calc(-1 * var(--hb-text-column)) calc(-1 * var(--hb-feed-inset));
+}
+#messages > .message-compact:has(> .habitat-day-divider) :is(.compact-time, .msg-toolbar) { top: 1.5rem; }
+@media (pointer: coarse) {
+  /* The dots occupy the trailing edge. Selecting a row puts its time in the
+     empty avatar column without adding Haven's extra line below the message. */
+  #messages { --hb-touch-action-space: 3rem; }
+  #messages:not(.forum-view, .forum-gallery, .forum-feed) > .message > .message-row,
+  #messages > .message-compact { padding-inline-end: var(--hb-touch-action-space); }
+  #messages > .message-compact > .habitat-day-divider { margin-inline-end: calc(-1 * var(--hb-touch-action-space)); }
+  #messages > .message-compact.msg-selected { padding-bottom: var(--hb-followup-end, .0625rem) !important; }
+  #messages > .message-compact.msg-selected::after { content: none; }
+  #messages > .message-compact.msg-selected .compact-time { display: block !important; }
+}
+#messages:is(.forum-view, .forum-gallery, .forum-feed) .habitat-day-divider { display: none; }
+
+/* The reserved typing line supplies the entire gap above the resting field.
+   The message gutter doubles as the first column, including in other densities. */
+#typing-indicator {
+  flex: 0 0 1rem; height: 1rem; min-height: 1rem;
+  padding-inline: var(--hb-text-column) var(--hb-feed-inset);
+  overflow: hidden; white-space: nowrap; font-size: var(--hb-text-xs);
+}
+#message-area > :is(#reply-bar, #image-queue-bar, #tag-queue-bar, #tag-frequent-bar, #upload-progress-bar) {
+  margin-inline: var(--hb-feed-inset);
+}
+#message-input-area {
+  display: grid; grid-template-columns: var(--msg-gutter) minmax(0, 1fr) auto fit-content(40%) auto;
+  align-items: center; gap: 0; flex: none;
+  margin: 0 var(--hb-feed-inset) calc(1.5rem + var(--safe-bottom, env(safe-area-inset-bottom, 0rem)));
+  padding: 0; min-height: 2.75rem; border-radius: var(--hb-radius-lg);
+}
+[data-haven-page="app"] #message-input-area { background: var(--bg-input); }
+body:is(.is-ios, .is-android) #message-input-area { padding-bottom: 0 !important; }
+#message-input-area > :is(textarea, .btn-send, .btn-composer-plus, #upload-btn, #emoji-btn) { grid-row: 1; }
+#message-input-area > #upload-btn, #message-input-area > .btn-composer-plus { grid-column: 1; justify-self: center; }
+#message-input-area:has(> #upload-btn:not([style*="display: none"])) > .btn-composer-plus { grid-column: 3; }
+#message-input-area > textarea {
+  grid-column: 2; width: 100%; min-width: 0; min-height: 2.75rem; --hb-draft-limit: 50dvh; max-height: var(--hb-draft-limit);
+  padding: .5rem 0; align-content: center; border: 0; border-radius: 0; background: transparent;
+  box-shadow: none; overflow-y: auto;
+}
+#message-input-area > textarea:focus-visible { outline: 0; }
+#message-input-area:focus-within { outline: 1px solid var(--border-light); }
+html:not([data-compact-composer]) #message-input-area > .input-actions-box {
+  grid-column: 4; grid-row: 1; min-width: 0; max-width: 100%; flex-wrap: wrap;
+  padding: 0; border: 0; background: transparent;
+}
+html:not([data-compact-composer]) #message-input-area:has(> #emoji-btn) > .input-actions-box { display: none; }
+#message-input-area > #emoji-btn { grid-column: 4; }
+#message-input-area > .btn-send { grid-column: 5; color: var(--accent); }
+#message-input-area > :is(.btn-send, .btn-composer-plus, #upload-btn, #emoji-btn) {
+  width: 2.75rem; height: 2.75rem; margin: 0; padding: 0; border: 0;
+  border-radius: var(--hb-radius-lg); background: transparent; box-shadow: none; transition: none;
+}
+#message-input-area > :is(.btn-send, .btn-composer-plus, #upload-btn, #emoji-btn):hover { background: var(--bg-hover); }
+#message-input-area textarea:disabled::placeholder { color: var(--text-secondary); opacity: 1; }
+#message-input-area > #composer-unavailable {
+  display: none; field-sizing: content; color: var(--text-secondary);
+}
+#message-input-area > #composer-unavailable:disabled { opacity: 1; }
+/* The original timeout live region still announces the change. */
+#message-area > #timeout-notice {
+  position: absolute; clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; padding: 0; border: 0;
+}
+#message-input-area:has(> #composer-unavailable[data-reason]) > #composer-unavailable {
+  display: block; grid-column: 2 / -1;
+}
+#message-input-area:has(> #composer-unavailable[data-blocked]) { display: grid !important; }
+#message-input-area:has(> #composer-unavailable[data-blocked]) > :not(#composer-unavailable) { display: none !important; }
+#message-input-area.media-only > #composer-unavailable[data-reason]:not([data-blocked]) { grid-column: 2; }
+#message-area:has(> [data-habitat-call-stage][data-habitat-voice-room]) > #message-input-area:has(#composer-unavailable[data-reason]) { display: none !important; }
+
+[data-haven-page="app"] #online-users { gap: 0; }
+#online-users .user-item-text { gap: 0; }
+#online-users .user-item-name {
+  padding: 0; border: 0; background: none; text-align: start; font-family: inherit; cursor: pointer;
+}
+#online-users .user-item-sub :is(.user-status-text, .user-activity) { font-size: var(--hb-text-xs); }
+#online-users .user-status-dot { bottom: 0; right: 0; }
+#online-users :is(.offline .user-status-dot, .user-status-dot.invisible) { background: var(--bg-secondary); }
+@media (hover: hover) and (pointer: fine) {
+  #online-users .user-item:is(:hover, :focus-within) .user-admin-actions { display: flex; }
+}
+#online-users .user-action-btn { transition: opacity var(--hb-fast) var(--hb-ease); }
+#online-users .user-item:focus-within .user-dm-btn { opacity: 1; }
+@media (pointer: coarse), (hover: none) {
+  #online-users .user-item .user-admin-actions { display: none; }
+}
+#user-search {
+  min-height: var(--hb-search-height); padding-inline: calc(.75rem + 1.25rem + .5rem) 2rem; font-size: var(--hb-text-sm);
+  border-color: var(--border-light);
+}
+#user-search:focus-visible { border-color: var(--accent); }
+#user-search-wrap::before {
+  content: ''; position: absolute; pointer-events: none;
+  inset-inline-start: calc(.5rem + .75rem); top: calc((var(--hb-search-height) - 1.25rem) / 2);
+  width: 1.25rem; height: 1.25rem; color: var(--text-secondary);
+}
+#user-search-wrap::before, [data-habitat-jump] > svg {
+  background: currentColor; mask: var(--hb-icon-search) center / contain no-repeat;
 }
 
 /* HABITAT-ICONS:START (generated by scripts/habitat-icons.js, do not edit by hand) */

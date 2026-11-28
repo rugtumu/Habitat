@@ -10,9 +10,9 @@ _composerButtonsCfg() {
   let c;
   try { c = JSON.parse(localStorage.getItem('haven_composer_buttons') || '{}') || {}; } catch { c = {}; }
   const keys = Object.keys(COMPOSER_BUTTONS);
-  // Habitat fork: keep emoji beside the draft and put GIF, voice and the other tools under +.
+  // Habitat fork: keep attach and emoji in the field and the secondary tools under +.
   const defaults = document.documentElement.hasAttribute('data-habitat-layout')
-    ? ['upload', 'gif', 'voice', 'poll', 'time', 'format', 'self-destruct', 'silent', 'highlight', 'burn'] : [];
+    ? ['gif', 'voice', 'poll', 'time', 'format', 'self-destruct', 'silent', 'highlight', 'burn'] : [];
   return { order: [...new Set([...(Array.isArray(c.order) ? c.order : []), ...keys])].filter(k => keys.includes(k)), folded: (Array.isArray(c.folded) ? c.folded : defaults).filter(k => keys.includes(k)) };
 },
 _applyComposerButtons() {
@@ -24,13 +24,27 @@ _applyComposerButtons() {
   const compact = root.hasAttribute('data-compact-composer');
   this._composerBoxOrigin = this._composerBoxOrigin || [...box.children];
   this._composerBoxOrigin.forEach(el => box.appendChild(el));
+  // Habitat fork: keep a saved arrangement in the member's chosen order.
+  const inlineTools = root.hasAttribute('data-habitat-layout') && !localStorage.getItem('haven_composer_buttons') &&
+    localStorage.getItem('haven_compact_composer') !== 'true';
   const custom = folded.length > 0 || order.some((k, i) => k !== Object.keys(COMPOSER_BUTTONS)[i]);
   order.forEach((k, i) => {
     const b = document.getElementById(`${k}-btn`);
     if (!b) return;
     b.style.order = custom ? String(i + 1) : '';
-    if (!compact && folded.includes(k)) menu.appendChild(b);
+    // Habitat fork: use the original controls in the field so upload and picker handlers survive.
+    // Explicit compact mode keeps every tool under +. A phone also folds the secondary tools.
+    if (inlineTools && (k === 'upload' || k === 'emoji')) {
+      box.parentNode.insertBefore(b, k === 'upload' ? document.getElementById('message-input') : document.getElementById('send-btn'));
+    } else if (!compact && folded.includes(k)) menu.appendChild(b);
   });
+  // Habitat fork: tabbing from the draft follows the visible tools. Restoring
+  // the native arrangement also restores the menu button's original place.
+  const plus = document.getElementById('composer-plus-btn');
+  if (plus) {
+    const next = inlineTools ? document.getElementById('emoji-btn') : box;
+    if (plus.nextElementSibling !== next) box.parentNode.insertBefore(plus, next);
+  }
   root.toggleAttribute('data-composer-custom', custom);
   const shown = [...menu.children].some(b => b.style.display !== 'none');
   root.toggleAttribute('data-composer-folded', shown);

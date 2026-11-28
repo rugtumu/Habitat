@@ -1729,6 +1729,36 @@ test('the channel disclosure preserves its original buttons and their visibility
   assert.equal(snapshot(box), before);
 });
 
+test('calendar labels follow the member timezone across prepends and deletions without adding feed rows', () => {
+  const { doc } = buildApp();
+  doc.body.appendChild(el(doc, 'h3', { id: 'channel-header-name' }));
+  const list = region(doc, 'message-list');
+  list.setAttribute('id', 'messages');
+  doc.body.appendChild(list);
+  window.app._userTimeZone = () => 'America/New_York';
+  const row = time => el(doc, 'div', { class: 'message', 'data-time': time });
+  const first = row('2025-01-02T02:00:00Z');
+  const second = row('2025-01-02T05:01:00Z');
+  list.appendChild(first);
+  list.appendChild(second);
+  const layout = new HabitatLayout();
+  layout.start();
+  const label = node => node.querySelector('.habitat-day-divider');
+  assert.ok(label(first) && label(second));
+  assert.notEqual(label(first).textContent, label(second).textContent);
+  const older = row('2025-01-02T01:00:00Z');
+  list.prepend(older);
+  FakeMutationObserver.notify(list);
+  assert.ok(label(older));
+  assert.equal(label(first), null);
+  assert.deepEqual(list.children, [older, first, second]);
+  older.remove();
+  FakeMutationObserver.notify(list);
+  assert.ok(label(first));
+  layout.stop();
+  assert.equal(list.querySelector('.habitat-day-divider'), null);
+});
+
 test('the room join action follows the call even when the channel title stays put', () => {
   const { doc, api } = buildApp();
   api.currentChannel = 'lobi';

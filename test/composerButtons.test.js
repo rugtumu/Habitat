@@ -11,6 +11,8 @@ const setup = (saved, compact = false) => {
   const attrs = new Set(compact ? ['data-compact-composer'] : []);
   const mk = (id) => ({ id, style: {}, parent: null, classList: { remove() {} } });
   const box = { children: [], appendChild(el) { el.parent && el.parent.children.splice(el.parent.children.indexOf(el), 1); el.parent = this; this.children.push(el); } };
+  const field = { children: [], insertBefore: box.appendChild };
+  box.parentNode = field;
   const menu = { children: [], appendChild: box.appendChild, classList: { remove() {} } };
   KEYS.forEach((k, i) => { box.appendChild(mk(`${k}-btn`)); box.appendChild({ id: `div${i}`, style: {}, parent: null }); });
   const byId = Object.fromEntries(box.children.map(el => [el.id, el]));
@@ -32,8 +34,9 @@ test('Habitat groups secondary tools until the member saves a personal layout', 
   const { app, attrs, box, menu, data } = setup();
   attrs.add('data-habitat-layout');
   app._applyComposerButtons();
-  assert.deepEqual(ids(box), ['emoji']);
-  assert.deepEqual(ids(menu), KEYS.filter(key => key !== 'emoji'));
+  assert.deepEqual(ids(box), []);
+  assert.deepEqual(ids(box.parentNode), ['upload', 'emoji']);
+  assert.deepEqual(ids(menu), KEYS.filter(key => key !== 'emoji' && key !== 'upload'));
   data.set('haven_composer_buttons', JSON.stringify({ folded: [] }));
   app._applyComposerButtons();
   assert.deepEqual(ids(box), KEYS);
@@ -42,6 +45,17 @@ test('Habitat groups secondary tools until the member saves a personal layout', 
   app._applyComposerButtons();
   assert.deepEqual(ids(box), KEYS);
 });
+test('a phone keeps attach and emoji in the field and gives an explicit compact choice back its tools', () => {
+  const { app, attrs, box, data } = setup(undefined, true);
+  attrs.add('data-habitat-layout');
+  app._applyComposerButtons();
+  assert.deepEqual(ids(box.parentNode), ['upload', 'emoji']);
+  data.set('haven_compact_composer', 'true');
+  app._applyComposerButtons();
+  assert.deepEqual(ids(box.parentNode), []);
+  assert.deepEqual(ids(box), KEYS);
+});
+
 test('buttons left out of the bar move into the + menu and the rest are ordered', () => {
   const { app, box, menu, attrs, byId } = setup({ order: ['gif', 'emoji'], folded: KEYS.filter(k => k !== 'emoji' && k !== 'gif') });
   app._closeComposerMenu = () => {};

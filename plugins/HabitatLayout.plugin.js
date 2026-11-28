@@ -127,9 +127,8 @@ class HabitatLayout {
     this._syncComposer();
   }
 
-  // On a phone the eight message box tools leave about 22px for the text.
-  // Haven already has a folded mode for this (Settings, Layout: one + button);
-  // the layout switches it on at phone width and hands it back afterwards.
+  // The phone uses Haven's + menu for secondary tools so the draft has room.
+  // The app keeps attach and emoji beside it for the default Habitat arrangement.
   _syncComposer() {
     const fold = this._mode === 'compact' && this._phone?.matches === true;
     const active = Boolean(this._mode);
@@ -617,7 +616,37 @@ class HabitatLayout {
       hint.textContent = this._text(dm ? 'dmStart' : 'channelStart');
       syncHistory();
     };
-    this._historyObserver = new MutationObserver(syncHistory);
+    // Keep date labels inside their messages. Pagination, deletion and window trimming
+    // all use the list's real children as message IDs and scroll anchors.
+    let formatter;
+    let dateZone;
+    const syncDays = () => {
+      if (messages.matches('.forum-view, .forum-feed, .forum-gallery')) return;
+      const zone = window.app?._userTimeZone?.() || undefined;
+      if (!formatter || dateZone !== zone) {
+        dateZone = zone;
+        formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: zone });
+      }
+      let previous;
+      for (const row of messages.children) {
+        const stamp = row.getAttribute('data-time');
+        if (!stamp) continue;
+        const instant = Date.parse(stamp);
+        if (!Number.isFinite(instant)) continue;
+        const day = formatter.format(instant);
+        const label = row.querySelector(':scope > .habitat-day-divider');
+        if (day === previous) label?.remove();
+        else if (!label || label.textContent !== day) {
+          const divider = label || document.createElement('div');
+          divider.setAttribute('class', 'habitat-day-divider');
+          divider.textContent = day;
+          if (!label) row.prepend(divider);
+        }
+        previous = day;
+      }
+    };
+    syncDays();
+    this._historyObserver = new MutationObserver(() => { syncHistory(); syncDays(); });
     this._historyObserver.observe(messages, { childList: true, attributes: true, attributeFilter: ['data-history'] });
     this._on(messages, 'scrollend', syncHistory);
     const indicator = document.getElementById('voice-active-indicator');
@@ -2289,6 +2318,7 @@ class HabitatLayout {
     this._drawerObserver?.disconnect();
     for (const face of document.querySelectorAll('[data-habitat-dm-avatar]')) face.remove();
     this._historyObserver?.disconnect();
+    for (const label of document.querySelectorAll('#messages .habitat-day-divider')) label.remove();
     this._nameObserver?.disconnect();
     this._joinObserver?.disconnect();
     this._peopleObserver?.disconnect();
@@ -2652,6 +2682,9 @@ html[data-habitat-layout] [data-habitat-menu] #logout-btn {
   color: var(--danger);
 }
 
+/* Grafit supplies the date treatment when it is active. */
+.habitat-day-divider { display: none; }
+
 /* ── Channel list ── */
 html[data-habitat-layout] :where([data-haven-region="sidebar-content"] .sidebar-section) {
   border-bottom: 0;
@@ -2667,9 +2700,9 @@ html[data-habitat-layout] :where([data-haven-region="channels"], [data-haven-reg
   padding-inline: 0.25rem;
 }
 html[data-habitat-layout] :where([data-haven-region="channels"] .channel-item, [data-haven-region="direct-messages"] .channel-item) {
-  min-height: 2.125rem;
-  height: auto;
-  margin: 0.0625rem 0;
+  min-height: var(--hb-channel-height, 2.25rem);
+  height: var(--hb-channel-height, 2.25rem);
+  margin: 0 0 .125rem;
   padding: 0.25rem 0.5rem;
   font-size: var(--hb-text-md);
 }
@@ -3064,7 +3097,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
   align-items: center;
   gap: .5rem;
   width: 100%;
-  min-height: 2.25rem;
+  min-height: var(--hb-search-height, 2.25rem);
   padding: .25rem .75rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);

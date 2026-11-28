@@ -159,3 +159,31 @@ test('hide-send-btn CSS preference preserves send button in media-only channels'
     /\[data-hide-send-btn\]\s+#message-input-area:not\(\.media-only\)\s+#send-btn\s*\{\s*display:\s*none\s*!important;\s*\}/,
   );
 });
+
+test('restricted fields explain the active reason without replacing an unsent draft', () => {
+  const { app, elements } = makeApp();
+  const attrs = new Set();
+  const placeholder = elements['composer-unavailable'] = {
+    setAttribute(name, value) { this[name] = value; },
+    toggleAttribute(name, on) { if (on) attrs.add(name); else attrs.delete(name); },
+  };
+  elements['message-input'].value = 'my draft';
+  const channel = { text_enabled: 1, media_enabled: 1, read_only: 1 };
+  app._updateComposerVisibility(channel);
+  assert.equal(placeholder.placeholder, 'channel_functions.read_only');
+  assert.ok(attrs.has('data-blocked'));
+  const timeout = elements['timeout-notice'] = { style: { display: 'flex' }, textContent: 'Timeout' };
+  app._updateComposerVisibility(channel);
+  assert.equal(placeholder.placeholder, 'Timeout');
+  timeout.style.display = 'none';
+  channel.canOverrideReadOnly = true;
+  app._updateComposerVisibility(channel);
+  assert.equal(placeholder.placeholder, '');
+  assert.equal(attrs.size, 0);
+  channel.text_enabled = 0;
+  app._updateComposerVisibility(channel);
+  assert.equal(placeholder.placeholder, 'channel.errors.text_disabled');
+  assert.ok(attrs.has('data-reason'));
+  assert.ok(!attrs.has('data-blocked'));
+  assert.equal(elements['message-input'].value, 'my draft');
+});

@@ -40,6 +40,18 @@ _updateComposerVisibility(channel) {
   // button is the only way to post an attachment: it stays, even for
   // someone who chose to hide it (#5880).
   if (msgInputArea) msgInputArea.classList.toggle('media-only', _textOff && !_mediaOff);
+  // Habitat fork: the disabled field can explain the restriction without overwriting a draft.
+  const unavailable = document.getElementById('composer-unavailable');
+  if (unavailable) {
+    const reason = _isReadOnly ? 'channel_functions.read_only' : _textOff ? 'channel.errors.text_disabled' : '';
+    const timeout = document.getElementById('timeout-notice');
+    const timedOut = timeout?.style.display === 'flex';
+    unavailable.placeholder = reason ? t(reason) : '';
+    if (timedOut) unavailable.placeholder = timeout.textContent;
+    unavailable.setAttribute('aria-label', unavailable.placeholder);
+    unavailable.toggleAttribute('data-reason', !!unavailable.placeholder);
+    unavailable.toggleAttribute('data-blocked', !!(_isReadOnly || (_textOff && _mediaOff) || timedOut));
+  }
   this._updateReadOnlyNote?.(channel);
   // Text-only elements
   const _msgInput = document.getElementById('message-input');
@@ -139,10 +151,9 @@ async switchChannel(code) {
 
   // Voice persists across channel switches, no auto-disconnect
 
-  // Each channel keeps its own unsent text (app-drafts.js).
+  // Habitat fork: stash the old draft here and size the new one once its field is visible.
   this._draftStash(this.currentChannel);
   this.currentChannel = code;
-  this._draftRestore(code);
   this._typingRender?.();
   // Search panel persists per-context: hide/show it for the channel we just
   // entered (public channels share one, each DM keeps its own). (search-overhaul)
@@ -293,6 +304,8 @@ async switchChannel(code) {
   if (channel) this._rememberConversation(channel);
   messagesEl.innerHTML = '';
   document.getElementById('message-area').style.display = 'flex';
+  // Habitat fork: scrollHeight is only measurable after entering the conversation.
+  this._draftRestore(code);
   document.getElementById('no-channel-msg').style.display = 'none';
 
   document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
@@ -699,6 +712,8 @@ _renderChannels() {
   const _personal = this._applyPersonalChannelOrder(parentChannels);
   parentChannels.splice(0, parentChannels.length, ..._personal);
 
+  // Habitat fork: text, voice and DM rows read the same mute preference on each redraw.
+  const mutedChannels = new Set(JSON.parse(localStorage.getItem('haven_muted_channels') || '[]'));
   const renderChannelItem = (ch, isSub) => {
     const el = document.createElement('div');
     el.className = 'channel-item' + (isSub ? ' sub-channel-item' : '') + (ch.is_private ? ' private-channel' : '') + (ch.code === this.currentChannel ? ' active' : '');
@@ -735,8 +750,11 @@ _renderChannels() {
       if (ch.slow_mode_interval > 0) _badges.push(`<span title="${t('channels.slow_mode_title', { seconds: ch.slow_mode_interval })}" style="opacity:0.5;font-size:0.65rem">🐢</span>`);
       if (ch.cleanup_exempt === 1) _badges.push(`<span title="${t('channels.cleanup_exempt_title')}" style="opacity:0.5;font-size:0.65rem">🛡️</span>`);
     }
-    const _mutedList = JSON.parse(localStorage.getItem('haven_muted_channels') || '[]');
-    if (_mutedList.includes(ch.code)) _badges.push(`<span class="ch-disabled-badge" title="${t('channels.muted_unsubscribed')}">🔕</span>`);
+    // Habitat fork: the row keeps its muted state when indicator icons are hidden.
+    if (mutedChannels.has(ch.code)) {
+      el.dataset.muted = '';
+      _badges.push(`<span class="ch-disabled-badge" title="${t('channels.muted_unsubscribed')}">🔕</span>`);
+    }
     const indicators = _badges.length ? `<span class="channel-indicators" style="margin-left:auto;display:flex;gap:2px;align-items:center;flex-shrink:0">${_badges.join('')}</span>` : '';
 
     const expiryTitle = isTemporary ? ` title="${t('channels.temporary_expires', { date: this._fmtDateTime(ch.expires_at) })}"` : '';
@@ -1075,10 +1093,12 @@ _renderChannels() {
 
   // ── "Create Temp Channel" button (visible if user has create_temp_channel perm) ──
   if (this.user?.isAdmin || this._hasPerm('create_temp_channel')) {
-    const tempBtn = document.createElement('div');
+    // Habitat fork: this shortcut is a keyboard action, with the same mark slot as a room.
+    const tempBtn = document.createElement('button');
+    tempBtn.type = 'button';
     tempBtn.className = 'channel-item temp-channel-create-btn';
-    tempBtn.style.cssText = 'opacity:0.5;cursor:pointer;padding:4px 12px;font-size:0.8rem;display:flex;align-items:center;gap:6px';
-    tempBtn.innerHTML = `<span style="font-size:0.9rem">➕</span><span>${t('channels.create_temp_channel')}</span>`;
+    tempBtn.style.cssText = 'cursor:pointer;display:flex;align-items:center';
+    tempBtn.innerHTML = `<span aria-hidden="true">+</span><span>${t('channels.create_temp_channel')}</span>`;
     tempBtn.title = t('channels.create_temp_channel_title');
     tempBtn.addEventListener('click', async () => {
       // One create form for every kind of channel: open it with Temporary
@@ -1202,6 +1222,8 @@ _renderChannels() {
       const el = document.createElement('div');
       el.className = 'channel-item dm-item' + (ch.code === this.currentChannel ? ' active' : '');
       el.dataset.code = ch.code;
+      // Habitat fork: muted DM names follow the same state as channel names.
+      if (mutedChannels.has(ch.code)) el.dataset.muted = '';
       const dmName = getDmName(ch);
       el.innerHTML = `
         <span class="channel-hash">${ch.is_group ? '👥' : '@'}</span>

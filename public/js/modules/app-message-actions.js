@@ -60,9 +60,19 @@ _placeMessageToolbar(msgEl) {
   bar.style.left = '';
   bar.style.right = '';
   bar.style.bottom = '';
+  // Habitat fork: clear the top clamp when the field or theme changes.
+  bar.style.top = '';
   const box = bar.offsetParent;
   if (!box || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   const boxRect = box.getBoundingClientRect();
+  // Habitat fork: Grafit's main feed anchors to the top edge. Keep the tools
+  // reachable when that edge has scrolled above the viewport of a tall row.
+  if (window.getComputedStyle?.(bar).getPropertyValue('--hb-toolbar-top').trim() === '1') {
+    const listTop = msgEl.closest('#messages').getBoundingClientRect().top;
+    const top = Math.min(boxRect.height, Math.max(0, listTop - boxRect.top + bar.offsetHeight / 2));
+    if (top) bar.style.top = `${top}px`;
+    return;
+  }
   let bottom = null;
 
   const chips = [...(msgEl.querySelector('.reactions-row')?.children || [])].map(c => c.getBoundingClientRect());

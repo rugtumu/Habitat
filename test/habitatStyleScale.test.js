@@ -52,8 +52,7 @@ test('the layout supplies the shared scale once with zero specificity', () => {
 
 const radii = new Set(['0', 'inherit', '50%', 'var(--radius-sm)', 'var(--radius)',
   'var(--hb-radius-lg)', 'var(--hb-radius-xl)', 'var(--hb-radius-pill)',
-  // Joined composer controls and the phone profile sheet have square inside edges.
-  'var(--hb-radius-lg) 0 0 var(--hb-radius-lg)', '0 var(--hb-radius-lg) var(--hb-radius-lg) 0',
+  // The phone profile sheet meets the bottom edge of the viewport.
   'var(--hb-radius-xl) var(--hb-radius-xl) 0 0']);
 
 const shadows = new Set(['none', 'var(--hb-elev-popover)', 'var(--hb-elev-dialog)',
@@ -108,7 +107,6 @@ const app = '[data-haven-page="app"] ';
 const habitat = 'html[data-habitat-layout] ';
 const stage = '[data-habitat-call-stage] ';
 const composer = app + '[data-haven-region="composer"]';
-const tree = habitat + '#channel-list .channel-voice-users';
 const scaled = ':root[data-text-size]:not([data-text-size="100"]):not([data-density="compact"]) ';
 const body = app + ':is(.message-content, .thread-msg-content)';
 
@@ -118,7 +116,6 @@ const sizeExceptions = new Map([
   [app + '.channel-badge[data-mentions]::after', '.625rem'],
   // These characters draw icons, including the close button and the room introduction mark.
   [app + '.channel-voice-user .cvu-mic, ' + app + '.channel-voice-user .cvu-deafen', '.8125rem'],
-  [app + '.channel-hash', '1.375rem'], [app + '.dm-item .channel-hash', '1.0625rem'],
   [app + '.welcome-icon', '2.5rem'], ['[data-habitat-intro] > span', '1.875rem'],
   [habitat + '.voice-stream-badge.live .haven-glyph', '.5rem'],
   [habitat + ':is([data-haven-region="voice-controls"], [data-haven-region="account"]) button > :is(.haven-glyph, svg), '
@@ -129,7 +126,6 @@ const sizeExceptions = new Map([
   [stage + '[data-habitat-call-avatar]', 'clamp(1rem, calc(var(--hb-tile-h, 9rem) * .15), 2.25rem)'],
   [stage + '.voice-user-item[data-habitat-focused] [data-habitat-call-avatar]', '2.25rem'],
   // Conversation type follows the member's density and text-size settings.
-  ['html:not([data-density="compact"]) ' + app + '.message-author', '1.0625rem'],
   ['html:not([data-density="compact"]) ' + body, 'calc(var(--hb-msg-text) * var(--msg-text-scale, 1))'],
   ['html' + scaled + body, 'calc(var(--hb-msg-text) * var(--msg-text-scale, 1))'],
   [scaled + composer + ' > textarea', 'calc(var(--hb-composer-text) * var(--msg-text-scale, 1))'],
@@ -137,17 +133,8 @@ const sizeExceptions = new Map([
 
 // Match the entire declaration so another inset on the same surface still gets checked.
 const spacingExceptions = [
-  // The channel and message rows, tree indent and composer retain their density geometry.
-  [app + '.channel-item', 'padding-inline', '.625rem'], [app + '.channel-item', 'gap', '.625rem'],
-  [habitat + ':where([data-haven-region="channels"] .channel-item, [data-haven-region="direct-messages"] .channel-item)', 'margin', '0.0625rem 0'],
-  [tree, 'margin', '.125rem .5rem .375rem 1.25rem'], [tree, 'padding', '0 0 0 .625rem'],
-  [habitat + '#channel-list .channel-voice-user', 'padding', '.125rem .375rem'],
-  [app + '.message-user-sep', 'margin-block-start', '.375rem'],
-  [composer, 'padding', '.25rem 1rem 1.25rem'],
-  [composer, 'padding-bottom', 'max(.625rem, env(safe-area-inset-bottom))'],
   ['[data-habitat-dialog-panel]', 'padding-bottom', 'max(1rem, env(safe-area-inset-bottom))'],
   // Frames, the history illustration, crop handles and overlapping faces need clearance.
-  ['[data-haven-region="message-list"] .message-row > .pfp-host', 'margin-inline', '-.1875rem .1875rem'],
   [stage + '[data-habitat-call-avatar]:has(> .pfp-border)', 'margin-block', '.5rem .625rem'],
   ['[data-habitat-stack] [data-habitat-face]', 'margin-inline-start', '-.25rem'],
   ['#border-crop-modal .border-crop-stage', 'padding', '2.5rem'],
@@ -165,6 +152,46 @@ const spacingExceptions = [
   [habitat + '#settings-modal .settings-header', 'padding', '2.75rem 1rem .75rem var(--nav-inset)'],
   [habitat + '#settings-modal .settings-body', 'padding', '2.75rem 7.25rem 3rem var(--page-inset)'],
 ];
+
+test('channel marks, the voice tree and DM names share one starting column', () => {
+  const value = (selector, property) => grafitRules.find(r => r.selector === selector && r.property === property)?.value;
+  assert.equal(value(':root', '--hb-channel-mark'), '1.25rem');
+  const mark = 'var(--hb-channel-mark)';
+  for (const selector of [app + '.channel-hash', '[data-habitat-rooms] .channel-item .channel-hash',
+    app + '.private-channel:not(.sub-channel-item, .dm-item) > .channel-hash']) {
+    assert.equal(value(selector, 'width'), mark);
+    assert.equal(value(selector, 'height'), mark);
+  }
+  assert.equal(value(app + '.channel-item', 'height'), 'var(--hb-channel-height)');
+  assert.equal(value(app + '.channel-item', 'gap'), '.5rem');
+  assert.equal(value(app + '.dm-item > [data-habitat-dm-avatar]', 'margin-inline-end'), 'calc(var(--hb-channel-mark) - 1.5rem)');
+  assert.equal(value(habitat + '#channel-list .channel-voice-users', 'margin'), '0 .5rem .125rem calc(.5rem + var(--hb-channel-mark) / 2)');
+});
+
+test('the composer and grouped messages share the density gutter and reserve the typing line', () => {
+  const has = (selector, property, value) => assert.ok(grafitRules.some(r =>
+    r.selector === selector && r.property === property && r.value === value), selector + ' ' + property);
+  has('#message-area', '--msg-gutter', 'calc(var(--msg-pad-x) + var(--msg-avatar) + var(--msg-gap))');
+  has('#message-area', '--hb-text-column', 'calc(var(--hb-feed-inset) + var(--msg-gutter))');
+  has('#messages > .message-compact', 'padding-inline', 'var(--hb-text-column) var(--hb-feed-inset)');
+  has('#messages > .message-compact.msg-selected', 'padding-bottom', 'var(--hb-followup-end, .0625rem) !important');
+  has('#messages > .message-compact.msg-selected .compact-time', 'display', 'block !important');
+  has('#typing-indicator', 'flex', '0 0 1rem');
+  has('#message-input-area', 'grid-template-columns', 'var(--msg-gutter) minmax(0, 1fr) auto fit-content(40%) auto');
+  has('#message-input-area > textarea', 'grid-column', '2');
+  has('#message-input-area > textarea', 'padding', '.5rem 0');
+  const cozy = 'html:not([data-density="compact"], [data-density="spacious"]) :is(#message-area, .density-sample)';
+  has(cozy, '--msg-avatar', '2.5rem');
+  has(cozy, '--msg-gap', '1rem');
+});
+
+test('member rows retain the avatar, optional status line and coarse target', () => {
+  assert.match(theme, /--hb-member-height: 2\.5rem;/);
+  assert.match(theme, /@media \(pointer: coarse\) \{\s*:root \{[^}]*--hb-channel-height: 2\.75rem;[^}]*--hb-member-height: 2\.75rem;/);
+  assert.match(theme, /\[data-haven-region="member-list"\] \.user-item \{\s*height: var\(--hb-member-height\)/);
+  assert.match(theme, /:is\(\.user-avatar-wrapper, \.user-item-avatar, \.user-item-avatar-img\) \{\s*width: 2rem;\s*height: 2rem;/);
+  assert.match(theme, /#online-users \.user-item-sub :is\(\.user-status-text, \.user-activity\) \{ font-size: var\(--hb-text-xs\)/);
+});
 
 // Split shorthand components at the top level so spaces and division inside calculations stay intact.
 function components(value) {

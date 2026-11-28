@@ -15,10 +15,10 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
-function load({ fine = true } = {}) {
+function load({ fine = true, top = false } = {}) {
   const context = vm.createContext({
     module: { exports: {} }, console, t: (k) => k, document: {},
-    window: { matchMedia: () => ({ matches: fine }) },
+    window: { matchMedia: () => ({ matches: fine }), getComputedStyle: () => ({ getPropertyValue: () => top ? '1' : '' }) },
   });
   const src = fs.readFileSync(path.join(ROOT, 'public/js/modules/app-message-actions.js'), 'utf8');
   vm.runInContext(src.replace(/^export default/m, 'module.exports ='), context);
@@ -76,9 +76,18 @@ test('on a message running past the bottom of the list it stays in view', () => 
 
 test('a touch screen keeps the toolbar where its stylesheet puts it', () => {
   const m = message({ chips: [rect(150, 150, 40, 24)] });
-  m.bar.style = { left: 'stale', right: 'stale', bottom: 'stale' };
+  m.bar.style = { left: 'stale', right: 'stale', bottom: 'stale', top: 'stale' };
   load({ fine: false })._placeMessageToolbar(m);
-  assert.deepEqual({ ...m.bar.style }, { left: '', right: '', bottom: '' });
+  assert.deepEqual({ ...m.bar.style }, { left: '', right: '', bottom: '', top: '' });
   const css = fs.readFileSync(path.join(ROOT, 'public/css/style-emoji-reactions-threads.css'), 'utf8');
   assert.match(css, /@media \(hover: hover\) and \(pointer: fine\) \{\s*\.msg-toolbar,\s*\.thread-msg-toolbar \{\s*top: auto;\s*bottom: 2px;/, 'the move is for mice only');
+});
+
+test('Grafit keeps the top-right anchor beside any reactions and clamps a scrolled row into view', () => {
+  const m = message({ chips: [rect(150, 150, 40, 24)] });
+  load({ top: true })._placeMessageToolbar(m);
+  assert.deepEqual(m.bar.style, { left: '', right: '', bottom: '', top: '' });
+  const tall = message({ box: rect(100, -100, 800, 1200) });
+  load({ top: true })._placeMessageToolbar(tall);
+  assert.equal(tall.bar.style.top, '167px');
 });

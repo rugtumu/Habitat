@@ -680,7 +680,8 @@ _listenMessageChanges() {
         const pinBtn = msgEl.querySelector('[data-action="pin"]');
         if (pinBtn) { pinBtn.dataset.action = 'unpin'; pinBtn.title = t('msg_toolbar.unpin'); }
       }
-      this._appendSystemMessage(`📌 ${t('header.messages.pinned_by', { name: data.pinnedBy })}`);
+      // Habitat fork: give the notice icon its own column.
+      this._appendSystemMessage(t('header.messages.pinned_by', { name: data.pinnedBy }), '📌');
       this._markPinUnread?.(data.messageId);
       this._bumpPinIndicator?.(1);
       // A pinned topic heads the forum list and its menu should offer Unpin,
@@ -736,7 +737,8 @@ _listenMessageChanges() {
       if (this._lastPins) {
         this._lastPins = this._lastPins.filter(p => p.id !== data.messageId);
       }
-      this._appendSystemMessage(`📌 ${t('header.messages.message_unpinned')}`);
+      // Habitat fork: give the notice icon its own column.
+      this._appendSystemMessage(t('header.messages.message_unpinned'), '📌');
       this._bumpPinIndicator?.(-1);
     }
   });
@@ -794,7 +796,8 @@ _listenMessageChanges() {
         const archBtn = msgEl.querySelector('[data-action="archive"]');
         if (archBtn) { archBtn.dataset.action = 'unarchive'; archBtn.title = t('app.messages.unprotect_btn'); }
       }
-      this._appendSystemMessage(`🛡️ ${t('header.messages.protected_by', { name: data.archivedBy })}`);
+      // Habitat fork: give the notice icon its own column.
+      this._appendSystemMessage(t('header.messages.protected_by', { name: data.archivedBy }), '🛡️');
     }
     // Keep the cached topic in step so a re-rendered card keeps its shield.
     const topic = this._forumTopics && this._forumTopics.get(data.messageId);
@@ -816,7 +819,8 @@ _listenMessageChanges() {
         const unarchBtn = msgEl.querySelector('[data-action="unarchive"]');
         if (unarchBtn) { unarchBtn.dataset.action = 'archive'; unarchBtn.title = t('app.messages.protect_btn'); }
       }
-      this._appendSystemMessage(`🛡️ ${t('header.messages.message_unprotected')}`);
+      // Habitat fork: give the notice icon its own column.
+      this._appendSystemMessage(t('header.messages.message_unprotected'), '🛡️');
     }
     const topic = this._forumTopics && this._forumTopics.get(data.messageId);
     if (topic) topic.is_archived = 0;

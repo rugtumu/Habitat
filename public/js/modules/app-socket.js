@@ -181,7 +181,15 @@ _showTimeoutNotice(msg) {
   clearTimeout(this._timeoutNoticeTimer);
   bar.textContent = t(n === 1 ? 'toasts.timeout_notice_one' : 'toasts.timeout_notice_other', { count: n });
   bar.style.display = 'flex';
-  this._timeoutNoticeTimer = setTimeout(() => { bar.style.display = 'none'; }, n * 60000);
+  // Habitat fork: show the reason in the field, then restore the current channel and its draft.
+  const refresh = () => this._updateComposerVisibility?.(this.channels?.find(ch => ch.code === this.currentChannel));
+  refresh();
+  this._timeoutNoticeTimer = setTimeout(() => {
+    bar.style.display = 'none';
+    refresh();
+    const draft = document.getElementById('message-input');
+    if (draft?.value) this._resizeComposerDraft?.(draft);
+  }, n * 60000);
 },
 
 _setupSocketListeners() {

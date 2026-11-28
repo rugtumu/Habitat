@@ -79,9 +79,8 @@ _draftRestore(code) {
   const input = document.getElementById('message-input');
   if (!input) return;
   input.value = this._draftStore()[code] || '';
-  const maxH = window.innerWidth <= 480 ? 90 : 120;
-  input.style.height = 'auto';
-  if (input.value) input.style.height = Math.min(input.scrollHeight, maxH) + 'px';
+  // Habitat fork: use the same height limit when restoring and typing a draft.
+  this._resizeComposerDraft(input);
 },
 
 _initDrafts() {
