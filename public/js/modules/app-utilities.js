@@ -1440,79 +1440,75 @@ _flushPendingMedia() {
   });
 },
 
-// ── Generic prompt modal (replaces window.prompt for Electron compat) ──
-// `password` hides what is typed, for asking for the account password.
-_showPromptModal(title, message, defaultValue = '', { password = false } = {}) {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.display = 'flex';
-    overlay.style.zIndex = '100002';
-    overlay.innerHTML = `
-      <div class="modal" style="max-width:380px">
-        <h3 style="margin-top:0">${this._escapeHtml(title)}</h3>
-        ${message ? `<p class="muted-text" style="margin:0 0 12px;white-space:pre-line">${this._escapeHtml(message)}</p>` : ''}
-        <input type="${password ? 'password' : 'text'}"${password ? ' autocomplete="current-password"' : ''} class="modal-input" id="prompt-modal-input" value="${this._escapeHtml(defaultValue)}" style="width:100%;box-sizing:border-box">
-        <div class="modal-actions" style="margin-top:12px">
-          <button class="btn-sm" id="prompt-modal-cancel">${t('modals.common.cancel')}</button>
-          <button class="btn-sm btn-accent" id="prompt-modal-ok">${t('modals.common.ok')}</button>
-        </div>
+// Habitat fork: these transient dialogs share one dismissal path so the close button,
+// backdrop and Escape all settle the caller's promise and return focus to its opener.
+_questionDialog(title, message, resolve, cancelValue) {
+  const opener = document.activeElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.style.zIndex = '100002';
+  const heading = this._escapeHtml(title || t('modals.common.confirm'));
+  overlay.innerHTML = `
+    <div class="modal modal-confirm" data-modal-controls-injected="1" role="dialog" aria-modal="true" aria-label="${heading}">
+      <h3>${heading}</h3>
+      <div class="modal-controls">
+        <button type="button" class="modal-expand-btn" aria-label="${this._escapeHtml(t('modals.common.close'))}">×</button>
       </div>
-    `;
-    document.body.appendChild(overlay);
-    const input = overlay.querySelector('#prompt-modal-input');
-    input.focus();
-    input.select();
+      ${message ? `<p class="muted-text" style="white-space:pre-line">${this._escapeHtml(message)}</p>` : ''}
+      <div class="modal-actions"></div>
+    </div>`;
+  const close = value => {
+    overlay.remove();
+    this._focusSurfaceOpener?.(opener);
+    resolve(value);
+  };
+  const dismiss = () => close(cancelValue);
+  const closeButton = overlay.querySelector('.modal-expand-btn');
+  closeButton.addEventListener('click', dismiss);
+  overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
+  overlay.addEventListener('modal-dismiss', dismiss);
+  document.body.appendChild(overlay);
+  return { overlay, row: overlay.querySelector('.modal-actions'), closeButton, close };
+},
 
-    const close = (val) => { overlay.remove(); resolve(val); };
-    overlay.querySelector('#prompt-modal-cancel').addEventListener('click', () => close(null));
-    overlay.querySelector('#prompt-modal-ok').addEventListener('click', () => close(input.value));
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') close(input.value);
+_showPromptModal(title, message, defaultValue = '', { password = false } = {}) {
+  return new Promise(resolve => {
+    const { overlay, row, close } = this._questionDialog(title, message, resolve, null);
+    const input = document.createElement('input');
+    input.id = 'prompt-modal-input';
+    input.className = 'modal-input';
+    input.type = password ? 'password' : 'text';
+    if (password) input.autocomplete = 'current-password';
+    input.setAttribute('aria-label', title);
+    input.value = defaultValue;
+    const modal = overlay.querySelector('.modal');
+    modal.classList.add('modal-prompt');
+    modal.append(input, row);
+    row.innerHTML = `
+      <button class="btn-sm" id="prompt-modal-cancel">${t('modals.common.cancel')}</button>
+      <button class="btn-sm btn-accent" id="prompt-modal-ok">${t('modals.common.ok')}</button>`;
+    const cancel = row.querySelector('#prompt-modal-cancel');
+    cancel.addEventListener('click', () => close(null));
+    row.querySelector('#prompt-modal-ok').addEventListener('click', () => close(input.value));
+    if (defaultValue) input.addEventListener('focus', () => input.select(), { once: true });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); close(input.value); }
     });
-    // Habitat fork: only the dismissed dialog settles its promise.
-    overlay.addEventListener('modal-dismiss', () => close(null));
+    cancel.focus();
   });
 },
 
-// ── Generic confirm modal (themed replacement for window.confirm) ──
-_showConfirmModal(title, message, opts = {}) {
-  const {
-    confirmLabel,
-    cancelLabel,
-    danger = false,
-  } = opts;
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.display = 'flex';
-    overlay.style.zIndex = '100002';
-    const okClass = danger ? 'btn-sm btn-danger-fill' : 'btn-sm btn-accent';
-    overlay.innerHTML = `
-      <div class="modal modal-confirm">
-        <h3 style="margin-top:0">${this._escapeHtml(title || '')}</h3>
-        ${message ? `<p class="muted-text" style="margin:0 0 12px;white-space:pre-line">${this._escapeHtml(message)}</p>` : ''}
-        <div class="modal-actions" style="margin-top:12px">
-          <button class="btn-sm" id="confirm-modal-cancel">${this._escapeHtml(cancelLabel || t('modals.common.cancel'))}</button>
-          <button class="${okClass}" id="confirm-modal-ok">${this._escapeHtml(confirmLabel || (danger ? t('msg_toolbar.delete') : t('modals.common.confirm')))}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-    const okBtn = overlay.querySelector('#confirm-modal-ok');
-    const cancelBtn = overlay.querySelector('#confirm-modal-cancel');
-    const close = (val) => { overlay.remove(); resolve(val); };
-    const onKey = (e) => {
-      if (e.key === 'Enter') close(true);
-    };
-    okBtn.addEventListener('click', () => close(true));
-    cancelBtn.addEventListener('click', () => close(false));
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
-    // Habitat fork: scope confirmation keys to the active dialog.
-    overlay.addEventListener('modal-dismiss', () => close(false));
-    overlay.addEventListener('keydown', onKey);
-    setTimeout(() => okBtn.focus(), 0);
+_showConfirmModal(title, message, { confirmLabel, cancelLabel, danger = false } = {}) {
+  return new Promise(resolve => {
+    const { row, close } = this._questionDialog(title, message, resolve, false);
+    row.innerHTML = `
+      <button class="btn-sm" id="confirm-modal-cancel">${this._escapeHtml(cancelLabel || t('modals.common.cancel'))}</button>
+      <button class="btn-sm ${danger ? 'btn-danger-fill' : 'btn-accent'}" id="confirm-modal-ok">${this._escapeHtml(confirmLabel || t(danger ? 'msg_toolbar.delete' : 'modals.common.confirm'))}</button>`;
+    const cancel = row.querySelector('#confirm-modal-cancel');
+    cancel.addEventListener('click', () => close(false));
+    row.querySelector('#confirm-modal-ok').addEventListener('click', () => close(true));
+    cancel.focus();
   });
 },
 
@@ -1526,37 +1522,20 @@ _alert(message) {
   return this._askChoice('', message, [{ id: 'ok', label: t('modals.common.ok'), accent: true }]);
 },
 
-// A question with several answers. Resolves the id of the button pressed, or
-// null for Escape or a click outside. Focus starts on the first button and
-// Enter only presses the focused one, so a stray Enter (someone still sending)
-// cannot pick a risky answer.
+// A choice resolves the button's id, or null when dismissed.
 _askChoice(title, message, buttons) {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.display = 'flex';
-    overlay.style.zIndex = '100002';
-    overlay.innerHTML = `
-      <div class="modal modal-confirm">
-        ${title ? `<h3 style="margin-top:0">${this._escapeHtml(title)}</h3>` : ''}
-        ${message ? `<p class="muted-text" style="margin:0 0 12px;white-space:pre-line">${this._escapeHtml(message)}</p>` : ''}
-        <div class="modal-actions" style="margin-top:12px;flex-wrap:wrap"></div>
-      </div>
-    `;
-    const close = (val) => { overlay.remove(); resolve(val); };
-    const row = overlay.querySelector('.modal-actions');
+  return new Promise(resolve => {
+    const { row, closeButton, close } = this._questionDialog(title, message, resolve, null);
+    let safest;
     for (const b of buttons) {
       const el = document.createElement('button');
       el.className = b.danger ? 'btn-sm btn-danger-fill' : (b.accent ? 'btn-sm btn-accent' : 'btn-sm');
       el.textContent = b.label;
       el.addEventListener('click', () => close(b.id));
       row.appendChild(el);
+      if (b.id === 'cancel' || (!safest && !b.danger && (!b.accent || buttons.length === 1))) safest = el;
     }
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
-    // Habitat fork: cancellation resolves the choice even when focus is outside.
-    overlay.addEventListener('modal-dismiss', () => close(null));
-    document.body.appendChild(overlay);
-    setTimeout(() => row.querySelector('button')?.focus(), 0);
+    (safest || closeButton).focus();
   });
 },
 

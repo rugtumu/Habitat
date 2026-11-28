@@ -1650,3 +1650,17 @@ select.settings-select:focus,
 .group-invite .gi-sub { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 
+
+/* Habitat fork: the two media viewers share a named toolbar above the media, including in the base theme. */
+.lightbox-bar {
+  position: absolute;
+  z-index: 10002;
+  inset: max(.5rem, env(safe-area-inset-top)) .5rem auto;
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: default;
+}
+.lightbox-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lightbox-bar button { border: 0; background: transparent; color: inherit; cursor: pointer; }

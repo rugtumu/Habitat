@@ -264,6 +264,9 @@
   const forcedChangeForm = document.getElementById('forced-change-form');
   const banAppealForm = document.getElementById('ban-appeal-form');
   const errorEl = document.getElementById('auth-error');
+  const errorHome = errorEl.parentNode;
+  const errorNext = errorEl.nextSibling;
+  let invalidField;
 
   // Pending TOTP challenge state (set after successful password auth)
   let _pendingChallenge = null; // { challengeToken, password }
@@ -351,10 +354,22 @@
     hideError();
   }
 
+  // Habitat fork: closing a sign-in disclosure returns keyboard focus to its summary.
+  for (const details of document.querySelectorAll('.auth-other, .auth-appearance')) {
+    details.addEventListener('keydown', e => {
+      if (e.key !== 'Escape' || !details.open || e.defaultPrevented) return;
+      e.preventDefault();
+      e.stopPropagation();
+      details.open = false;
+      details.querySelector('summary').focus();
+    });
+  }
+
   // listen for clicks on the login tabs to swap the tab and form
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       showTab(tab.dataset.tab);
+      if (tab.dataset.tab === 'sso') document.getElementById('sso-server-url').focus();
     });
   });
 
@@ -363,20 +378,43 @@
     showTab('register');
   }
 
-  function showError(msg) {
+  // Habitat fork: field validation belongs beneath the input. Service errors keep the shared notice.
+  document.addEventListener('invalid', e => {
+    if (e.target === e.target.closest('.auth-form')?.querySelector(':invalid')) showError(e.target.validationMessage, e.target.id);
+  }, true);
+  document.addEventListener('input', e => {
+    if (e.target === invalidField) hideError();
+  });
+  function showError(msg, fieldId) {
+    hideError();
+    invalidField = fieldId && document.getElementById(fieldId);
+    if (invalidField) {
+      invalidField.setAttribute('aria-invalid', 'true');
+      invalidField.setAttribute('aria-errormessage', 'auth-error');
+      invalidField.insertAdjacentElement('afterend', errorEl);
+    }
     errorEl.textContent = msg;
     errorEl.style.display = 'block';
   }
 
   function hideError() {
     errorEl.style.display = 'none';
+    errorEl.style.color = '';
+    if (invalidField) {
+      invalidField.removeAttribute('aria-invalid');
+      invalidField.removeAttribute('aria-errormessage');
+      errorHome.insertBefore(errorEl, errorNext);
+      invalidField = null;
+    }
   }
 
   // ── Admin Recovery ────────────────────────────────────
   document.getElementById('admin-recover-show').addEventListener('click', (e) => {
     e.preventDefault();
-    document.querySelector('.auth-recovery-links').style.display = 'none';
+    // Habitat fork: keep the alternate sign-in actions available during recovery.
+    document.querySelector('.auth-other').open = false;
     document.getElementById('admin-recover-section').style.display = '';
+    document.getElementById('login-username').focus();
   });
 
   document.addEventListener('click', async (e) => {
@@ -482,6 +520,11 @@
 
     if (!username || !password) return showError(t('auth.errors.fill_all_fields'));
 
+    // Habitat fork: keep the pending request visible and prevent duplicate submissions.
+    const submit = loginForm.querySelector('[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    loginForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -496,7 +539,7 @@
           showBanAppeal(username, password, data.reason);
           return;
         }
-        return showError(data.error || t('auth.errors.login_failed'));
+        return showError(data.error || t('auth.errors.login_failed'), res.status === 401 ? 'login-password' : null);
       }
 
       // ── TOTP challenge ──
@@ -520,6 +563,9 @@
       await enterApp(data.user, password);
     } catch (err) {
       showError(t('auth.errors.connection_error'));
+    } finally {
+      submit.disabled = false;
+      loginForm.removeAttribute('aria-busy');
     }
   });
 
@@ -845,7 +891,7 @@
     ssoConnectBtn.addEventListener('click', () => {
       hideError();
       let raw = ssoServerInput.value.trim();
-      if (!raw) return showError(t('auth.sso.enter_address'));
+      if (!raw) return showError(t('auth.sso.enter_address'), 'sso-server-url');
 
       // Normalise the URL
       raw = raw.replace(/\/+$/, '');
@@ -918,14 +964,14 @@
       const password = document.getElementById('sso-password').value;
       const confirm  = document.getElementById('sso-confirm').value;
 
-      if (!password || !confirm) return showError(t('auth.errors.fill_all_fields'));
-      if (password.length < 8) return showError(t('auth.errors.password_too_short'));
-      if (password !== confirm) return showError(t('auth.errors.passwords_no_match'));
+      if (!password || !confirm) return showError(t('auth.errors.fill_all_fields'), password ? 'sso-confirm' : 'sso-password');
+      if (password.length < 8) return showError(t('auth.errors.password_too_short'), 'sso-password');
+      if (password !== confirm) return showError(t('auth.errors.passwords_no_match'), 'sso-confirm');
 
       const registerUsername = ssoUsernameInput.value.trim();
       if (!/^[a-zA-Z0-9_]{3,20}$/.test(registerUsername)) {
         ssoUsernameInput.focus();
-        return showError(t('auth.sso.invalid_username'));
+        return showError(t('auth.sso.invalid_username'), 'sso-username');
       }
 
       // Build the full profile picture URL for the server to download
@@ -961,7 +1007,7 @@
           if (data.code === 'username_unavailable') {
             ssoUsernameInput.focus();
             ssoUsernameInput.select();
-            return showError(t('auth.sso.username_unavailable'));
+            return showError(t('auth.sso.username_unavailable'), 'sso-username');
           }
           return showError(data.error || t('auth.errors.registration_failed'));
         }
@@ -1069,12 +1115,17 @@
     const registrationToken = tokenInput ? tokenInput.value.trim() : '';
 
     if (!username || !password || !confirm) return showError(t('auth.errors.fill_all_fields'));
-    if (password !== confirm) return showError(t('auth.errors.passwords_no_match'));
-    if (password.length < 8) return showError(t('auth.errors.password_too_short'));
+    if (password !== confirm) return showError(t('auth.errors.passwords_no_match'), 'reg-confirm');
+    if (password.length < 8) return showError(t('auth.errors.password_too_short'), 'reg-password');
 
     const captchaToken = _captchaTokenFor('main');
     if (captchaToken === '') return showError(t('auth.errors.captcha_incomplete'));
 
+    // Habitat fork: keep the pending request visible and prevent duplicate submissions.
+    const submit = registerForm.querySelector('[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    registerForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -1116,6 +1167,9 @@
       window.location.href = _appUrl;
     } catch (err) {
       showError(t('auth.errors.connection_error'));
+    } finally {
+      submit.disabled = false;
+      registerForm.removeAttribute('aria-busy');
     }
   });
 

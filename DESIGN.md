@@ -18,6 +18,10 @@ The call stage is one grid for everyone in the call, sized so that all tiles fit
 
 At 901px and above the account and call controls share the left footer. On phones the channel title, search and channel actions share the header. Account settings open on a separate page with a category column on desktop and the native category picker on narrow screens.
 
+Threads align grouped replies and composer text on a shared column at each density. The thread list, search results and pins share row spacing and keyboard focus. Gallery tiles show filenames on hover or focus, and keep them visible on touch. Both media viewers keep the filename and actions together at the top.
+
+Emoji and reaction cells measure 32px with a fine pointer and 40px on touch. On the sign-in card, Login and Register share a segmented control. Link Server and admin recovery live under Other ways to sign in. Confirmations focus Cancel and return focus to the opener when dismissed.
+
 Channel, DM, member and message menus put everyday actions first. Hairlines separate organisation and management, and destructive actions come last. Arrow keys, Home, End and initial letters move through available items. Escape returns focus to the opener.
 
 Grafit’s default profile has a 96px cover, an 80px avatar and a 24px display name. The action row includes the member’s DM, permitted call controls and a personal note saved on this browser for the signed-in account. Hover previews omit the controls. A member’s custom profile theme keeps its own presentation.

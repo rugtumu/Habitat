@@ -17,13 +17,14 @@ _renderPinnedPanel(pins) {
 
   count.textContent = `📌 ${t(pins.length !== 1 ? 'pinned_panel.count_other' : 'pinned_panel.count_one', { count: pins.length })}`;
 
+  // Habitat fork: both pin lists expose the message jump separately from its permission-gated action.
   const canUnpin = this.user?.isAdmin || this._hasPerm('pin_message');
 
   if (pins.length === 0) {
-    list.innerHTML = `<p class="muted-text" style="padding:12px">${t('pinned_panel.no_messages')}</p>`;
+    list.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
   } else {
     list.innerHTML = pins.map(p => `
-      <div class="pinned-item" data-msg-id="${p.id}">
+      <div class="pinned-item" role="link" tabindex="0" data-msg-id="${p.id}">
         <div class="pinned-item-header">
           <span class="pinned-item-author" style="color:${this._getUserColor(p.username)}">${this._escapeHtml(this._getNickname(p.user_id, p.username))}</span>
           <span class="pinned-item-time">${this._formatTime(p.created_at)}</span>
@@ -79,7 +80,7 @@ _rewirePinnedSidebarHandlers(list, panel) {
       e.stopPropagation();
       const msgId = parseInt(btn.dataset.msgId, 10);
       if (!msgId) return;
-      const ok = await this._showConfirmModal(t('confirm.unpin_message'), '');
+      const ok = await this._showConfirmModal(t('confirm.unpin_message'), '', { danger: true, confirmLabel: t('msg_toolbar.unpin') });
       if (ok) this.socket.emit('unpin-message', { messageId: msgId });
     });
   });
@@ -111,6 +112,7 @@ _closePinsPiP() {
   this._pinsPipChannelCode = null;
   const panel = document.getElementById('pins-pip-panel');
   if (panel) panel.style.display = 'none';
+  this._focusSurfaceOpener?.(document.getElementById('pinned-toggle-btn'));
 },
 
 /** Render the pin list inside the PiP overlay.
@@ -119,13 +121,14 @@ _closePinsPiP() {
 _renderPinsPiPList(pins) {
   const list = document.getElementById('pins-pip-list');
   if (!list) return;
+  // Habitat fork: both pin lists expose the message jump separately from its permission-gated action.
   const canUnpin = this.user?.isAdmin || this._hasPerm('pin_message');
   if (!pins || pins.length === 0) {
-    list.innerHTML = `<p class="muted-text" style="padding:12px">${t('pinned_panel.no_messages')}</p>`;
+    list.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
     return;
   }
   list.innerHTML = pins.map(p => `
-    <div class="pinned-item" data-msg-id="${p.id}">
+    <div class="pinned-item" role="link" tabindex="0" data-msg-id="${p.id}">
       <div class="pinned-item-header">
         <span class="pinned-item-author" style="color:${this._getUserColor(p.username)}">${this._escapeHtml(this._getNickname(p.user_id, p.username))}</span>
         <span class="pinned-item-time">${this._formatTime(p.created_at)}</span>

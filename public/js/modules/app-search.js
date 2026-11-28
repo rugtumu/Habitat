@@ -124,6 +124,8 @@ _searchClose() {
   if (input) input.value = '';
   const pop = document.getElementById('search-filter-popover');
   if (pop) pop.style.display = 'none';
+  // Habitat fork: the search header button opens the same field on every layout.
+  document.getElementById('search-toggle-btn')?.focus();
 },
 
 // Kick off a query for the current context. Public channels hit the server
@@ -175,6 +177,7 @@ _searchSetLoading(on) {
   if (on && panel) { panel.style.display = 'flex'; this._searchEnsureVisible(); }
   const el = document.getElementById('search-panel-loading');
   if (el) el.style.display = on ? 'flex' : 'none';
+  document.getElementById('search-panel-list')?.setAttribute('aria-busy', String(on));
 },
 
 // The server rejected a search for hitting the per-account rate limit. Stop the
@@ -460,6 +463,7 @@ _sfpRenderSort() {
   const cur = (st && st.sort) || 'newest';
   document.querySelectorAll('#sfp-sort .sfp-sort-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.sort === cur);
+    b.setAttribute('aria-pressed', String(b.dataset.sort === cur));
   });
 },
 
@@ -526,9 +530,9 @@ _sfpRenderList(type, term) {
     return;
   }
   list.innerHTML = entries.slice(0, 100).map(e =>
-    `<div class="sfp-item" data-token="${this._escapeHtml(e.token)}">
+    `<button type="button" class="sfp-item" data-token="${this._escapeHtml(e.token)}">
        <span>${this._escapeHtml(e.label)}</span><span class="sfp-item-sub">${this._escapeHtml(e.sub)}</span>
-     </div>`).join('');
+     </button>`).join('');
   list.querySelectorAll('.sfp-item').forEach(item => {
     item.addEventListener('click', () => this._sfpAppend(item.dataset.token));
   });
@@ -559,9 +563,9 @@ _sfpRenderTagList(term) {
         return;
       }
       list.innerHTML = tags.slice(0, 100).map(tg =>
-        `<div class="sfp-item" data-token="${this._escapeHtml(this._tagSearchToken(tg.name))}">
+        `<button type="button" class="sfp-item" data-token="${this._escapeHtml(this._tagSearchToken(tg.name))}">
            <span>${this._escapeHtml(tg.name)}</span>
-         </div>`).join('');
+         </button>`).join('');
       list.querySelectorAll('.sfp-item').forEach(item => {
         item.addEventListener('click', () => this._sfpAppend(item.dataset.token));
       });
@@ -614,6 +618,9 @@ _searchRenderPanel() {
   const pageRows = st.serverPaged ? results : results.slice(start, start + SEARCH_PAGE_SIZE);
 
   // Header count (+ filter tags for channel searches).
+  document.querySelectorAll('#search-filter-popover [data-sfp-filter]').forEach(chip => {
+    chip.classList.toggle('active', !!st.filters?.[chip.dataset.sfpFilter]);
+  });
   const qHtml = this._escapeHtml(st.query || '');
   let filterInfo = '';
   if (st.filters) {
@@ -639,7 +646,7 @@ _searchRenderPanel() {
     .trim();
 
   list.innerHTML = total === 0
-    ? `<p class="muted-text" style="padding:12px">${t('header.search_no_results')}</p>`
+    ? `<p class="muted-text" role="status">${t('header.search_no_results')}</p>`
     : pageRows.map(r => {
         // Channel header per result (public/global search). DM local results
         // have no channel, so it's omitted there.
@@ -658,7 +665,7 @@ _searchRenderPanel() {
         // and lets _fetchLinkPreviews find its links. Content is deferred-embed
         // marked below so page links don't auto-fetch. (search-overhaul phase 3)
         return `
-        <div class="search-result-item" data-msg-id="${r.id}" data-user-id="${this._escapeHtml(String(r.user_id ?? ''))}" data-channel-code="${this._escapeHtml(r.channel_code || '')}">
+        <div class="search-result-item" role="link" tabindex="0" data-msg-id="${r.id}" data-user-id="${this._escapeHtml(String(r.user_id ?? ''))}" data-channel-code="${this._escapeHtml(r.channel_code || '')}">
           ${chan}
           <span class="search-result-author" style="color:${this._getUserColor(r.username)}">${this._escapeHtml(this._getNickname(r.user_id, r.username))}</span>
           <span class="search-result-time"${this._timeAttr(r.created_at)}>${this._formatTime(r.created_at)}</span>
@@ -672,6 +679,15 @@ _searchRenderPanel() {
   // buttons, then wire uploaded video/audio the same way the channel view does.
   list.querySelectorAll('.search-result-item').forEach(item => {
     const content = item.querySelector('.search-result-content');
+    // Habitat fork: a long plain message previews the words around the match. Rich
+    // results keep their original links, spoilers, attachments and embed controls.
+    if (content && !content.childElementCount && content.textContent.length > 220) {
+      const text = content.textContent;
+      const match = text.toLowerCase().indexOf(highlightQuery.toLowerCase());
+      const start = Math.max(0, match - 60);
+      const end = start + Math.max(220, highlightQuery.length + 100);
+      content.textContent = (start ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+    }
     if (highlightQuery) this._searchHighlightTextNodes(content, highlightQuery);
     this._searchDeferEmbeds(item);
     // Row click jumps to the message, but never when the click lands on

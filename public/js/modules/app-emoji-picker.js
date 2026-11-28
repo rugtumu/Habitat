@@ -134,6 +134,8 @@ _toggleEmojiPicker(anchorEl) {
 
   // Section toggle (Emoji | Sticker)
   const sectionRow = document.createElement('div');
+  // Habitat fork: the shared picker remembers the composer button even after moving to the page root.
+  picker._opener = anchorEl || document.getElementById('emoji-btn');
   sectionRow.className = 'emoji-section-row';
   const mkSectionBtn = (key, label) => {
     const b = document.createElement('button');
@@ -215,7 +217,7 @@ _toggleEmojiPicker(anchorEl) {
         list = stickers.filter(s => (s.pack_name || 'General') === self._activeStickerPack);
       }
       if (list.length === 0) {
-        grid.innerHTML = `<p class="muted-text" style="padding:12px;font-size:0.75rem;width:100%;text-align:center">${
+        grid.innerHTML = `<p class="muted-text emoji-empty" role="status">${
           stickers.length === 0
             ? t('emoji.no_stickers')
             : t('emoji.no_results')
@@ -327,11 +329,15 @@ _toggleEmojiPicker(anchorEl) {
   const catTabs = {};
   const catSections = {}; // cat -> non-sticky section wrapper, our stable scroll anchor
   const setActiveTab = (cat) => {
-    for (const [c, tab] of Object.entries(catTabs)) tab.classList.toggle('active', c === cat);
+    for (const [c, tab] of Object.entries(catTabs)) {
+      tab.classList.toggle('active', c === cat);
+      tab.setAttribute('aria-pressed', String(c === cat));
+    }
   };
   for (const cat of Object.keys(allCategories)) {
     const tab = document.createElement('button');
     tab.className = 'emoji-tab' + (cat === this._emojiActiveCategory ? ' active' : '');
+    tab.setAttribute('aria-pressed', String(cat === this._emojiActiveCategory));
     tab.textContent = catIcons[cat] || cat.charAt(0);
     tab.title = t(`emoji.categories.${cat.toLowerCase()}`) || cat;
     tab.addEventListener('click', () => {
@@ -454,7 +460,7 @@ _toggleEmojiPicker(anchorEl) {
         });
       }
       if (matched.size === 0) {
-        grid.innerHTML = `<p class="muted-text" style="padding:12px;font-size:0.75rem;width:100%;text-align:center">${t('emoji.no_results')}</p>`;
+        grid.innerHTML = `<p class="muted-text emoji-empty" role="status">${t('emoji.no_results')}</p>`;
         return;
       }
       const results = document.createElement('div');
@@ -520,6 +526,8 @@ _toggleEmojiPicker(anchorEl) {
       if (picker.style.display === 'none') return;
       const items = [...picker.querySelectorAll('.emoji-grid .emoji-item')];
       if (!items.length) return;
+      // Habitat fork: Enter on a focused tab or category action must activate that control.
+      if (e.key === 'Enter' && e.target.closest('button') && !e.altKey && !e.shiftKey) return;
       const active = picker.querySelector('.emoji-item.kb-active');
       const setActive = (el) => {
         if (!el) return;
@@ -686,6 +694,7 @@ _showQuickEmojiEditor(picker, msgEl, msgId) {
 
   const editor = document.createElement('div');
   editor.className = 'quick-emoji-editor reaction-full-picker';
+  editor._opener = document.activeElement;
 
   const title = document.createElement('div');
   title.className = 'reaction-full-category';
@@ -905,6 +914,7 @@ _showReactionPicker(msgEl, msgId) {
 
   const picker = document.createElement('div');
   picker.className = 'reaction-picker';
+  picker._opener = document.activeElement;
   const quickEmojis = this._getQuickEmojis();
   quickEmojis.forEach(emoji => {
     const btn = document.createElement('button');
@@ -1037,6 +1047,7 @@ _showFullReactionPicker(msgEl, msgId, quickPicker) {
 
   const panel = document.createElement('div');
   panel.className = 'reaction-full-picker';
+  panel._opener = quickPicker?.querySelector('.reaction-more-btn') || document.activeElement;
 
   // Search bar
   const searchRow = document.createElement('div');
@@ -1098,8 +1109,8 @@ _showFullReactionPicker(msgEl, msgId, quickPicker) {
     }
     if (!grid.firstChild) {
       const none = document.createElement('p');
-      none.className = 'muted-text';
-      none.style.cssText = 'padding:12px;font-size:0.75rem;text-align:center';
+      none.className = 'muted-text emoji-empty';
+      none.setAttribute('role', 'status');
       none.textContent = t('emoji.no_results');
       grid.appendChild(none);
     }

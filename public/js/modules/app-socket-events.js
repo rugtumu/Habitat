@@ -44,6 +44,9 @@ _listenFeatureEvents() {
 
   // ── Threads ───────────────────────────────────────
   this.socket.on('thread-messages', async (data) => {
+    // Habitat fork: a late reply must not replace a newly opened thread's loading state.
+    const current = () => !!this._activeThreadParent && Number(this._activeThreadParent) === Number(data.parentId);
+    if (!current()) return;
     this._applyThreadClosed?.(!!data.closed);
     if (data.parentUsername) {
       this._setThreadParentHeader({
@@ -66,6 +69,7 @@ _listenFeatureEvents() {
       try { await this._decryptMessages(data.messages, channelCode); } catch (err) { console.warn('[Thread] could not decrypt thread messages', err); }
     }
 
+    if (!current()) return;
     // Update parent preview from server (authoritative source)
     if (data.parentContent) {
       const preview = document.getElementById('thread-parent-preview');
@@ -73,6 +77,9 @@ _listenFeatureEvents() {
     }
     const container = document.getElementById('thread-messages');
     if (!container) return;
+    clearTimeout(this._threadLoadTimer);
+    container.removeAttribute('data-failed');
+    container.setAttribute('aria-busy', 'false');
     container.innerHTML = '';
     // A forum topic shows its whole first post above the replies (#5659).
     this._forumThreadRenderTopic?.();
@@ -730,7 +737,7 @@ _listenMessageChanges() {
         const remaining = document.querySelectorAll('#pinned-list .pinned-item').length;
         count.textContent = `📌 ${t(remaining !== 1 ? 'pinned_panel.count_other' : 'pinned_panel.count_one', { count: remaining })}`;
         if (remaining === 0) {
-          document.getElementById('pinned-list').innerHTML = `<p class="muted-text" style="padding:12px">${t('pinned_panel.no_messages')}</p>`;
+          document.getElementById('pinned-list').innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
         }
       }
       // Remove from Pins PiP if it's open (same DOM surgery, no re-fetch needed)
@@ -739,7 +746,7 @@ _listenMessageChanges() {
         pipItem.remove();
         const pipList = document.getElementById('pins-pip-list');
         if (pipList && !pipList.querySelector('.pinned-item')) {
-          pipList.innerHTML = `<p class="muted-text" style="padding:12px">${t('pinned_panel.no_messages')}</p>`;
+          pipList.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
         }
       }
       // Keep the cached _lastPins in sync so a subsequent pop-out isn't stale

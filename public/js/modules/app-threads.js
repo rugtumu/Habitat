@@ -268,6 +268,17 @@ _openThread(parentId) {
   if (this._forumActive && this._forumMarkTopicRead) this._forumMarkTopicRead(parentId);
   const panel = document.getElementById('thread-panel');
   if (!panel) return;
+  // Habitat fork: a new thread clears the previous replies while its own history loads.
+  if (panel.style.display === 'none') this._threadOpener = document.activeElement;
+  const messages = document.getElementById('thread-messages');
+  messages.replaceChildren();
+  messages.setAttribute('aria-busy', 'true');
+  messages.removeAttribute('data-failed');
+  clearTimeout(this._threadLoadTimer);
+  this._threadLoadTimer = setTimeout(() => {
+    messages.setAttribute('aria-busy', 'false');
+    messages.setAttribute('data-failed', '');
+  }, 15000);
   panel.style.display = 'flex';
   panel.dataset.parentId = parentId;
   this._setThreadPiPEnabled(localStorage.getItem('haven_thread_panel_pip') === '1');
@@ -349,6 +360,7 @@ _applyThreadClosed(closed) {
 _closeThread() {
   // Replies picked in it went with the panel (app-unthread.js).
   if (this._moveSourceThread) this._exitMoveSelectionMode?.();
+  clearTimeout(this._threadLoadTimer);
   this._activeThreadParent = null;
   this._clearThreadReply();
   // A reaction picker opened on a reply has nothing left to react to.
@@ -364,6 +376,10 @@ _closeThread() {
   if (threadMsgs) threadMsgs.innerHTML = '';
   this._forumApplyThreadChrome?.(null);
   this._forumBlogClose?.();
+  if (this._threadOpener) {
+    this._focusSurfaceOpener?.(this._threadOpener, document.getElementById('message-input'));
+    this._threadOpener = null;
+  }
 },
 
 _sendThreadMessage() {

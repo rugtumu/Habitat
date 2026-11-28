@@ -27,7 +27,6 @@
       <div class="auth-tabs">
         <button class="auth-tab active" data-tab="login" data-i18n="auth.tabs.login">Login</button>
         <button class="auth-tab" data-tab="register" data-i18n="auth.tabs.register">Register</button>
-        <button class="auth-tab" data-tab="sso" data-i18n="auth.tabs.sso">Link Server</button>
       </div>
 
       <form id="login-form" class="auth-form">
@@ -40,11 +39,15 @@
           <input type="password" id="login-password" autocomplete="current-password" required>
         </div>
         <button type="submit" class="btn-primary" data-i18n="auth.login.submit">Login</button>
-        <p class="auth-consent-note" data-i18n-html="auth.login.consent_note" style="text-align:center;color:var(--text-muted);font-size:0.72rem;line-height:1.4;margin-top:10px">By clicking "Login", you formally consent to our <a href="#" id="login-tos-link">current ToS</a>, which may be different from the ToS that was effective when you first registered.</p>
+        <!-- Habitat fork: less common account actions share a native disclosure on the login form. -->
         <div class="auth-recovery-links">
           <a href="#" id="forgot-password-show" data-i18n="auth.login.forgot_password">Forgot password?</a>
-          <a href="#" id="admin-recover-show" data-i18n="auth.login.locked_out">Locked out? Admin recovery</a>
         </div>
+        <details class="auth-other">
+          <summary>Other ways to sign in</summary>
+          <button type="button" class="auth-tab" data-tab="sso" data-i18n="auth.tabs.sso">Link Server</button>
+          <a href="#" id="admin-recover-show" data-i18n="auth.login.locked_out">Locked out? Admin recovery</a>
+        </details>
         <div id="admin-recover-section" style="display:none;text-align:center;margin-top:6px">
           <small style="color:var(--text-muted)" data-i18n="auth.login.admin_recover_hint">Enter your admin credentials above and click Recover</small><br>
           <input type="text" id="admin-recover-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" data-i18n-placeholder="auth.login.admin_recover_code" placeholder="Two-factor code" style="display:none;margin-top:6px;max-width:180px;text-align:center">
@@ -59,6 +62,7 @@
           <small style="color:var(--text-muted);display:block;margin-bottom:6px" data-i18n="auth.guest.prompt">No account? Just want to look around?</small>
           <button type="button" class="btn-secondary" id="guest-login-show-btn" style="font-size:0.9rem;padding:8px 18px" data-i18n="auth.guest.submit">Join as Guest</button>
         </div>
+        <p class="auth-consent-note" data-i18n-html="auth.login.consent_note">By clicking "Login", you formally consent to our <a href="#" id="login-tos-link">current ToS</a>, which may be different from the ToS that was effective when you first registered.</p>
       </form>
 
       <!-- (#12) Encryption passphrase for SSO accounts.
@@ -184,7 +188,7 @@
         </div>
       </div>
 
-      <div id="auth-error" class="auth-error" style="display:none"></div>
+      <div id="auth-error" class="auth-error" role="alert" style="display:none"></div>
 
       <!-- TOTP verification form (shown after login when 2FA is enabled) -->
       <form id="totp-form" class="auth-form" style="display:none">

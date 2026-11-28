@@ -758,14 +758,15 @@
              channel switches, only closes on the X. (search-overhaul phase 1) -->
         <div id="search-panel" class="search-panel" data-haven-region="search-results" style="display:none">
           <div class="search-panel-header">
-            <span id="search-panel-count" data-i18n="header.results">Results</span>
+            <!-- Habitat fork: announce the result count separately from interactive excerpts. -->
+            <span id="search-panel-count" role="heading" aria-level="2" aria-live="polite" data-i18n="header.results">Results</span>
             <button id="search-panel-close" class="icon-btn small" data-i18n-title="modals.common.close" title="Close">&times;</button>
           </div>
           <div id="search-panel-banner" class="search-panel-banner" style="display:none">
             <span data-i18n="header.search_stale">A channel or role you have has changed, please refresh the search to continue.</span>
             <button id="search-rerun-btn" class="btn-secondary small" data-i18n="header.search_refresh">Refresh search</button>
           </div>
-          <div id="search-panel-loading" class="search-panel-loading" style="display:none">
+          <div id="search-panel-loading" role="status" class="search-panel-loading" style="display:none">
             <span class="search-spinner"></span><span data-i18n="header.searching">Searching...</span>
           </div>
           <div id="search-panel-list" class="search-panel-list"></div>
@@ -993,7 +994,13 @@
       </div>
       <div class="thread-parent-preview" id="thread-parent-preview"></div>
     </div>
+    <!-- Habitat fork: translated state labels stay outside the counted reply rows. -->
     <div class="thread-messages" id="thread-messages"></div>
+    <div class="thread-status" role="status" hidden>
+      <span class="thread-loading" data-i18n="thread_list.loading">Loading…</span>
+      <span class="thread-empty">No replies yet.</span>
+      <span class="thread-failed" data-i18n="history.failed">Messages couldn’t load.</span>
+    </div>
     <div class="thread-jump-wrap">
       <button id="thread-jump-latest" class="jump-to-bottom thread-jump-latest" type="button" data-i18n-title="thread_runtime.jump_latest" title="Jump to the latest reply">
         <span class="thread-jump-count" id="thread-jump-count"></span>
@@ -1010,8 +1017,8 @@
     <div class="thread-input-area">
       <div class="pip-input-resizer" aria-hidden="true"></div>
       <button id="thread-emoji-btn" class="pip-input-emoji-btn" data-i18n-title="dm_runtime.emoji" title="Emoji"><span class="tb-icon tb-icon-emoji" aria-hidden="true">😀</span><span class="tb-icon tb-icon-mono" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none"/></svg></span></button>
-      <button id="thread-gif-btn" class="pip-input-emoji-btn pip-input-gif-btn" data-i18n-title="app.input_bar.gif_btn" title="Search GIFs"><span data-i18n="app.input_bar.gif_label">GIF</span></button>
       <textarea dir="auto" id="thread-input" class="thread-input" data-i18n-placeholder="thread_runtime.reply_placeholder" placeholder="Reply in thread..." rows="1"></textarea>
+      <button id="thread-gif-btn" class="pip-input-emoji-btn pip-input-gif-btn" data-i18n-title="app.input_bar.gif_btn" title="Search GIFs"><span data-i18n="app.input_bar.gif_label">GIF</span></button>
       <button id="thread-send-btn" class="thread-send-btn" data-i18n-title="dm_runtime.send" title="Send">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
@@ -5464,10 +5471,15 @@
   <script src="/socket.io/socket.io.js"></script>
 
   <!-- Image Lightbox Overlay -->
-  <div id="image-lightbox" class="image-lightbox" style="display:none">
+  <!-- Habitat fork: the toolbar filename names the image dialog. -->
+  <div id="image-lightbox" role="dialog" aria-modal="true" aria-labelledby="image-lightbox-name" class="image-lightbox" style="display:none">
     <button id="lightbox-prev" class="lightbox-nav lightbox-prev" data-i18n-aria-label="media_gallery.previous_image" aria-label="Previous image">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
+    <div class="lightbox-status" role="status" hidden>
+      <span class="lightbox-loading" data-i18n="media_gallery.loading">Loading…</span>
+      <span class="lightbox-error" data-i18n="media_runtime.image.open_failed">Could not open that image</span>
+    </div>
     <img id="lightbox-img" class="lightbox-img" src="" alt="">
     <button id="lightbox-next" class="lightbox-nav lightbox-next" data-i18n-aria-label="media_gallery.next_image" aria-label="Next image">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>

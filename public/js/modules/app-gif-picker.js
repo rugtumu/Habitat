@@ -125,7 +125,7 @@ _setupGifPicker() {
       else this._paintGifStar(star, favorited);
       return;
     }
-    const img = e.target.closest('img');
+    const img = e.target.closest('.gif-pick')?.querySelector('img');
     if (!img || !img.dataset.full) return;
     const target = this._gifTarget;
     this._closeGifPicker();
@@ -147,6 +147,8 @@ _toggleGifPicker(target, anchor) {
   this._closeGifPicker();
   if (wasOpen) return;
   document.getElementById('emoji-picker').style.display = 'none';
+  // Habitat fork: Escape returns to the composer that opened this picker.
+  picker._opener = anchor || document.getElementById('gif-btn');
   this._gifTarget = target;
   if (target === 'dmpip' || target === 'thread') {
     this._gifPickerHome = { parent: picker.parentNode, next: picker.nextSibling };
@@ -258,7 +260,7 @@ _loadTrendingGifs() {
         return;
       }
       if (data.error) {
-        grid.innerHTML = `<div class="gif-picker-empty">${this._escapeHtml(data.error)}</div>`;
+        grid.innerHTML = `<div class="gif-picker-empty" role="alert">${this._escapeHtml(data.error)}</div>`;
         return;
       }
       this._setGifFooter(data.provider);
@@ -266,7 +268,7 @@ _loadTrendingGifs() {
     })
     .catch(() => {
       if (this._gifTab === 'favorites') return;
-      grid.innerHTML = `<div class="gif-picker-empty">${t('gifs.load_failed')}</div>`;
+      grid.innerHTML = `<div class="gif-picker-empty" role="alert">${t('gifs.load_failed')}</div>`;
     });
 },
 
@@ -284,7 +286,7 @@ _searchGifs(query) {
         return;
       }
       if (data.error) {
-        grid.innerHTML = `<div class="gif-picker-empty">${this._escapeHtml(data.error)}</div>`;
+        grid.innerHTML = `<div class="gif-picker-empty" role="alert">${this._escapeHtml(data.error)}</div>`;
         return;
       }
       const results = data.results || [];
@@ -297,7 +299,7 @@ _searchGifs(query) {
     })
     .catch(() => {
       if (this._gifTab === 'favorites') return;
-      grid.innerHTML = `<div class="gif-picker-empty">${t('gifs.search_failed')}</div>`;
+      grid.innerHTML = `<div class="gif-picker-empty" role="alert">${t('gifs.search_failed')}</div>`;
     });
 },
 
@@ -365,7 +367,12 @@ _renderGifGrid(results) {
     star.dataset.title = gif.title || '';
     this._paintGifStar(star, this._isGifFavorited(full));
 
-    item.append(img, star);
+    // Habitat fork: the picture and favorite star are independent keyboard targets.
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'gif-pick';
+    pick.appendChild(img);
+    item.append(pick, star);
     grid.appendChild(item);
   });
 },

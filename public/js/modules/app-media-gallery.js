@@ -12,7 +12,7 @@ _bindMediaGallery() {
       if (!this.currentChannel) return;
       const modal = document.getElementById('media-gallery-modal');
       const body = document.getElementById('media-gallery-body');
-      body.innerHTML = `<div class="media-gallery-empty muted-text">${t('media_gallery.loading')}</div>`;
+      body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('media_gallery.loading')}</div>`;
       // Reset tab counts
       ['photos','videos','audios','files','links'].forEach(k => {
         const el = document.getElementById(`media-count-${k}`);
@@ -21,6 +21,7 @@ _bindMediaGallery() {
       // Default to Photos tab
       document.querySelectorAll('#media-gallery-modal .media-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'photos'));
       this._mediaGalleryActiveTab = 'photos';
+      this._mediaGalleryData = null;
       modal.style.display = 'flex';
       this.socket.emit('get-channel-media', { code: this.currentChannel });
     });
@@ -35,7 +36,7 @@ _bindMediaGallery() {
       const search = document.getElementById('threads-list-search');
       this._threadListData = null;
       if (search) search.value = '';
-      body.innerHTML = `<div class="media-gallery-empty muted-text">${t('thread_list.loading')}</div>`;
+      body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('thread_list.loading')}</div>`;
       modal.style.display = 'flex';
       this.socket.emit('get-channel-threads', { code: this.currentChannel });
       // Opened by pointer, so focusing the filter is a convenience, not a trap.
@@ -262,9 +263,9 @@ _bindMediaGallery() {
 _renderThreadList(filter = '') {
   const body = document.getElementById('threads-list-body');
   const countEl = document.getElementById('threads-list-count');
-  if (!body) return;
+  if (!body || !this._threadListData) return;
 
-  const all = this._threadListData || [];
+  const all = this._threadListData;
   const needle = String(filter || '').trim().toLowerCase();
   // Unread here means replies not yet seen, the same count as the "N new" chip.
   const unseen = (th) => this._threadNewCount?.(th.id, typeof th.new_count === 'number' ? { newCount: th.new_count } : null) || 0;
@@ -287,7 +288,7 @@ _renderThreadList(filter = '') {
 
   if (!rows.length) {
     const key = !all.length ? 'thread_list.empty' : (unreadOnly && !needle ? 'thread_list.no_unread' : 'thread_list.no_matches');
-    body.innerHTML = `<div class="media-gallery-empty muted-text">${t(key)}</div>`;
+    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t(key)}</div>`;
     return;
   }
 
@@ -454,14 +455,14 @@ _renderMediaGalleryTab(tab) {
       files:  t('media_gallery.empty_files'),
       links:  t('media_gallery.empty_links'),
     };
-    body.innerHTML = `<div class="media-gallery-empty muted-text">${labels[tab] || t('media_gallery.empty')}</div>`;
+    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${labels[tab] || t('media_gallery.empty')}</div>`;
     return;
   }
   // Tag filter: keep only items carrying EVERY selected tag (exact match, no
   // partials). Links have no backing upload so they are never tag-filtered.
   const rawItems = this._filterMediaItemsByTags(allItems, tab);
   if (rawItems.length === 0) {
-    body.innerHTML = `<div class="media-gallery-empty muted-text">${t('media_gallery.filter_no_match')}</div>`;
+    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('media_gallery.filter_no_match')}</div>`;
     return;
   }
   const items = this._sortMediaItems(rawItems);
@@ -497,22 +498,24 @@ _renderMediaGalleryTab(tab) {
     return `<div class="media-tile-tags">${tags.map(tg => `<span class="media-tile-tag">${esc(tg)}</span>`).join('')}</div>`;
   };
 
+  // Habitat fork: the same filename labels the keyboard target, hover caption and viewer.
+  const fileName = it => it.name || it.url.split(/[?#]/)[0].split('/').pop();
   if (tab === 'photos') {
     body.innerHTML = `<div class="media-gallery-grid${selectMode ? ' select-mode' : ''}">${items.map(it => `
-      <div class="media-grid-item${selected.has(this._mediaItemKey(it)) ? ' selected' : ''}" data-url="${esc(it.url)}" data-msg-id="${it.message_id}" data-action="lightbox" title="${esc(it.username || '')} • ${esc(fmt(it.created_at))}">
+      <div role="button" tabindex="0" aria-label="${esc(fileName(it))}" class="media-grid-item${selected.has(this._mediaItemKey(it)) ? ' selected' : ''}" data-url="${esc(it.url)}" data-msg-id="${it.message_id}" data-action="lightbox" title="${esc(it.username || '')} • ${esc(fmt(it.created_at))}">
         ${selBox(it)}
         <img src="${esc(it.url)}" loading="lazy" alt="">
         <button class="media-grid-jump" data-action="jump" data-msg-id="${it.message_id}" title="${t('app.actions.jump_to_message')}">↗</button>
-        <div class="media-grid-meta">${tileTags(it)}<div class="media-grid-date">${esc(fmt(it.created_at))}${sizeBadge(it) ? ' • ' + sizeBadge(it) : ''}</div></div>
+        <div class="media-grid-meta"><span class="media-grid-name">${esc(fileName(it))}</span>${tileTags(it)}<div class="media-grid-date">${esc(fmt(it.created_at))}${sizeBadge(it) ? ' • ' + sizeBadge(it) : ''}</div></div>
       </div>`).join('')}</div>`;
   } else if (tab === 'videos') {
     body.innerHTML = `<div class="media-gallery-grid${selectMode ? ' select-mode' : ''}">${items.map(it => `
-      <div class="media-grid-item${selected.has(this._mediaItemKey(it)) ? ' selected' : ''}" data-url="${esc(it.url)}" data-msg-id="${it.message_id}" data-action="video-lightbox" title="${esc(it.username || '')} • ${esc(fmt(it.created_at))}">
+      <div role="button" tabindex="0" aria-label="${esc(fileName(it))}" class="media-grid-item${selected.has(this._mediaItemKey(it)) ? ' selected' : ''}" data-url="${esc(it.url)}" data-msg-id="${it.message_id}" data-action="video-lightbox" title="${esc(it.username || '')} • ${esc(fmt(it.created_at))}">
         ${selBox(it)}
         <video src="${esc(it.url)}" preload="metadata" muted></video>
         <div class="media-grid-play">▶</div>
         <button class="media-grid-jump" data-action="jump" data-msg-id="${it.message_id}" title="${t('app.actions.jump_to_message')}">↗</button>
-        <div class="media-grid-meta">${tileTags(it)}<div class="media-grid-date">${esc(fmt(it.created_at))}${sizeBadge(it) ? ' • ' + sizeBadge(it) : ''}</div></div>
+        <div class="media-grid-meta"><span class="media-grid-name">${esc(fileName(it))}</span>${tileTags(it)}<div class="media-grid-date">${esc(fmt(it.created_at))}${sizeBadge(it) ? ' • ' + sizeBadge(it) : ''}</div></div>
       </div>`).join('')}</div>`;
   } else if (tab === 'audios') {
     body.innerHTML = `<div class="media-list${selectMode ? ' select-mode' : ''}">${items.map(it => `
@@ -600,7 +603,7 @@ _renderMediaGalleryTab(tab) {
     body.querySelectorAll('[data-action="lightbox"]').forEach(el => {
       el.addEventListener('click', () => {
         const url = el.dataset.url;
-        if (url && this._openLightbox) this._openLightbox(url);
+        if (url && this._openLightbox) this._openLightbox(url, null, el.getAttribute('aria-label'), el);
       });
     });
     body.querySelectorAll('[data-action="video-lightbox"]').forEach(el => {
@@ -608,7 +611,7 @@ _renderMediaGalleryTab(tab) {
         // Avoid triggering when the user clicks the inner jump button
         if (e.target.closest('[data-action="jump"]')) return;
         const url = el.dataset.url;
-        if (url) this._openVideoLightbox(url);
+        if (url) this._openVideoLightbox(url, el.getAttribute('aria-label'), el);
       });
     });
   }
@@ -969,10 +972,10 @@ _mediaTagManageApply() {
 // Lightbox-style overlay that plays a video (used by the media gallery
 // videos tab). Mirrors the image lightbox structure so it sits above any
 // modal overlays via the same z-index strategy.
-_openVideoLightbox(src) {
+_openVideoLightbox(src, filename, opener = document.activeElement) {
   // Tear down any existing
   const old = document.getElementById('video-lightbox');
-  if (old) old.remove();
+  if (old) old.dispatchEvent(new Event('close'));
 
   const overlay = document.createElement('div');
   overlay.id = 'video-lightbox';
@@ -981,10 +984,27 @@ _openVideoLightbox(src) {
     <video class="lightbox-video" src="${this._escapeHtml(src)}" controls autoplay playsinline></video>
   `;
   // Habitat fork: the gallery can sit below another surface. Release only the selected video.
-  const close = () => { overlay.querySelector('video')?.pause(); overlay.remove(); };
+  const close = () => {
+    overlay.querySelector('video')?.pause();
+    overlay.remove();
+    this._focusSurfaceOpener?.(opener);
+  };
+  const url = new URL(src, document.baseURI);
+  if (!['http:', 'https:'].includes(url.protocol)) return;
+  const bar = this._lightboxBar(overlay, () => window.open(url.href, '_blank', 'noopener,noreferrer'), () => {
+    const link = document.createElement('a');
+    link.href = url.href;
+    link.download = filename || '';
+    link.click();
+  }, close);
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'video-lightbox-name');
+  bar.firstElementChild.textContent = filename || url.pathname.split('/').pop();
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   overlay.addEventListener('close', close);
   document.body.appendChild(overlay);
+  bar.lastElementChild.focus();
 },
 
 };

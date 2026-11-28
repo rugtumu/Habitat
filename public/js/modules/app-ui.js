@@ -143,6 +143,7 @@ _bindSearchAndPins() {
   });
   document.getElementById('pinned-close').addEventListener('click', () => {
     document.getElementById('pinned-panel').style.display = 'none';
+    this._focusSurfaceOpener(document.getElementById('pinned-toggle-btn'));
   });
 
   // Open pinned messages in fullscreen (maximized PiP)
@@ -192,7 +193,7 @@ _bindSearchAndPins() {
         e.stopPropagation();
         const msgId = parseInt(unpinBtn.dataset.msgId, 10);
         if (!msgId) return;
-        const ok = await this._showConfirmModal?.(t('confirm.unpin_message'), '');
+        const ok = await this._showConfirmModal?.(t('confirm.unpin_message'), '', { danger: true, confirmLabel: t('msg_toolbar.unpin') });
         if (ok) this.socket.emit('unpin-message', { messageId: msgId });
         return;
       }
@@ -203,6 +204,16 @@ _bindSearchAndPins() {
         if (msgId) this._jumpToMessage?.(msgId);
       }
     });
+  }
+},
+
+// Habitat fork: a header action may have returned to its collapsed channel menu.
+_focusSurfaceOpener(opener, fallback) {
+  for (const el of [opener, opener?.closest?.('details')?.querySelector('summary'), fallback]) {
+    if (el && el !== document.body && el.getClientRects().length) {
+      el.focus({ preventScroll: true });
+      if (document.activeElement === el) return;
+    }
   }
 },
 
@@ -250,11 +261,14 @@ _bindEscapeShortcuts() {
   ];
   const trailing = [
     ['.channel-ctx-menu', closeMenu],
-    ['#emoji-picker', () => this._toggleEmojiPicker()],
-    ['#gif-picker', () => this._closeGifPicker()],
-    ['.reaction-full-picker, .quick-emoji-editor', remove],
-    ['.reaction-picker', () => this._closeReactionPickers()],
+    ['#emoji-picker', el => { this._toggleEmojiPicker(); this._focusSurfaceOpener(el._opener); }],
+    ['#gif-picker', el => { this._closeGifPicker(); this._focusSurfaceOpener(el._opener); }],
+    ['.reaction-full-picker, .quick-emoji-editor', el => { remove(el); this._focusSurfaceOpener(el._opener); }],
+    ['.reaction-picker', el => { this._closeReactionPickers(); this._focusSurfaceOpener(el._opener, document.getElementById('message-input')); }],
     ['#theme-popup', el => { el.style.display = 'none'; }],
+    ['#search-filter-popover', el => { el.style.display = 'none'; document.getElementById('search-input')?.focus(); }],
+    ['#pins-pip-panel', () => this._closePinsPiP()],
+    ['#pinned-panel', () => document.getElementById('pinned-close')?.click()],
     ['#search-container, #search-panel', () => this._searchClose()],
   ];
   const consume = e => { e.preventDefault(); e.stopImmediatePropagation(); };
@@ -322,7 +336,7 @@ _bindEscapeShortcuts() {
         e.target?.closest?.('[data-habitat-focus], .fullscreen-call-toolbar')) return;
     const thread = top('#thread-panel');
     if (thread) {
-      if (thread.classList.contains('pip') || document.getElementById('thread-input')?.value.trim()) return;
+      // Habitat fork: closing the pop-out preserves the reply text in the shared thread input.
       consume(e);
       this._closeThread();
     } else if (this.currentChannel && top('#message-area') && !top('#dm-pip-panel, #pins-pip-panel')) {
@@ -333,6 +347,14 @@ _bindEscapeShortcuts() {
 },
 
 _bindAppChrome() {
+  // Habitat fork: rows containing other controls use the same jump on click and keyboard activation.
+  document.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.search-result-item, .pinned-item, .media-grid-item')) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      e.target.click();
+    }
+  });
   // Habitat fork: rotation and window resizing can move an open menu beyond the new edge.
   window.addEventListener('resize', () => {
     for (const menu of document.querySelectorAll('#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu')) {

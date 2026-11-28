@@ -448,3 +448,57 @@ test('calling from a profile card asks first and does not stay armed', () => {
   assert.ok(call.indexOf('_showConfirmModal') > 0 && call.indexOf('_showConfirmModal') < call.indexOf("emit('start-dm'"));
   assert.match(call, /removeAttribute\('data-call-socket'\)/);
 });
+
+test('a destructive confirm starts on Cancel, resolves once, and returns focus to its opener', async () => {
+  const doc = page();
+  doc.body.innerHTML = '<button id="opener">Unpin</button>';
+  const opener = doc.getElementById('opener');
+  opener.focus();
+  const app = load(doc, ['ui', 'utilities']);
+  const result = app._showConfirmModal('Remove pin?', '', { danger: true });
+  const cancel = doc.getElementById('confirm-modal-cancel');
+  assert.equal(doc.activeElement, cancel);
+  assert.ok(doc.getElementById('confirm-modal-ok').classList.contains('btn-danger-fill'));
+  cancel.dispatch('click');
+  assert.equal(await result, false);
+  assert.equal(doc.activeElement, opener);
+});
+
+test('Escape closes a floating thread with a draft and leaves its reply text intact', () => {
+  const doc = page();
+  doc.body.innerHTML = '<button id="opener">Thread</button><div id="thread-panel" class="pip"><textarea id="thread-input"></textarea></div>';
+  const app = load(doc, ['ui', 'threads']);
+  const opener = doc.getElementById('opener');
+  const input = doc.getElementById('thread-input');
+  Object.assign(app, { _threadOpener: opener, _clearThreadReply() {} });
+  input.value = 'unfinished reply';
+  input.focus();
+  app._bindEscapeShortcuts();
+  doc.listeners.keydown[0]({ key: 'Escape', target: input, preventDefault() {}, stopImmediatePropagation() {} });
+  assert.equal(doc.getElementById('thread-panel').style.display, 'none');
+  assert.equal(input.value, 'unfinished reply');
+  assert.equal(doc.activeElement, opener);
+});
+
+test('the alternate sign-in controls still open the linked-server form and admin recovery', () => {
+  const doc = page();
+  const html = read('public/index.html');
+  doc.body.innerHTML = html.slice(html.indexOf('<div class="auth-tabs">'), html.indexOf('<!-- Theme selector'));
+  const auth = read('public/js/auth.js');
+  // Exercise the real local UI bindings without starting a login request or identity-provider handoff.
+  const start = auth.indexOf("  const tabs = document.querySelectorAll('.auth-tab')");
+  const end = auth.indexOf("  document.addEventListener('click', async (e) => {", auth.indexOf('// ── Admin Recovery', start));
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(auth.slice(start, end), { document: doc, _pendingInvite: '', eulaNotice: doc.getElementById('eula-notice') });
+  const details = doc.querySelector('.auth-other');
+  details.open = true;
+  details.querySelector('[data-tab="sso"]').dispatch('click');
+  assert.equal(doc.getElementById('sso-form').style.display, 'flex');
+  assert.equal(doc.activeElement.id, 'sso-server-url');
+  doc.querySelector('[data-tab="login"]').dispatch('click');
+  details.open = true;
+  details.querySelector('#admin-recover-show').dispatch('click');
+  assert.equal(doc.getElementById('login-form').style.display, 'flex');
+  assert.equal(doc.getElementById('admin-recover-section').style.display, '');
+  assert.equal(doc.activeElement.id, 'login-username');
+});

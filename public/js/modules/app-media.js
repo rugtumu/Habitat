@@ -163,9 +163,52 @@ _setupDebugSection() {
 
 // ── Image Lightbox ──
 
+// Habitat fork: both viewers expose the same controls. Image actions retain Haven's decryption and save paths.
+_lightboxBar(overlay, open, save, close) {
+  const bar = document.createElement('div');
+  bar.className = 'lightbox-bar';
+  const name = document.createElement('span');
+  name.className = 'lightbox-name';
+  name.id = overlay.id + '-name';
+  bar.appendChild(name);
+  for (const [label, icon, action] of [
+    [t('media_runtime.image.open_new_tab'), '↗', open],
+    [t('platform.e2e.download_file', { name: '' }).trim(), '↓', save],
+    [t('modals.common.close'), '×', close],
+  ]) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.textContent = icon;
+    button.addEventListener('click', action);
+    bar.appendChild(button);
+  }
+  overlay.appendChild(bar);
+  return bar;
+},
+
 _setupLightbox() {
   const lb = document.getElementById('image-lightbox');
   if (!lb) return;
+  const image = document.getElementById('lightbox-img');
+  const openOriginal = () => {
+    const source = this._lightboxSource || image;
+    if (source.dataset.e2eSrc || /^https?:$/.test(new URL(this._lazyRealSrc(source) || source.src, document.baseURI).protocol)) {
+      this._openImageInNewTab(source);
+    }
+  };
+  this._lightboxBar(lb, openOriginal,
+    () => this._saveContextImage(image.src, this._lightboxSource || image), () => this._closeLightbox());
+  image.addEventListener('load', () => {
+    lb.removeAttribute('aria-busy');
+    lb.removeAttribute('data-failed');
+  });
+  image.addEventListener('error', () => {
+    if (!image.getAttribute('src') || lb.style.display === 'none') return;
+    lb.removeAttribute('aria-busy');
+    lb.setAttribute('data-failed', '');
+  });
   // Only close when clicking the backdrop (not the image itself)
   lb.addEventListener('click', (e) => {
     if (e.target === lb) this._closeLightbox();
@@ -208,9 +251,16 @@ _getLightboxImages() {
  *  src any more (the feed revokes its object URL once painted, #5426), so it
  *  is decrypted again on demand; until then the lightbox shows nothing but
  *  the backdrop, which is what it used to show forever. (#5568) */
-_lightboxShow(imgEl, fallbackSrc = '') {
+_lightboxShow(imgEl, fallbackSrc = '', filename = '') {
   const lbImg = document.getElementById('lightbox-img');
   if (!lbImg) return;
+  this._lightboxSource = imgEl;
+  const viewer = document.getElementById('image-lightbox');
+  viewer?.setAttribute('aria-busy', 'true');
+  viewer?.removeAttribute('data-failed');
+  const name = document.getElementById('image-lightbox-name');
+  const address = imgEl?.dataset?.e2eSrc || imgEl?.dataset?.mpOrigin || this._lazyRealSrc(imgEl) || imgEl?.src || fallbackSrc;
+  if (name) name.textContent = filename || this._suggestedImageFilename(address);
   const seq = (this._lightboxSeq = (this._lightboxSeq || 0) + 1);
   this._imageZoomReset?.();
   // A picture of a blog post shows its likes and dislikes (#5784).
@@ -225,7 +275,11 @@ _lightboxShow(imgEl, fallbackSrc = '') {
       if (seq !== this._lightboxSeq) return; // moved on or closed meanwhile
       this._lightboxBlobUrl = URL.createObjectURL(blob);
       lbImg.src = this._lightboxBlobUrl;
-    }).catch(() => { if (seq === this._lightboxSeq) lbImg.src = ''; });
+    }).catch(() => {
+      if (seq !== this._lightboxSeq) return;
+      viewer?.removeAttribute('aria-busy');
+      viewer?.setAttribute('data-failed', '');
+    });
     return;
   }
   // The real URL, not what the feed shows: a picture the lazy loader has not
@@ -257,15 +311,17 @@ _updateLightboxNav() {
   nextBtn.style.display = showNav ? '' : 'none';
 },
 
-_openLightbox(src, imgEl = null) {
+_openLightbox(src, imgEl = null, filename = '', opener = document.activeElement) {
   const lb = document.getElementById('image-lightbox');
   const img = document.getElementById('lightbox-img');
   if (!lb || !img) return;
+  if (lb.style.display === 'none') this._lightboxOpener = opener;
   this._lightboxScope = (imgEl && imgEl.closest && imgEl.closest('.media-grid')) || null;
   const imgs = this._getLightboxImages();
   this._lightboxIndex = imgEl ? imgs.indexOf(imgEl) : imgs.findIndex(i => i.src === src);
-  this._lightboxShow(imgEl || imgs[this._lightboxIndex] || null, src);
+  this._lightboxShow(imgEl || imgs[this._lightboxIndex] || null, src, filename);
   lb.style.display = 'flex';
+  lb.querySelector('.lightbox-bar button:last-child')?.focus();
   this._updateLightboxNav();
 },
 
@@ -279,6 +335,8 @@ _closeLightbox() {
     try { URL.revokeObjectURL(this._lightboxBlobUrl); } catch { /* already gone */ }
     this._lightboxBlobUrl = null;
   }
+  this._focusSurfaceOpener?.(this._lightboxOpener, document.getElementById('message-input'));
+  this._lightboxOpener = this._lightboxSource = null;
   this._lightboxIndex = -1;
   this._lightboxScope = null;
   this._imageZoomReset?.();
@@ -370,6 +428,35 @@ _setupModalExpand() {
     });
   };
   _injectModalControls();
+  // Habitat fork: static dialogs have many open/close paths. Watch only each overlay's
+  // own visibility and respect focus already placed by its form or a newer dialog.
+  const openers = new WeakMap();
+  const watch = new MutationObserver(records => {
+    for (const overlay of new Set(records.map(record => record.target))) {
+      if (overlay.style.display !== 'none') {
+        if (openers.has(overlay)) continue;
+        const focused = document.activeElement;
+        const channelButton = { 'media-gallery-modal': 'gallery-toggle-btn', 'threads-list-modal': 'threads-toggle-btn' }[overlay.id];
+        openers.set(overlay, channelButton ? document.getElementById(channelButton) : (overlay.contains(focused) ? overlay._entryFocus : focused));
+        if (overlay.contains(focused)) continue;
+        const safe = [...overlay.querySelectorAll('[data-i18n="modals.common.cancel"], [data-i18n-aria-label="modals.common.close"], .modal-controls button:last-child, .settings-close-btn')]
+          .find(button => !button.disabled && button.getClientRects().length);
+        safe?.focus({ preventScroll: true });
+      } else if (openers.has(overlay)) {
+        if (document.activeElement === document.body || overlay.contains(document.activeElement)) {
+          this._focusSurfaceOpener?.(openers.get(overlay), document.getElementById('message-input'));
+        }
+        openers.delete(overlay);
+        overlay._entryFocus = null;
+      }
+    }
+  });
+  for (const overlay of document.querySelectorAll('.modal-overlay')) {
+    overlay.addEventListener('focusin', e => {
+      if (!openers.has(overlay) && !overlay.contains(e.relatedTarget)) overlay._entryFocus = e.relatedTarget;
+    });
+    watch.observe(overlay, { attributes: true, attributeFilter: ['style'] });
+  }
   // Re-run if new modals get inserted later (some plugins/lazy templates)
   this._injectModalControls = _injectModalControls;
 },
