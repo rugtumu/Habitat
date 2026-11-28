@@ -651,6 +651,32 @@ test('a missing public region leaves the page untouched instead of half moved', 
   plugin.stop();
 });
 
+test('Escape in the open Habitat server menu leaves Settings and the thread underneath it', () => {
+  const { doc, header } = buildApp();
+  const settings = el(doc, 'div', { class: 'modal-overlay' });
+  doc.body.appendChild(settings);
+  doc.body.appendChild(el(doc, 'div', { id: 'thread-panel' }));
+  const ui = fs.readFileSync(path.join(ROOT, 'public/js/modules/app-ui.js'), 'utf8').replace(/^import .*;$/mg, '');
+  const app = Function(ui.replace('export default', 'return'))();
+  let reads = 0;
+  app._markAllRead = () => reads++;
+  app._closeThread = () => assert.fail('closed the thread under the menu');
+  app._bindEscapeShortcuts();
+  const plugin = new HabitatLayout();
+  plugin.start();
+  const menu = header.querySelector('[data-habitat-menu]');
+  header.querySelector('[data-habitat-menu-button]').click();
+  doc.fire('keydown', { key: 'Escape', shiftKey: true });
+  assert.equal(reads, 1);
+  assert.equal(menu.hidden, false);
+  const key = doc.fire('keydown', { key: 'Escape' });
+  assert.ok(key.immediate && menu.hidden);
+  assert.notEqual(settings.style.display, 'none');
+  doc.fire('keydown', { key: 'Escape' });
+  assert.equal(settings.style.display, 'none');
+  plugin.stop();
+});
+
 test('server menu rows keep their names while the tooltip code holds the title', async () => {
   const app = buildApp();
   const plugin = new HabitatLayout();
@@ -760,7 +786,7 @@ test('Create opens first with keyboard tabs, template cards and the original adv
   assert.ok(byId('new-channel-readonly').checked);
   a.name.value = 'draft';
   const escape = doc.fire('keydown', { key: 'Escape' });
-  assert.ok(dialog.hidden && escape.stopped);
+  assert.ok(dialog.hidden && escape.immediate);
   assert.equal(doc.activeElement, a.add);
   a.add.click();
   assert.equal(template.value, 'b:chat');

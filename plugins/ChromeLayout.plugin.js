@@ -433,7 +433,8 @@ class ChromeLayout {
       }
     }, true);
     this._listen(document, 'keydown', (e) => {
-      if (e.key === 'Escape' && !menu.hidden) {
+      if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !menu.hidden) {
+        e.stopImmediatePropagation();
         this._setChannelActionsMenu(false);
       }
     });
@@ -555,7 +556,8 @@ class ChromeLayout {
       }
     }, true);
     this._listen(document, 'keydown', (e) => {
-      if (e.key === 'Escape' && document.documentElement.classList.contains('dms-open')) {
+      if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && document.documentElement.classList.contains('dms-open')) {
+        e.stopImmediatePropagation();
         this._setDmDockOpen(false);
       }
     });

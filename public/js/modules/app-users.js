@@ -1583,8 +1583,9 @@ _showNicknameDialog(userId, currentUsername, currentDisplayName) {
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') dialog.querySelector('#nickname-save').click();
-    if (e.key === 'Escape') close();
   });
+  // Habitat fork: the nickname dialog can be dismissed from any focused control.
+  dialog.addEventListener('modal-dismiss', close);
 },
 
 _refreshNicknameDisplays() {

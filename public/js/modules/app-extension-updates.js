@@ -157,18 +157,15 @@ _showExtensionUpdateConfirm(title, message, warning, confirmLabel) {
     const cancel = overlay.querySelector('#extension-update-cancel');
     const close = value => {
       overlay.remove();
-      document.removeEventListener('keydown', onKey);
       resolve(value);
     };
     // Enter is left to the focused button, so it never confirms while
     // Cancel is the one selected.
-    const onKey = event => {
-      if (event.key === 'Escape') close(false);
-    };
+    // Habitat fork: only dismissal of this confirmation cancels its promise.
+    overlay.addEventListener('modal-dismiss', () => close(false));
     confirm.addEventListener('click', () => close(true));
     cancel.addEventListener('click', () => close(false));
     overlay.addEventListener('click', event => { if (event.target === overlay) close(false); });
-    document.addEventListener('keydown', onKey);
     // Start on Cancel: installing code should take a deliberate click.
     setTimeout(() => cancel.focus(), 0);
   });

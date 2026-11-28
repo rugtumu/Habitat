@@ -885,7 +885,8 @@ _askSelfDestruct() {
     const close = (val) => {
       modal.style.display = 'none';
       modal.removeEventListener('click', onClick);
-      document.removeEventListener('keydown', onKey, true);
+      modal.removeEventListener('keydown', onKey);
+      modal.removeEventListener('modal-dismiss', cancel);
       // Backing out returns to the message, which is still in the box.
       if (!val) document.getElementById('message-input')?.focus();
       resolve(val);
@@ -901,11 +902,13 @@ _askSelfDestruct() {
       else if (e.target.closest('#sd-send')) submit();
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(null); }
-      else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); submit(); }
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); submit(); }
     };
     modal.addEventListener('click', onClick);
-    document.addEventListener('keydown', onKey, true);
+    // Habitat fork: cancel the pending send only when this dialog is dismissed.
+    const cancel = () => close(null);
+    modal.addEventListener('modal-dismiss', cancel);
+    modal.addEventListener('keydown', onKey);
   });
 },
 

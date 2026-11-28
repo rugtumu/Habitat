@@ -118,10 +118,15 @@ _mentionsSeenInChannel(channelCode, upToId) {
   this._mentionsPersist();
 },
 
-async _mentionsOpen() {
+// Habitat fork: bulk read advances the same account watermark as opening the @ list.
+_acknowledgeMentions() {
   this._mentionsSeenUpTo(Math.max(this._mentionsSeenUpTo(), ...(this.channels || []).map(c => Number(c.latestMessageId) || 0), ...(this._unseenMentions || []).map(m => m.id)));
   this._unseenMentions = [];
   this._mentionsPersist();
+},
+
+async _mentionsOpen() {
+  this._acknowledgeMentions();
   // The list lives in the server-wide search panel, which DMs do not use, so
   // from a DM step back into the last server channel first.
   const here = (this.channels || []).find(c => c.code === this.currentChannel);

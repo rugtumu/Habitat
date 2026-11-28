@@ -176,7 +176,10 @@ class FocusLayout {
     if (!this._dock) return;
     const k = e.code || '', bare = !e.ctrlKey && !e.metaKey, input = e.target?.id === 'message-input', empty = input && !e.target.value, dd = ['mention-dropdown', 'slash-dropdown', 'emoji-dropdown', 'channel-dropdown'].some(id => { const d = document.getElementById(id); return d && d.offsetParent; });
     const go = (fn) => { e.preventDefault(); e.stopPropagation(); fn(); };
-    if (e.key === 'Escape' && this._pop) return this._toggle(null);
+    if (e.key === 'Escape' && bare && !e.shiftKey && !e.altKey && this._pop) {
+      e.stopImmediatePropagation();
+      return this._toggle(null);
+    }
     if (k === 'Tab' && empty && !dd && bare && !e.altKey) return go(() => e.shiftKey ? this._back() : this._next());
     if (!e.altKey || !bare || e.shiftKey) return;
     const n = /^Digit([1-9])$/.exec(k);

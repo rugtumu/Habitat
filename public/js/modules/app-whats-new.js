@@ -95,7 +95,8 @@ _showWhatsNewModal(version, sections) {
     </div>`;
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay || e.target.dataset.act === 'close') close(); });
-  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  // Habitat fork: release this dialog when it is the front overlay.
+  overlay.addEventListener('modal-dismiss', close);
   document.body.appendChild(overlay);
   overlay.querySelector('[data-act="close"]').focus();
 },

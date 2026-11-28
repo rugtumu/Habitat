@@ -506,7 +506,7 @@ _sendStickerMessage(url) {
 // /gif slash command: inline GIF search results above the input
 _showGifSlashResults(query) {
   // Remove any existing picker
-  document.getElementById('gif-slash-picker')?.remove();
+  document.getElementById('gif-slash-picker')?.dispatchEvent(new Event('close'));
 
   const picker = document.createElement('div');
   picker.id = 'gif-slash-picker';
@@ -517,17 +517,11 @@ _showGifSlashResults(query) {
   const inputArea = document.querySelector('.message-input-area');
   inputArea.parentElement.insertBefore(picker, inputArea);
 
-  // Close on click outside
-  const closeOnClick = (e) => {
-    if (!picker.contains(e.target)) { picker.remove(); document.removeEventListener('click', closeOnClick); }
-  };
-  setTimeout(() => document.addEventListener('click', closeOnClick), 100);
-
-  // Close on Escape
-  const closeOnEsc = (e) => {
-    if (e.key === 'Escape') { picker.remove(); document.removeEventListener('keydown', closeOnEsc); }
-  };
-  document.addEventListener('keydown', closeOnEsc);
+  // Habitat fork: Escape, selection and outside clicks share the picker's cleanup.
+  const close = () => { picker.remove(); document.removeEventListener('click', closeOnClick); };
+  const closeOnClick = e => { if (!picker.contains(e.target)) close(); };
+  picker.addEventListener('close', close);
+  setTimeout(() => { if (picker.isConnected) document.addEventListener('click', closeOnClick); }, 100);
 
   fetch(`/api/gif/search?q=${encodeURIComponent(query)}&limit=12`, {
     headers: { 'Authorization': `Bearer ${this.token}` }
@@ -544,7 +538,7 @@ _showGifSlashResults(query) {
 
       picker.innerHTML = `<div class="gif-slash-header"><span>/gif ${this._escapeHtml(query)}</span><button class="icon-btn small gif-slash-close">&times;</button></div><div class="gif-slash-grid"></div>`;
       const grid = picker.querySelector('.gif-slash-grid');
-      picker.querySelector('.gif-slash-close').addEventListener('click', () => picker.remove());
+      picker.querySelector('.gif-slash-close').addEventListener('click', close);
 
       results.forEach(gif => {
         if (!gif.tiny) return;
@@ -555,9 +549,7 @@ _showGifSlashResults(query) {
         img.dataset.full = gif.full || gif.tiny;
         img.addEventListener('click', () => {
           this._sendGifMessage(img.dataset.full);
-          picker.remove();
-          document.removeEventListener('click', closeOnClick);
-          document.removeEventListener('keydown', closeOnEsc);
+          close();
         });
         grid.appendChild(img);
       });

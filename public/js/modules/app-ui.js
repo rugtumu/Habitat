@@ -104,7 +104,7 @@ _bindSearchAndPins() {
   // the header input to it. The panel persists across channel switches and
   // only closes on its own X (or this input's close button).
   this._searchInit();
-  let searchTimeout = null;
+  // Habitat fork: closing search also cancels a query still waiting for the typing delay.
   document.getElementById('search-toggle-btn').addEventListener('click', () => {
     this._searchToggle();
   });
@@ -112,21 +112,21 @@ _bindSearchAndPins() {
     this._searchClose();
   });
   document.getElementById('search-input').addEventListener('input', (e) => {
-    clearTimeout(searchTimeout);
+    clearTimeout(this._searchInputTimer);
     const q = e.target.value.trim();
     // DMs match substrings locally (2 chars is fine); public search uses the
     // server tokenizer's minimum (trigram needs 3). (search-overhaul phase 2)
     const ch = (this.channels || []).find(c => c.code === this.currentChannel);
     const min = (ch && ch.is_dm) ? 2 : (this._searchMinChars || 2);
     if (q.length >= min && this.currentChannel) {
-      searchTimeout = setTimeout(() => this._searchRun(q), 400);
+      this._searchInputTimer = setTimeout(() => this._searchRun(q), 400);
     } else if (!q) {
       document.getElementById('search-panel').style.display = 'none';
     }
   });
   document.getElementById('search-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') this._searchClose();
-    else if (e.key === 'Enter') {
+    // Habitat fork: Escape belongs to the front surface even while search has focus.
+    if (e.key === 'Enter') {
       const q = e.target.value.trim();
       if (q) { this._searchSaveRecent(q); this._searchRun(q); }
     }
@@ -204,6 +204,93 @@ _bindSearchAndPins() {
       }
     });
   }
+},
+
+// Habitat fork: decide once in capture, while the surfaces are still visible.
+// The thread and jump shortcuts share this guard, including for Back's synthetic Escape.
+_bindEscapeShortcuts() {
+  const visible = selector => [...document.querySelectorAll(selector)].filter(el => el.getClientRects().length);
+  const top = selector => visible(selector).at(-1);
+  const menus = {
+    'channel-ctx-menu': () => this._closeChannelCtxMenu(),
+    'dm-ctx-menu': () => this._closeDmCtxMenu(),
+    'message-context-menu': () => this._hideMessageContextMenu(),
+    'search-context-menu': () => this._searchHideContextMenu(),
+  };
+  const closeEvent = el => el.dispatchEvent(new Event('close'));
+  const remove = el => el.remove();
+  const leading = [
+    ['#emoji-dropdown, #slash-dropdown, #mention-dropdown, #channel-dropdown, #persona-dropdown, #ferry-dropdown',
+      (_, e) => this._handleAutocompleteKeydown(e)],
+    ['#gif-slash-picker', closeEvent],
+    ['#quick-switcher-overlay', remove],
+    ['#video-lightbox', closeEvent],
+    ['#image-lightbox', () => this._closeLightbox()],
+    ['.profile-popup', () => this._closeProfilePopup()],
+  ];
+  const trailing = [
+    ['.channel-ctx-menu', el => (menus[el.id] || closeEvent)(el)],
+    ['#emoji-picker', () => this._toggleEmojiPicker()],
+    ['#gif-picker', () => this._closeGifPicker()],
+    ['.reaction-full-picker, .quick-emoji-editor', remove],
+    ['.reaction-picker', () => this._closeReactionPickers()],
+    ['#theme-popup', el => { el.style.display = 'none'; }],
+    ['#search-container, #search-panel', () => this._searchClose()],
+  ];
+  const consume = e => { e.preventDefault(); e.stopImmediatePropagation(); };
+  const dismiss = (surfaces, e) => {
+    for (const [selector, close] of surfaces) {
+      const el = top(selector);
+      if (el) {
+        consume(e);
+        close(el, e);
+        return true;
+      }
+    }
+    return false;
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.shiftKey) {
+      // Chrome on Windows and Linux reserves Shift+Esc for its task manager.
+      // The page may never receive it there.
+      consume(e);
+      this._markAllRead();
+      return;
+    }
+    if (dismiss(leading, e)) return;
+    // The layout closes its own menus and restores focus. Its Add dialog can
+    // itself open a Haven confirmation with a higher stacking order.
+    if (top('[data-habitat-menu], [data-habitat-channel-tools][open], [data-habitat-connection]')) return;
+    const modal = visible('.modal-overlay').reduce((front, el) =>
+      !front || Number(el.style.zIndex || 0) >= Number(front.style.zIndex || 0) ? el : front, null);
+    const dialog = top('[data-habitat-dialog]');
+    if (dialog && (!modal || Number(modal.style.zIndex || 0) < Number(getComputedStyle(dialog).zIndex))) return;
+    // These small editors have their own keys, including above a gallery or settings window.
+    if (top('.emoji-chooser, .lang-picker-list') || e.target?.closest?.('.tag-editor-popup, .lp-size-menu, #tag-popup')) return;
+    if (modal) {
+      consume(e);
+      modal.style.display = 'none';
+      modal.dispatchEvent(new CustomEvent('modal-dismiss'));
+      return;
+    }
+    // The other bundled layouts also restore their own popovers and DM drawer.
+    if (top('#channel-actions-menu, html.dms-open, html[data-fc-pop]')) return;
+    if (dismiss(trailing, e)) return;
+
+    // Drafts and pop-outs keep the main channel in place while their input owns Escape.
+    if (top('.edit-textarea, #voice-record-bar, .lp-size-menu') ||
+        e.target?.closest?.('[data-habitat-focus], .fullscreen-call-toolbar')) return;
+    const thread = top('#thread-panel');
+    if (thread) {
+      if (thread.classList.contains('pip') || document.getElementById('thread-input')?.value.trim()) return;
+      consume(e);
+      this._closeThread();
+    } else if (this.currentChannel && top('#message-area') && !top('#dm-pip-panel, #pins-pip-panel')) {
+      consume(e);
+      this._jumpToLatest();
+    }
+  }, true);
 },
 
 _bindAppChrome() {
@@ -337,81 +424,8 @@ _bindAppChrome() {
       e.preventDefault();
       this._navigateUnreadChannel(e.key === 'ArrowUp' ? -1 : 1);
     }
-    // Escape = close modals, search, theme popup, quick switcher
-    if (e.key === 'Escape') {
-      document.getElementById('search-container').style.display = 'none';
-      document.getElementById('search-panel').style.display = 'none';
-      document.getElementById('theme-popup').style.display = 'none';
-      document.getElementById('quick-switcher-overlay')?.remove();
-      document.querySelectorAll('.modal-overlay').forEach(m => {
-        const wasOpen = m.style.display && m.style.display !== 'none';
-        m.style.display = 'none';
-        // Same signal as the modal ✕, so a modal can drop unsaved state.
-        if (wasOpen) m.dispatchEvent(new CustomEvent('modal-dismiss'));
-      });
-      // Close the emoji picker too. Reuse its toggle so the parent/anchor
-      // restore runs, and only when it's open so Escape can't open it.
-      const emojiPicker = document.getElementById('emoji-picker');
-      if (emojiPicker && emojiPicker.style.display === 'flex') this._toggleEmojiPicker();
-      // Close the GIF picker too, matching the emoji picker's Escape behavior.
-      const gifPicker = document.getElementById('gif-picker');
-      if (gifPicker && gifPicker.style.display === 'flex') gifPicker.style.display = 'none';
-    }
   });
-
-  // Escape (no modifiers) with nothing else to close → jump to the latest
-  // message, same as the jump-to-bottom button. Runs in the CAPTURE phase so it
-  // inspects overlays/dropdowns *before* the bubble-phase handlers above (and
-  // the message-input dropdown handlers) close them. If any closeable UI is
-  // open we bail and let those handlers run, so Escape never both dismisses a
-  // popup and jumps. Gated on an active channel with the message view visible.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-    if (!this.currentChannel) return;
-    const msgArea = document.getElementById('message-area');
-    if (!msgArea || msgArea.style.display === 'none') return;
-    // An in-progress message edit owns Escape (it cancels the edit) and its
-    // handler sits on the textarea in the bubble phase, so this capture-phase
-    // listener would otherwise scroll away from (or, on a trimmed window,
-    // re-render out of existence) the box being typed into. Editing an old
-    // message is exactly the scrolled-up case, so check it first.
-    if (document.querySelector('.edit-textarea')) return;
-    // getClientRects().length is 0 for hidden/display:none nodes, the same popup
-    // detection the type-to-focus guard uses above.
-    // The PiP DM, thread and pins panels each own Escape for their own input;
-    // jumping the main channel behind them is never what was meant. Haven's
-    // context menu is .channel-ctx-menu; there is no .context-menu element.
-    const somethingOpen = [...document.querySelectorAll(
-      '.modal-overlay, #quick-switcher-overlay, #theme-popup, #search-container, ' +
-      '#search-panel, #image-lightbox, .image-lightbox, #emoji-picker, ' +
-      '#gif-picker, .channel-ctx-menu, #emoji-dropdown, #slash-dropdown, ' +
-      '#mention-dropdown, #channel-dropdown, #persona-dropdown, #ferry-dropdown, #gif-slash-picker, ' +
-      '#dm-pip-panel, #thread-panel, #pins-pip-panel'
-    )].some(el => el.getClientRects().length > 0);
-    if (somethingOpen) return;
-    this._jumpToLatest();
-  }, true);
-
-  // Escape closes the open thread or forum topic when nothing in front of
-  // it (a menu, picker or window) has Escape to close, and no message is
-  // being edited. A reply half typed in the thread box keeps it open, so
-  // the draft is not lost to a stray key.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-    const panel = document.getElementById('thread-panel');
-    if (!panel || !panel.getClientRects().length || panel.classList.contains('pip')) return;
-    if (document.querySelector('.edit-textarea')) return;
-    const draft = document.getElementById('thread-input');
-    if (draft && draft.value.trim()) return;
-    const inFront = [...document.querySelectorAll(
-      '.modal-overlay, #quick-switcher-overlay, #theme-popup, #search-container, ' +
-      '#search-panel, #image-lightbox, .image-lightbox, #emoji-picker, ' +
-      '#gif-picker, .channel-ctx-menu, #emoji-dropdown, #slash-dropdown, ' +
-      '#mention-dropdown, #channel-dropdown, #persona-dropdown, #ferry-dropdown, #gif-slash-picker'
-    )].some(el => el.getClientRects().length > 0);
-    if (inFront) return;
-    this._closeThread?.();
-  }, true);
+  this._bindEscapeShortcuts();
 
   // Theme popup toggle
   document.getElementById('theme-popup-toggle')?.addEventListener('click', () => {

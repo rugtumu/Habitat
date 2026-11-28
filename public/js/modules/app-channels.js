@@ -6,6 +6,20 @@ function voiceOnly(ch) {
   return !!ch && !ch.is_dm && ch.voice_enabled !== 0 && ch.text_enabled === 0 && ch.media_enabled === 0;
 }
 
+// Habitat fork: the switcher and sidebar share the current-channel exceptions and room kinds.
+function voiceRoom(ch) {
+  return voiceOnly(ch) || (ch.is_temp_voice && ch.voice_enabled !== 0);
+}
+
+function listedChannels(app) {
+  const hidden = new Set(app._getHiddenChannels());
+  return (app.channels || []).filter(ch => !ch.is_dm && (!hidden.has(ch.code) || ch.code === app.currentChannel));
+}
+
+function nsfwHidden(app, ch) {
+  return ch.is_nsfw && ch.code !== app.currentChannel && app._hideNsfw?.();
+}
+
 export default {
 
 // ── Channel Management ────────────────────────────────
@@ -528,15 +542,13 @@ _renderChannels() {
   voiceRooms?.replaceChildren();
   list.innerHTML = '';
   if (voiceSection) voiceSection.hidden = !!this._arranging;
-  const roomTarget = ch => voiceRooms && !this._arranging && (voiceOnly(ch) || (ch.is_temp_voice && ch.voice_enabled !== 0)) ? voiceRooms : list;
+  const roomTarget = ch => voiceRooms && !this._arranging && voiceRoom(ch) ? voiceRooms : list;
 
   // (#5409) Admin-hidden channels are dropped from the sidebar, except the one
   // we're actively viewing (so a freshly-hidden current channel doesn't vanish
   // out from under us until we navigate away). Hiding a parent hides its
   // sub-channels too, since they're orphaned once the parent isn't rendered.
-  const _hiddenChannels = this._getHiddenChannels();
-  const regularChannels = this.channels.filter(c =>
-    !c.is_dm && (!_hiddenChannels.includes(c.code) || c.code === this.currentChannel));
+  const regularChannels = listedChannels(this);
   const dmChannels = this.channels.filter(c => c.is_dm);
 
   // Build parent → sub-channel tree
@@ -688,10 +700,12 @@ _renderChannels() {
     const isTemporary = !!ch.expires_at;
     const isTempVoice = !!ch.is_temp_voice;
     const voiceRow = roomTarget(ch) === voiceRooms;
+    // Habitat fork: private voice rooms keep their speaker even when the list is rearranged.
+    if (voiceRoom(ch)) el.dataset.habitatVoiceRoom = '';
     const hashIcon = isSub ? (ch.is_private ? '🔒' : '↳') : (isTempVoice ? '🔊' : (isTemporary ? '⏱️' : (isAnnouncement ? '📢' : (ch.is_forum ? '🗂️' : (ch.is_nsfw ? '🔞' : '#')))));
     // NSFW channels stay out of sight when the user asked for that (phone in
     // public), except the one they are actually in.
-    if (ch.is_nsfw && this._hideNsfw && this._hideNsfw() && ch.code !== this.currentChannel) el.style.display = 'none';
+    if (nsfwHidden(this, ch)) el.style.display = 'none';
 
     // Build small status indicators for channel features
     const _badges = [];
@@ -1404,30 +1418,46 @@ _openQuickSwitcher() {
   const results = overlay.querySelector('#quick-switcher-results');
   let selectedIdx = 0;
 
-  const allChannels = (this.channels || []).map(ch => ({
-    code: ch.code,
-    name: ch.is_dm && ch.is_group ? `👥 ${this._groupName(ch)}` : ch.is_dm && ch.dm_target
-      ? `@ ${this._getNickname(ch.dm_target.id, ch.dm_target.username)}`
-      : `# ${ch.name}`,
-    isDm: ch.is_dm,
-    unread: this.unreadCounts[ch.code] || 0,
-  }));
+  // Habitat fork: a hidden parent has no rendered subchannels. Collapsing a visible
+  // parent or category is just a layout choice, so its children remain searchable.
+  const regular = listedChannels(this);
+  const parents = new Set(regular.filter(ch => !ch.parent_channel_id).map(ch => ch.id));
+  const entries = regular.filter(ch => (!ch.parent_channel_id || parents.has(ch.parent_channel_id)) && !nsfwHidden(this, ch))
+    .concat((this.channels || []).filter(ch => ch.is_dm)).map(ch => ({
+      code: ch.code,
+      kind: ch.is_dm ? 'dm' : voiceRoom(ch) ? 'voice' : 'text',
+      name: !ch.is_dm ? ch.name : ch.is_group ? this._groupName(ch) : ch.dm_target
+        ? this._getNickname(ch.dm_target.id, ch.dm_target.username) : t('channels.unknown_user'),
+      unread: this.unreadCounts[ch.code] ?? ch.unreadCount ?? 0,
+      mentions: !ch.is_dm && this._mentionCountFor?.(ch.code),
+    }));
+  const groups = [
+    ['text', '#', t('channels.quick_switcher_channels')],
+    ['voice', '🔊', t('channels.quick_switcher_voice')],
+    ['dm', '@', t('channels.quick_switcher_dms')],
+  ];
 
   const render = (query) => {
-    const q = query.toLowerCase();
-    const filtered = q
-      ? allChannels.filter(c => c.name.toLowerCase().includes(q))
-      : allChannels.filter(c => c.unread > 0).concat(
-          allChannels.filter(c => c.unread === 0)
-        );
-    const shown = filtered.slice(0, 12);
-    selectedIdx = Math.min(selectedIdx, Math.max(0, shown.length - 1));
-    results.innerHTML = shown.map((c, i) => `
-      <div class="quick-switcher-item${i === selectedIdx ? ' selected' : ''}" data-code="${this._escapeHtml(c.code)}">
-        <span class="qs-name">${this._escapeHtml(c.name)}</span>
-        ${c.unread > 0 ? `<span class="qs-badge">${c.unread > 99 ? '99+' : c.unread}</span>` : ''}
-      </div>
-    `).join('');
+    const q = query.trim().toLowerCase();
+    const matches = q ? entries.filter(c => c.name.toLowerCase().includes(q))
+      : entries.filter(c => c.unread > 0).concat(entries.filter(c => !c.unread));
+    const shown = matches.slice(0, 12);
+    results.innerHTML = groups.map(([kind, icon, label]) => {
+      const rows = shown.filter(c => c.kind === kind);
+      if (!rows.length) return '';
+      return `<div class="qs-group">${this._escapeHtml(label)}</div>` + rows.map(c => {
+        const count = kind === 'dm' ? c.unread : c.mentions;
+        const capped = kind === 'dm' ? count > 99 : count >= 99;
+        const mark = count > 0 ? `<span class="qs-badge">${capped ? '99+' : count}</span>`
+          : c.unread > 0 ? '<span class="qs-unread">•</span>' : '';
+        return `<div class="quick-switcher-item" data-kind="${kind}" data-code="${this._escapeHtml(c.code)}">
+          <span class="qs-icon" aria-hidden="true">${icon}</span>
+          <span class="qs-name">${this._escapeHtml(c.name)}</span>${mark}
+        </div>`;
+      }).join('');
+    }).join('') || (q ? `<div class="qs-empty" role="status">${this._escapeHtml(t('channels.quick_switcher_empty'))}</div>` : '');
+    results.scrollTop = 0;
+    results.querySelector('.quick-switcher-item')?.classList.add('selected');
     results.querySelectorAll('.quick-switcher-item').forEach(el => {
       el.addEventListener('click', () => { this.switchChannel(el.dataset.code); overlay.remove(); });
     });
@@ -1436,9 +1466,13 @@ _openQuickSwitcher() {
   input.addEventListener('input', () => { selectedIdx = 0; render(input.value); });
   input.addEventListener('keydown', (e) => {
     const items = results.querySelectorAll('.quick-switcher-item');
-    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); render(input.value); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); render(input.value); }
-    else if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[selectedIdx]?.classList.remove('selected');
+      selectedIdx = Math.max(0, Math.min(selectedIdx + (e.key === 'ArrowDown' ? 1 : -1), items.length - 1));
+      items[selectedIdx]?.classList.add('selected');
+      items[selectedIdx]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       const sel = items[selectedIdx];
       if (sel) { this.switchChannel(sel.dataset.code); overlay.remove(); }

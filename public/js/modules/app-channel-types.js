@@ -201,7 +201,7 @@ _openChannelTypeEditor(type) {
   iconInput.addEventListener('input', sync);
   sync();
 
-  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const close = () => overlay.remove();
   const save = () => {
     const payload = { name: nameInput.value, icon: iconInput.value, functions: fns };
     if (type) payload.id = type.id;
@@ -211,11 +211,11 @@ _openChannelTypeEditor(type) {
       this._showToast(this._ctLabel('saved', 'Channel type saved'), 'success');
     });
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
   overlay.querySelector('[data-ct="cancel"]').addEventListener('click', close);
   overlay.querySelector('[data-ct="save"]').addEventListener('click', save);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  document.addEventListener('keydown', onKey);
+  // Habitat fork: close this editor only when its overlay is dismissed.
+  overlay.addEventListener('modal-dismiss', close);
   setTimeout(() => (type ? iconInput : nameInput).focus(), 0);
 },
 
@@ -263,7 +263,7 @@ _openChannelTypePicker(code) {
   });
   sync();
 
-  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const close = () => overlay.remove();
   const apply = () => {
     if (selected === (ch.type_id || null)) return close();
     this.socket.emit('set-channel-type', { code, typeId: selected }, (res) => {
@@ -275,7 +275,7 @@ _openChannelTypePicker(code) {
         : this._ctLabel('cleared', `#${ch.name} no longer has a type`, { name: ch.name }), 'success');
     });
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); if (e.key === 'Enter') apply(); };
+  overlay.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
   overlay.querySelector('[data-ct="cancel"]').addEventListener('click', close);
   overlay.querySelector('[data-ct="apply"]').addEventListener('click', apply);
   overlay.querySelector('[data-ct="manage"]')?.addEventListener('click', () => {
@@ -283,7 +283,8 @@ _openChannelTypePicker(code) {
     this._openChannelTypesSettings();
   });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  document.addEventListener('keydown', onKey);
+  // Habitat fork: close this editor only when its overlay is dismissed.
+  overlay.addEventListener('modal-dismiss', close);
   setTimeout(() => overlay.querySelector('.ct-option.selected')?.focus(), 0);
 },
 

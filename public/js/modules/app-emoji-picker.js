@@ -996,14 +996,12 @@ _showReactionPicker(msgEl, msgId) {
     this._keepPopupInView(picker, msgEl);
   });
 
-  // Close on a click anywhere outside, or Escape. Listened for in the
+  // Habitat fork: Escape is routed to one picker. Outside clicks still use the
   // capture phase: many buttons stop their clicks from bubbling, and a
   // click on one of those used to leave the picker (and the full emoji
   // panel) open. The React button on this message toggles it itself.
   const close = (e) => {
-    if (e.type === 'keydown') {
-      if (e.key !== 'Escape') return;
-    } else if (picker.contains(e.target) || e.target.closest('.reaction-full-picker') || e.target.closest('.quick-emoji-editor') ||
+    if (picker.contains(e.target) || e.target.closest('.reaction-full-picker') || e.target.closest('.quick-emoji-editor') ||
                (msgEl.contains(e.target) && e.target.closest('[data-action="react"]'))) {
       return;
     }
@@ -1013,7 +1011,6 @@ _showReactionPicker(msgEl, msgId) {
   setTimeout(() => {
     if (this._reactionPickerClose !== close) return;
     document.addEventListener('click', close, true);
-    document.addEventListener('keydown', close, true);
   }, 0);
 },
 
@@ -1031,7 +1028,6 @@ _detachReactionPickerClose() {
   const close = this._reactionPickerClose;
   if (!close) return;
   document.removeEventListener('click', close, true);
-  document.removeEventListener('keydown', close, true);
   this._reactionPickerClose = null;
 },
 

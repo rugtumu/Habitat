@@ -201,6 +201,8 @@ _showServerMuteMenu(e, { own = false, url = null } = {}) {
   if (r.right > window.innerWidth) menu.style.left = (window.innerWidth - r.width - 8) + 'px';
   if (r.bottom > window.innerHeight) menu.style.top = (window.innerHeight - r.height - 8) + 'px';
   const close = () => { menu.remove(); document.removeEventListener('click', onDoc, true); };
+  // Habitat fork: Escape must release the outside-click listener too.
+  menu.addEventListener('close', close);
   const onDoc = (ev) => { if (!menu.contains(ev.target)) close(); };
   setTimeout(() => document.addEventListener('click', onDoc, true), 0);
   menu.addEventListener('click', (ev) => {

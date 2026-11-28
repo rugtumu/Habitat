@@ -254,6 +254,10 @@
   background: var(--bg-hover, #35373c);
   color: var(--text-primary, #dbdee1);
 }
+/* Habitat fork: group labels and an empty search also need spacing in the base theme. */
+.qs-group, .qs-empty { padding: .5rem .75rem; color: var(--text-muted); }
+.qs-group { font-size: .75rem; }
+.qs-unread { margin-inline-start: auto; }
 .qs-badge {
   margin-left: auto;
   background: var(--danger, #ed4245);

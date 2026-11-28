@@ -172,7 +172,7 @@ _setupLightbox() {
   });
   document.addEventListener('keydown', (e) => {
     if (lb.style.display === 'none') return;
-    if (e.key === 'Escape') this._closeLightbox();
+    // Habitat fork: the shared Escape handler closes the top lightbox.
     if (e.key === 'ArrowLeft') this._lightboxNavigate(-1);
     if (e.key === 'ArrowRight') this._lightboxNavigate(1);
   });

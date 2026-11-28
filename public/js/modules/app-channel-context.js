@@ -492,35 +492,41 @@ _closeChannelCtxMenu() {
   this._ctxMenuChannel = null;
 },
 
+_markAllRead() {
+  this.socket.emit('mark-all-read', {}, (res) => {
+    if (!res || res.error) return this._showToast(res?.error || t('context_menu.channel.mark_all_read_failed'), 'error');
+    const codes = new Set([...Object.keys(this.unreadCounts || {}), ...(this.channels || []).map(c => c.code)]);
+    codes.forEach(code => { this.unreadCounts[code] = 0; });
+    // Habitat fork: clear the three mention indicators only after the server acknowledges the read.
+    this._channelMentionIds = Object.create(null);
+    this._acknowledgeMentions();
+    this._threadMentions = {};
+    this._persistThreadMentions();
+    this._updateThreadMentionsPill();
+    (this.channels || []).forEach(c => { c.unreadCount = 0; });
+    // Forums keep their unread topics apart from channel messages, so
+    // each one with a dot is marked read as well.
+    Object.keys(this.forumUnread || {}).forEach(code => {
+      if ((this.forumUnread[code] || 0) > 0) this.socket.emit('mark-forum-read', { code });
+    });
+    this._renderChannels();
+    this._updateTabTitle();
+    this._updateDesktopBadge();
+    this._showToast(t('context_menu.channel.mark_all_read_done'), 'success');
+  });
+},
+
 /* ── DM context menu helpers ──────────────────────────── */
 _initDmContextMenu() {
   this._dmCtxMenuEl = document.getElementById('dm-ctx-menu');
   this._dmCtxMenuCode = null;
 
-  // Mark everything as read, from either menu (#5683). The counts are zeroed
-  // here for every channel the client knows about, shown or not, and the
-  // server moves each read position so they do not come back on reconnect.
+  // Habitat fork: menu clicks and Shift+Escape share the same acknowledged bulk read.
   document.querySelectorAll('[data-action="mark-all-read"]').forEach(btn => {
     btn.addEventListener('click', () => {
       this._closeChannelCtxMenu?.();
       this._closeDmCtxMenu?.();
-      this.socket.emit('mark-all-read', {}, (res) => {
-        if (!res || res.error) return this._showToast(res?.error || t('context_menu.channel.mark_all_read_failed'), 'error');
-        const codes = new Set([...Object.keys(this.unreadCounts || {}), ...(this.channels || []).map(c => c.code)]);
-        codes.forEach(code => { this.unreadCounts[code] = 0; });
-        // Habitat fork: bulk reads rebuild the list without calling the individual badge updater.
-        this._channelMentionIds = Object.create(null);
-        (this.channels || []).forEach(c => { c.unreadCount = 0; });
-        // Forums keep their unread topics apart from channel messages, so
-        // each one with a dot is marked read as well.
-        Object.keys(this.forumUnread || {}).forEach(code => {
-          if ((this.forumUnread[code] || 0) > 0) this.socket.emit('mark-forum-read', { code });
-        });
-        this._renderChannels();
-        this._updateTabTitle();
-        this._updateDesktopBadge();
-        this._showToast(t('context_menu.channel.mark_all_read_done'), 'success');
-      });
+      this._markAllRead();
     });
   });
 

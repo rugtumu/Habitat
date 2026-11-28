@@ -598,17 +598,7 @@ class ChannelTabsLayout {
       document.removeEventListener('click', this._boundDelegatedClick, true);
     });
 
-    const keyHandler = event => {
-      if (event.key === 'Escape' && this._modal?.style.display !== 'none') {
-        this._closeModal();
-      }
-    };
-
-    document.addEventListener('keydown', keyHandler);
-
-    this._listeners.push(() => {
-      document.removeEventListener('keydown', keyHandler);
-    });
+    // Haven's Escape handler dismisses the front .modal-overlay, including this one.
   }
 
   _openModal() {

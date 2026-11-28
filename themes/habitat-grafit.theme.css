@@ -321,6 +321,26 @@ html[data-haven-theme-api="1"] :focus-visible {
   color: var(--text-muted);
 }
 
+/* Keep private names as legible as their neighbours. Glyphs can put an icon
+   element inside the hash, so mask the whole slot and suppress its drawing. */
+[data-haven-page="app"] .channel-item.private-channel .channel-name {
+  opacity: 1;
+  font-style: normal;
+}
+[data-haven-page="app"] .private-channel:not(.sub-channel-item, .dm-item) > .channel-hash {
+  width: 1.375rem;
+  height: 1.375rem;
+  opacity: 1;
+  font-size: 0;
+  background: currentColor;
+  mask: var(--hb-icon-lock) center / 1rem no-repeat;
+}
+[data-haven-page="app"] .private-channel[data-habitat-voice-room]:not(.sub-channel-item, .dm-item) > .channel-hash {
+  mask-image: var(--hb-icon-voice);
+  mask-size: 1.125rem;
+}
+[data-haven-page="app"] .private-channel:not(.sub-channel-item, .dm-item) > .channel-hash > .haven-glyph { display: none; }
+
 /* The participant list belongs to the preceding room. Only the next channel gets a line. */
 [data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-item,
 [data-haven-page="app"] :is(#channel-list, [data-habitat-rooms]) > .channel-item:not([hidden], [style*="display: none"]) + .channel-voice-users + .channel-item {
@@ -1313,6 +1333,35 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   background-color: var(--bg-input); border-radius: var(--radius); color: var(--text-primary);
 }
 [data-haven-page="app"] .quick-switcher-item.selected { background: var(--bg-active); color: var(--text-primary); }
+[data-haven-page="app"] .qs-group { font-weight: 700; }
+[data-haven-page="app"] .qs-icon {
+  flex: none; width: 1.375rem; text-align: center; color: var(--text-muted);
+}
+[data-haven-page="app"] .quick-switcher-item[data-kind="voice"] .qs-icon {
+  height: 1.375rem; font-size: 0; background: currentColor;
+  mask: var(--hb-icon-voice) center / 1.125rem no-repeat;
+}
+[data-haven-page="app"] .qs-badge {
+  background: var(--danger); color: var(--danger-text);
+  border-radius: var(--hb-radius-pill); font-variant-numeric: tabular-nums;
+}
+[data-haven-page="app"] .qs-unread {
+  width: .4375rem; height: .4375rem; border-radius: 50%;
+  background: var(--text-primary); font-size: 0;
+}
+[data-haven-page="app"] .quick-switcher-item:has(.qs-unread, .qs-badge) .qs-name {
+  font-weight: 720; color: var(--text-primary);
+}
+[data-haven-page="app"] .toast.success {
+  background: var(--bg-card); color: var(--text-primary); border-color: var(--border-light);
+}
+[data-haven-page="app"] .toast.warning {
+  background: var(--bg-card); color: var(--text-primary); border-color: var(--warning);
+}
+@media (pointer: coarse) {
+  [data-haven-page="app"] .toast-action-btn { min-height: 2.75rem; }
+}
+
 /* The bands follow the actual member colour. Uploaded pictures supply their own cover. */
 [data-haven-page="app"] :is(.profile-popup:not(.has-profile-theme) .profile-popup-banner,
   .edit-profile-avatar:not(:has(.profile-theme-preview.has-profile-theme:not(.theme-off))) .edit-profile-banner-preview):not(.has-banner-image) {

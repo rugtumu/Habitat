@@ -16,6 +16,10 @@
 // drawer, which is where the join and create forms hurt most: on a phone
 // they left room for one channel. The call controls stay in the members
 // drawer there, where the phone layout expects them.
+function plainEscape(event) {
+  return event.key === 'Escape' && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey;
+}
+
 class HabitatLayout {
   start() {
     if (this._started) return;
@@ -515,11 +519,11 @@ class HabitatLayout {
     this._on(document, 'pointerdown', event => {
       if (details.open && !details.contains(event.target)) details.open = false;
     }, true);
-    this._on(details, 'keydown', event => {
-      if (event.key === 'Escape') {
+    this._on(document, 'keydown', event => {
+      if (details.open && plainEscape(event)) {
         details.open = false;
         trigger.focus();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
       }
     }, true);
     this._on(panel, 'click', event => {
@@ -1179,7 +1183,7 @@ class HabitatLayout {
     });
     this._on(stage, 'keydown', event => {
       if (document.fullscreenElement || event.defaultPrevented) return;
-      if (event.key === 'Escape' && stage.hasAttribute('data-habitat-focus')
+      if (plainEscape(event) && stage.hasAttribute('data-habitat-focus')
           && event.target.closest?.('.screen-share-tile, .webcam-tile, .voice-user-item')) {
         showGrid();
       } else if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[tabindex="0"][aria-pressed]')
@@ -1548,8 +1552,11 @@ class HabitatLayout {
       if (!panel.hidden && !panel.contains(event.target) && !event.target.closest?.('.voice-bar-status')) setOpen(false);
     }, true);
     this._on(document, 'keydown', (event) => {
-      if (event.key === 'Escape' && !panel.hidden) setOpen(false);
-    });
+      if (plainEscape(event) && !panel.hidden) {
+        event.stopImmediatePropagation();
+        setOpen(false);
+      }
+    }, true);
     let timer = null;
     // Called by the voice watcher each time Haven redraws the bar.
     this._signalSync = (inCall) => {
@@ -1710,8 +1717,8 @@ class HabitatLayout {
       close();
     });
     this._on(document, 'keydown', event => {
-      if (!menu.hidden && event.key === 'Escape') {
-        event.stopPropagation();
+      if (!menu.hidden && plainEscape(event)) {
+        event.stopImmediatePropagation();
         close();
         button.focus();
       }
@@ -1885,8 +1892,8 @@ class HabitatLayout {
     this._on(document, 'keydown', event => {
       if (dialog.hidden) return;
       const confirm = document.getElementById('confirm-modal-ok')?.closest('.modal-overlay');
-      if (event.key === 'Escape' && !confirm) {
-        event.stopPropagation();
+      if (plainEscape(event) && !confirm) {
+        event.stopImmediatePropagation();
         this._toggleDialog(false);
       }
       if (event.key !== 'Tab') return;
@@ -3141,6 +3148,10 @@ html[data-habitat-layout] body:has([data-habitat-intro="voice"]:not([hidden]) > 
 /* A voice room has nothing to search, and on a phone its name needs the
    room, so the search button is only brought back for text channels. */
 @media (max-width: 768px) {
+  /* Limit the banner band even when Branding sets its preferred height inline. */
+  html[data-habitat-layout] .main.has-banner:not(.banner-mode-shaded):not(.banner-mode-minimal):not(.banner-mode-transparent) > #server-banner-display {
+    max-height: 3.25rem;
+  }
   html[data-habitat-layout] #header-actions-box[style*="display: flex"] { display: flex !important; padding: 0; gap: 0; }
   html[data-habitat-layout] .channel-header:not(:has(#channel-header-name[data-habitat-voice-title])) #header-actions-box #search-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #pinned-toggle-btn,

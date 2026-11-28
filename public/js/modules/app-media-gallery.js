@@ -980,22 +980,10 @@ _openVideoLightbox(src) {
   overlay.innerHTML = `
     <video class="lightbox-video" src="${this._escapeHtml(src)}" controls autoplay playsinline></video>
   `;
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      const v = overlay.querySelector('video');
-      if (v) { v.pause(); }
-      overlay.remove();
-    }
-  });
-  const closeOnEsc = (e) => {
-    if (e.key === 'Escape') {
-      const v = overlay.querySelector('video');
-      if (v) { v.pause(); }
-      overlay.remove();
-      document.removeEventListener('keydown', closeOnEsc);
-    }
-  };
-  document.addEventListener('keydown', closeOnEsc);
+  // Habitat fork: the gallery can sit below another surface. Release only the selected video.
+  const close = () => { overlay.querySelector('video')?.pause(); overlay.remove(); };
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.addEventListener('close', close);
   document.body.appendChild(overlay);
 },
 

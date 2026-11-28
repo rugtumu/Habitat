@@ -285,9 +285,9 @@ _badgeOverlay(html) {
   overlay.style.zIndex = '100002';
   overlay.innerHTML = `<div class="modal badge-modal">${html}</div>`;
   document.body.appendChild(overlay);
-  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey);
+  const close = () => overlay.remove();
+  // Habitat fork: close this editor only when its overlay is dismissed.
+  overlay.addEventListener('modal-dismiss', close);
   overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
   return { overlay, close };
 },

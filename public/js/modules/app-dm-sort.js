@@ -146,9 +146,8 @@ _initDmSortMenu() {
   document.addEventListener('click', (e) => {
     if (menu.style.display !== 'none' && !menu.contains(e.target) && !btn.contains(e.target)) close();
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && menu.style.display !== 'none') close();
-  });
+  // Habitat fork: restore the sort button when Escape selects this menu.
+  menu.addEventListener('close', close);
 },
 
 };

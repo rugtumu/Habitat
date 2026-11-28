@@ -860,7 +860,12 @@
     "category_short_title": "Short name for {{name}}",
     "category_short_hint": "Shown instead of the full name while the category is collapsed: an emoji or a few letters. Leave it empty to use the full name.",
     "sort_group": "Sort this group",
+    "_quick_switcher_note": "Habitat fork: group and empty labels fall back to English.",
+    "quick_switcher_channels": "Channels",
+    "quick_switcher_voice": "Voice rooms",
+    "quick_switcher_dms": "Direct messages",
     "quick_switcher_placeholder": "Jump to channel or DM…",
+    "quick_switcher_empty": "No conversations match",
     "uncategorized": "Uncategorized",
     "sort": {
       "manual": "Manual",

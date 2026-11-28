@@ -1034,32 +1034,86 @@ _debouncedScrollToBottom() {
   }, 50);
 },
 
-_showToast(message, type = 'info', action = null, duration = 4000) {
+// Habitat fork: keep the live announcement, visual fade and removal on the same clock.
+_showToast(message, type = 'info', action = null, duration) {
   const container = document.getElementById('toast-container');
+  const region = container?.querySelector(type === 'error' ? '[role="alert"]' : '[role="status"]');
+  if (!region) return;
+  if (typeof action === 'number') { duration = action; action = null; }
+  duration ??= { success: 2500, info: 4000, warning: 6000, error: 7000 }[type] ?? 4000;
+  if (action) duration = Math.max(8000, duration);
+
+  const active = this._activeToasts ||= [];
+  const newest = active.at(-1);
+  if (newest && newest.message === message && newest.type === type) {
+    newest.restart(action, duration);
+    return;
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  if (duration !== 4000) {
-    const fadeStart = (duration - 300) / 1000;
-    toast.style.animation = `toastIn 0.25s ease, toastOut 0.3s ease ${fadeStart}s forwards`;
-  }
-  if (action) {
-    toast.style.display = 'flex';
-    toast.style.alignItems = 'center';
-    toast.style.gap = '10px';
-    const span = document.createElement('span');
-    span.style.flex = '1';
-    span.textContent = message;
-    toast.appendChild(span);
-    const btn = document.createElement('button');
-    btn.className = 'toast-action-btn';
-    btn.textContent = action.label;
-    btn.addEventListener('click', () => { action.onClick(); toast.remove(); });
-    toast.appendChild(btn);
-  } else {
-    toast.textContent = message;
-  }
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
+  const label = document.createElement('span');
+  label.textContent = message;
+  toast.appendChild(label);
+  if (type === 'error') toast.tabIndex = 0;
+
+  let button, timer, deadline, remaining;
+  let hovered = false, focused = false;
+  const remove = () => {
+    clearTimeout(timer);
+    toast.remove();
+    const index = active.indexOf(notice);
+    if (index !== -1) active.splice(index, 1);
+  };
+  const sync = () => {
+    const paused = (action || type === 'error') && (hovered || focused);
+    toast.style.animationPlayState = paused ? 'running, paused' : 'running';
+    if (paused && timer != null) {
+      remaining = Math.max(0, deadline - Date.now());
+      clearTimeout(timer);
+      timer = null;
+    } else if (!paused && timer == null) {
+      deadline = Date.now() + remaining;
+      timer = setTimeout(remove, remaining);
+    }
+  };
+  const restart = (nextAction, lifetime) => {
+    action = nextAction;
+    if (action) {
+      if (!button) {
+        button = document.createElement('button');
+        button.className = 'toast-action-btn';
+        button.type = 'button';
+        button.addEventListener('click', () => { remove(); action.onClick(); });
+        toast.appendChild(button);
+      }
+      if (button.textContent !== action.label) button.textContent = action.label;
+    } else if (button) {
+      button.remove();
+      button = null;
+      focused = toast === document.activeElement;
+    }
+    remaining = lifetime;
+    clearTimeout(timer);
+    timer = null;
+    toast.style.setProperty('--toast-exit-delay', Math.max(0, lifetime - 300) + 'ms');
+    if (toast.isConnected) {
+      // Keep the message and a focused action visible while restarting the exit.
+      for (const animation of toast.getAnimations()) {
+        if (animation.animationName === 'toastOut') animation.currentTime = 0;
+      }
+    }
+    sync();
+  };
+  toast.addEventListener('mouseenter', () => { hovered = true; sync(); });
+  toast.addEventListener('mouseleave', () => { hovered = false; sync(); });
+  toast.addEventListener('focusin', () => { focused = true; sync(); });
+  toast.addEventListener('focusout', e => { focused = toast.contains(e.relatedTarget); sync(); });
+
+  const notice = { message, type, restart };
+  active.push(notice);
+  restart(action, duration);
+  region.appendChild(toast);
 },
 
 /** Show a one-time notice about the Account Recovery feature.
@@ -1416,8 +1470,9 @@ _showPromptModal(title, message, defaultValue = '', { password = false } = {}) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') close(input.value);
-      if (e.key === 'Escape') close(null);
     });
+    // Habitat fork: only the dismissed dialog settles its promise.
+    overlay.addEventListener('modal-dismiss', () => close(null));
   });
 },
 
@@ -1447,15 +1502,16 @@ _showConfirmModal(title, message, opts = {}) {
     document.body.appendChild(overlay);
     const okBtn = overlay.querySelector('#confirm-modal-ok');
     const cancelBtn = overlay.querySelector('#confirm-modal-cancel');
-    const close = (val) => { overlay.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+    const close = (val) => { overlay.remove(); resolve(val); };
     const onKey = (e) => {
-      if (e.key === 'Escape') close(false);
       if (e.key === 'Enter') close(true);
     };
     okBtn.addEventListener('click', () => close(true));
     cancelBtn.addEventListener('click', () => close(false));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
-    document.addEventListener('keydown', onKey);
+    // Habitat fork: scope confirmation keys to the active dialog.
+    overlay.addEventListener('modal-dismiss', () => close(false));
+    overlay.addEventListener('keydown', onKey);
     setTimeout(() => okBtn.focus(), 0);
   });
 },
@@ -1487,8 +1543,7 @@ _askChoice(title, message, buttons) {
         <div class="modal-actions" style="margin-top:12px;flex-wrap:wrap"></div>
       </div>
     `;
-    const onKey = (e) => { if (e.key === 'Escape') close(null); };
-    const close = (val) => { overlay.remove(); document.removeEventListener('keydown', onKey); resolve(val); };
+    const close = (val) => { overlay.remove(); resolve(val); };
     const row = overlay.querySelector('.modal-actions');
     for (const b of buttons) {
       const el = document.createElement('button');
@@ -1498,7 +1553,8 @@ _askChoice(title, message, buttons) {
       row.appendChild(el);
     }
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
-    document.addEventListener('keydown', onKey);
+    // Habitat fork: cancellation resolves the choice even when focus is outside.
+    overlay.addEventListener('modal-dismiss', () => close(null));
     document.body.appendChild(overlay);
     setTimeout(() => row.querySelector('button')?.focus(), 0);
   });

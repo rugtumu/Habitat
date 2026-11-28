@@ -110,8 +110,13 @@ _searchToggle() {
 // User-initiated close (the only real close).
 _searchClose() {
   const key = this._searchContextKey();
+  // Habitat fork: a pending query or a late public reply must not reopen a dismissed search.
+  clearTimeout(this._searchInputTimer);
+  if (key === '__public__') this._searchNextToken();
+  this._searchSetLoading(false);
   this._searchClearContext(key);
-  document.getElementById('search-panel').style.display = 'none';
+  const panel = document.getElementById('search-panel');
+  if (panel) panel.style.display = 'none';
   this._searchRestoreSidebar();
   const sc = document.getElementById('search-container');
   if (sc) sc.style.display = 'none';
