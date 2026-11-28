@@ -2187,7 +2187,7 @@ html[data-habitat-layout="compact"] body[data-haven-page="app"] #toast-container
 [data-habitat-call-stage] [data-habitat-call-avatar]:has(> .pfp-border) { margin-block: .5rem .625rem; }
 [data-habitat-call-stage] .voice-user-item .user-dot.voice { display: none; }
 [data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: var(--hb-text-sm); }
-[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .625rem .625rem auto; }
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .75rem .75rem auto; }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge { position: absolute; inset: .625rem auto auto .625rem; }
 /* The live mark keeps the top corner to itself; "watching" sits below it. */
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge.watching { inset: auto auto .625rem .625rem; }
@@ -2218,7 +2218,16 @@ html[data-habitat-layout="compact"] body[data-haven-page="app"] #toast-container
   inset: .5rem auto auto .5rem; padding: .125rem .5rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
 }
 [data-habitat-stage-spread] { transition: none; }
-[data-habitat-call-stage] .voice-user-menu-btn { position: absolute; inset: .375rem .375rem auto auto; opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease); }
+/* On a stage tile the marks are read from across the room: the menu is a
+   full-size button set in from the corner and the mute and deafen marks
+   match the dock. Haven centres the button with a half-height shift, which
+   the top offset allows for. */
+[data-habitat-call-stage] .voice-user-menu-btn {
+  position: absolute; inset: 1.75rem .75rem auto auto; width: 2rem; height: 2rem; font-size: var(--hb-text-lg);
+  opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease);
+}
+[data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icon { font-size: var(--hb-text-lg); }
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icon { font-size: var(--hb-text-sm); }
 [data-habitat-call-stage] :is(.voice-user-item:hover, .voice-user-item:focus-within) .voice-user-menu-btn { opacity: 1; }
 /* The name plate on a picture: a dark plate, so it reads on any camera or
    screen. No blur behind it: a blur over video is drawn again with every frame. */
@@ -2667,6 +2676,11 @@ html:not([data-compact-composer]) #message-input-area:has(> #emoji-btn) > .input
 #user-search-wrap::before, [data-habitat-jump] > svg {
   background: currentColor; mask: var(--hb-icon-search) center / contain no-repeat;
 }
+
+/* The account avatar carries one dot: the member's status. The connection
+   light beside it was a second green dot whenever things were fine, so it
+   shows only when the connection is not. */
+[data-haven-page="app"] .user-bar-avatar > #connection-led.on { opacity: 0; }
 
 /* The text and its action buttons share the composer's focused edge. */
 [data-haven-page="app"] [data-haven-region="composer"]:focus-within {

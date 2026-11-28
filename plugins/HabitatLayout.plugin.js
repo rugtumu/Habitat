@@ -204,6 +204,7 @@ class HabitatLayout {
       if (mode === 'compact') this._watchToastClearance();
       this._buildCallStage(mode);
       this._buildVoicePeople();
+      this._buildMusicResize();
       this._buildConnectionInfo();
       this._watchVoice();
       this._setAttr(header, 'data-habitat-header', '');
@@ -984,8 +985,10 @@ class HabitatLayout {
       if (!focus && autoFocus) focus = screens[0] || null;
       // A lone member's own camera fills the stage, and the notice would lie
       // across the picture.
+      // On a short stage (a player open underneath) it would sit on the name.
       alone.hidden = all.length !== 1 || !all[0].row || !!all[0].camera
-        || !stage.hasAttribute('data-habitat-voice-room');
+        || !stage.hasAttribute('data-habitat-voice-room')
+        || stage.clientHeight < 34 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
       invite.hidden = document.getElementById('sidebar-invite-panel')?.style.display === 'none'
         || !document.getElementById('right-btn-invite-popout');
       let large = spread ? screens : focus ? [focus] : [];
@@ -2375,6 +2378,60 @@ class HabitatLayout {
   }
 
   // ── Bookkeeping ────────────────────────────────────────────
+  // Listen Together shows a video in a strip 200px tall under the stage.
+  // The bar above the player lets each member choose how much room it
+  // takes; the choice is kept in this browser.
+  _buildMusicResize() {
+    const panel = document.getElementById('music-panel');
+    const embed = document.getElementById('music-embed-container');
+    if (!panel || !embed) return;
+    const key = 'habitat_music_height';
+    const property = '--hb-music-height';
+    const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    this._inlineRestores.push([panel, property, panel.style.getPropertyValue(property), panel.style.getPropertyPriority(property)]);
+    const bar = this._make('div', {
+      'data-habitat-music-resize': '', role: 'separator', 'aria-orientation': 'horizontal',
+      tabindex: '0', 'aria-label': this._text('musicResize'), title: this._text('musicResize')
+    });
+    panel.insertBefore(bar, panel.firstChild);
+    // The player never takes more than its area can give the stage back.
+    const limit = () => Math.max(10 * rem(), (panel.parentElement?.clientHeight || innerHeight) * 0.7);
+    const apply = (pixels, save) => {
+      const height = Math.round(Math.min(limit(), Math.max(10 * rem(), pixels)));
+      panel.style.setProperty(property, `${(height / rem()).toFixed(3)}rem`);
+      bar.setAttribute('aria-valuenow', String(height));
+      if (save) { try { localStorage.setItem(key, String(height)); } catch { /* private mode */ } }
+    };
+    let saved = 0;
+    try { saved = Number(localStorage.getItem(key)) || 0; } catch { /* private mode */ }
+    if (saved) apply(saved, false);
+    let drag = null;
+    this._on(bar, 'pointerdown', event => {
+      if (event.button) return;
+      drag = { y: event.clientY, height: embed.getBoundingClientRect().height };
+      bar.setPointerCapture?.(event.pointerId);
+      bar.setAttribute('data-habitat-dragging', '');
+      event.preventDefault();
+    });
+    this._on(bar, 'pointermove', event => {
+      if (drag) apply(drag.height + drag.y - event.clientY, false);
+    });
+    const end = () => {
+      if (!drag) return;
+      drag = null;
+      bar.removeAttribute('data-habitat-dragging');
+      apply(embed.getBoundingClientRect().height, true);
+    };
+    this._on(bar, 'pointerup', end);
+    this._on(bar, 'pointercancel', end);
+    this._on(bar, 'keydown', event => {
+      const step = event.key === 'ArrowUp' ? 2 : event.key === 'ArrowDown' ? -2 : 0;
+      if (!step) return;
+      event.preventDefault();
+      apply(embed.getBoundingClientRect().height + step * rem(), true);
+    });
+  }
+
   _make(tag, attributes = {}, parent = null) {
     const element = document.createElement(tag);
     for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
@@ -2531,6 +2588,7 @@ HabitatLayout.TEXT = Object.freeze({
     loss: 'Packet loss', jitter: 'Jitter', route: 'Route', server: 'Server',
     direct: 'Direct', relay: 'Relay (TURN)', mixed: 'Direct and relay',
     sideBySide: 'Show every shared screen together',
+    musicResize: 'Resize the player',
     aloneTitle: 'You are the first one here', aloneHint: 'People appear here as they join.', invite: 'Invite people',
     upload: 'Upload', download: 'Download', video: 'Picture you send',
     limitBandwidth: 'held back by the connection', limitCpu: 'held back by this computer',
@@ -2571,6 +2629,7 @@ HabitatLayout.TEXT = Object.freeze({
     loss: 'Paket kaybı', jitter: 'Seğirme', route: 'Yol', server: 'Sunucu',
     direct: 'Doğrudan', relay: 'Aktarıcı (TURN)', mixed: 'Doğrudan ve aktarıcı',
     sideBySide: 'Paylaşılan ekranları birlikte göster',
+    musicResize: 'Oynatıcıyı boyutlandır',
     aloneTitle: 'Buraya ilk gelen sensin', aloneHint: 'Katılanlar burada görünür.', invite: 'Davet et',
     upload: 'Yükleme', download: 'İndirme', video: 'Gönderdiğin görüntü',
     limitBandwidth: 'bağlantı sınırlıyor', limitCpu: 'bilgisayar sınırlıyor',
@@ -3099,6 +3158,19 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 }
 [data-habitat-call-stage] [data-habitat-focused] { position: absolute; z-index: 1; }
 [data-habitat-call-stage] > [data-habitat-leave] { position: absolute; z-index: 0; pointer-events: none; }
+/* A shared video fills the height the member gave the player; audio players
+   keep their own small height and get no handle. */
+[data-habitat-music-resize] { display: none; }
+html[data-habitat-layout] #music-panel:has(#music-embed-container iframe[src*="youtu"]) > [data-habitat-music-resize] {
+  display: block; flex: none; height: .5rem; cursor: ns-resize; touch-action: none; background: var(--border);
+}
+html[data-habitat-layout] [data-habitat-music-resize]:is(:hover, :focus-visible, [data-habitat-dragging]) { background: var(--accent); }
+html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtu"]) {
+  height: var(--hb-music-height, min(22.5rem, 56.25vw)); max-height: 70vh;
+}
+html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtu"]) :is(.music-embed-wrapper, iframe) {
+  width: 100%; height: 100%;
+}
 [data-habitat-alone] {
   position: absolute; inset: auto 1rem clamp(5.5rem, 20%, 12rem); z-index: 2; display: grid; justify-items: center; gap: .25rem;
   color: var(--text-secondary); font-size: .875rem; text-align: center; pointer-events: none;

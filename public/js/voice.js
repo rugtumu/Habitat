@@ -2307,6 +2307,17 @@ class VoiceManager {
         displayMediaOptions.selfBrowserSurface = 'include';
         displayMediaOptions.monitorTypeSurfaces = 'include';
 
+        // Habitat fork: a whole-screen share with system audio also picks up
+        // this tab's own playback, so everyone hears the call twice. Chrome
+        // can leave the capturing page's sound out of the capture; browsers
+        // that do not know the constraint ignore it.
+        if (navigator.mediaDevices.getSupportedConstraints?.().restrictOwnAudio) {
+          displayMediaOptions.audio = {
+            ...(displayMediaOptions.audio === true ? {} : displayMediaOptions.audio),
+            restrictOwnAudio: true,
+          };
+        }
+
         // Use CaptureController if available to manage the capture session
         if (typeof CaptureController !== 'undefined') {
           this._captureController = new CaptureController();
