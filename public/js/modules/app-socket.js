@@ -408,10 +408,13 @@ _listenSession() {
     // channels-list lands (see the channels-list handler below).
     if (this._channelsWatchdog) clearTimeout(this._channelsWatchdog);
     this._channelsListGotResponse = false;
+    // Habitat fork: the inbox can recover even if the handshake token check stalls.
+    this._dmSnapshotState?.();
     this._channelsWatchdog = setTimeout(async () => {
       if (this._channelsListGotResponse) return;
       try {
         const resp = await fetch('/api/auth/validate', {
+          signal: AbortSignal.timeout(10000),
           headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('haven_token') || '') }
         });
         if (resp.status === 401 || resp.status === 404) {

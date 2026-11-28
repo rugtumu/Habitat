@@ -830,7 +830,7 @@ _bindAdminControls() {
     const host = document.getElementById('invite-codes-list');
     if (!host) return;
     if (!this._inviteCodes.length) {
-      host.innerHTML = `<p class="muted-text" style="margin:4px 0;font-size:0.85rem">${t('settings.admin.invite_links.none')}</p>`;
+      host.innerHTML = `<p class="surface-state" role="status">${t('settings.admin.invite_links.none')}</p>`;
       return;
     }
     // determine invite usage input limits
@@ -845,7 +845,8 @@ _bindAdminControls() {
     // is localhost, which only works there.
     const origin = this._shareOrigin();
     if (this._shareOriginAt === undefined) {
-      this._fetchShareOrigin().then(() => _renderInviteCodes(this._inviteCodes));
+      // Habitat fork: an address lookup from an earlier read must not overwrite Retry.
+      this._fetchShareOrigin().then(() => { if (this._inviteCodes === list) _renderInviteCodes(list); });
     }
     const localOnly = this._shareOriginValue === null &&
       /^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?)(:|$)/i.test(origin);
@@ -965,7 +966,7 @@ _bindAdminControls() {
         ].includes(msg),
       });
       if (status !== 'received') {
-        if (status === 'unconfirmed') this._showToast('The invite may not have been created. Check the invite list before trying again.', 'info');
+        if (status === 'unconfirmed') this._showToast(t('surface.invite_unconfirmed'), 'info');
         if (status === 'offline') this._showToast(t('auth.errors.connection_error'), 'error');
         if (status === 'refused') {
           if (/^(Custom code|That code is already)/i.test(message)) HabitatForm.invalid(slugField, message);
@@ -1314,6 +1315,14 @@ async _runConnectivityTest() {
   }
 },
 
+// Habitat fork: an offline or unanswered invite list offers the same read again.
+_requestInviteCodes() {
+  this._inviteCodes = null;
+  HabitatSurface.wait(document.getElementById('invite-codes-list'), 'surface.invites_failed',
+    () => this._requestInviteCodes(), this.socket);
+  this.socket.emit('get-invite-codes');
+},
+
 _openInviteLinksModal() {
   const modal = document.getElementById('invite-links-modal');
   if (!modal) return;
@@ -1321,7 +1330,7 @@ _openInviteLinksModal() {
   if (typeof this._renderInviteCreateChannels === 'function') {
     try { this._renderInviteCreateChannels(true); } catch (err) { console.warn('[Admin] _renderInviteCreateChannels failed', err); }
   }
-  if (this.socket?.connected) { try { this.socket.emit('get-invite-codes'); } catch (err) { console.warn('[Admin] could not request invite codes', err); } }
+  this._requestInviteCodes();
   modal.style.display = 'flex';
 
   // Setup max invite uses input limits.

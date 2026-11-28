@@ -27,7 +27,8 @@ export const MEDIA_GROUP_LAYOUTS = ['grid', 'stacked'];
 
 const PICTURE_LINE = /^(?:spoiler-img:)?\/uploads\/(?:[\w\-]+\/)?[\w\-.]+\.(?:jpg|jpeg|png|gif|webp|svg)$/i;
 const E2E_PICTURE_LINE = /^(?:spoiler-img:)?e2e-img:image\/(?:jpeg|png|gif|webp|svg\+xml):\/uploads\/[\w\-.]+$/i;
-const VIDEO_LINE = /^\[file:[^\]\n]+\]\((\/uploads\/[^\s|)]+\.(?:mp4|webm|mov|m4v))\|[^)\n]+\)$/i;
+// Habitat fork: retain the upload name on grouped videos for their error line.
+const VIDEO_LINE = /^\[file:([^\]\n]+)\]\((\/uploads\/[^\s|)]+\.(?:mp4|webm|mov|m4v))\|[^)\n]+\)$/i;
 const VIDEO_NAME = /\.(?:mp4|webm|mov|m4v)$/i;
 // The picture types an encrypted DM picture can be shown as; others go as files.
 const E2E_PICTURE_MIME = /^image\/(?:jpeg|png|gif|webp|svg\+xml)$/i;
@@ -244,12 +245,12 @@ _mediaGridHtml(lines, layout = this._mediaGroupLayoutPref()) {
     const tile = frame.tiles[i];
     const video = this._mediaGridKind(line) === 'video' ? VIDEO_LINE.exec(line) : null;
     const inner = video
-      ? `<video class="media-grid-video" src="${this._escapeHtml(video[1])}" preload="metadata" muted playsinline></video><span class="media-grid-play" aria-hidden="true">▶</span>`
+      ? `<video class="media-grid-video" src="${this._escapeHtml(video[2])}" preload="metadata" muted playsinline></video><span class="media-grid-play" aria-hidden="true">▶</span>`
       : this._formatContent(line);
     const more = frame.more && i === frame.more.index ? this._mediaGridMoreHtml(frame.more.count) : '';
     const cls = 'media-grid-tile' + (video ? ' is-video' : '') + (tile.hidden ? ' mg-hidden' : '');
     const style = tile.style ? ` style="${tile.style}"` : '';
-    const attrs = video ? ` data-video-src="${this._escapeHtml(video[1])}" role="button" tabindex="0" title="${this._escapeHtml(t('media_grid.play_video'))}"` : '';
+    const attrs = video ? ` data-video-src="${this._escapeHtml(video[2])}" data-filename="${this._escapeHtml(video[1])}" role="button" tabindex="0" title="${this._escapeHtml(t('media_grid.play_video'))}"` : '';
     return `<div class="${cls}"${style}${attrs}>${inner}${more}</div>`;
   }).join('');
   const label = this._escapeHtml(t('media_grid.label', { count: lines.length }));

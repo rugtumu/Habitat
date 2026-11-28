@@ -119,7 +119,9 @@ _fetchShareOrigin() {
   const now = Date.now();
   if (this._shareOriginPromise && now - this._shareOriginAt < 60000) return this._shareOriginPromise;
   this._shareOriginAt = now;
+  // Habitat fork: invite links keep their local address if the public address cannot be fetched.
   this._shareOriginPromise = fetch('/api/connection-address', {
+    signal: AbortSignal.timeout(10000),
     headers: { Authorization: `Bearer ${this.token || ''}` }
   })
     .then(r => (r.ok ? r.json() : null))

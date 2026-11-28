@@ -26,6 +26,8 @@ Emoji and reaction cells measure 32px with a fine pointer and 40px on touch. On 
 
 Grafit uses a 2px jade outline for keyboard focus. Disabled controls keep their shape at reduced opacity. A pending action keeps its width and shows a static ellipsis. Field errors sit below the input, share its danger colour and clear when the member edits it.
 
+Loading and empty lists use a centred, muted line in the content area. A failed read names the missing content and offers Retry there. Failed message media retain a filename when available.
+
 Tab enters each main list once. Up and Down move between rows, Home and End reach the edges, and the menu key opens actions. Enter opens the conversation or member profile. In message history, Enter opens actions, E edits your own message, R replies, Delete asks for confirmation and Shift+Delete deletes immediately. Escape returns from history to the composer after open surfaces have been dismissed.
 
 Channel, DM, member and message menus put everyday actions first. Hairlines separate organisation and management, and destructive actions come last. Arrow keys, Home, End and initial letters move through available items. Escape returns focus to the opener.

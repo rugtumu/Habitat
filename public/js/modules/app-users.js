@@ -1,5 +1,19 @@
 export default {
 
+// Habitat fork: presence arrives by channel broadcast. Retry only the missing roster.
+_waitForRoster(voice, code) {
+  if (!voice) this._lastOnlineUsers = null;
+  const retry = () => {
+    if (code !== this.currentChannel) return;
+    this._waitForRoster(voice, code);
+    if (voice) this.socket.emit('request-voice-users', { code, iAmInVoice: !!(this.voice?.inVoice && this.voice.currentChannel === code) });
+    // Re-entering the displayed channel resets its delta cursor and guarantees a full snapshot.
+    else this.socket.emit('enter-channel', { code });
+  };
+  HabitatSurface.wait(document.getElementById(voice ? 'voice-users' : 'online-users'),
+    voice ? 'surface.voice_failed' : 'surface.members_failed', retry, this.socket);
+},
+
 // ── Users ─────────────────────────────────────────────
 
 _renderOnlineUsers(users) {
@@ -11,7 +25,7 @@ _renderOnlineUsers(users) {
   const searchWrap = document.getElementById('user-search-wrap');
   if (searchWrap) searchWrap.style.display = users.length ? '' : 'none';
   if (users.length === 0) {
-    el.innerHTML = `<p class="muted-text">${t('users.no_one_here')}</p>`;
+    el.innerHTML = `<p class="surface-state muted-text" role="status">${t('users.no_one_here')}</p>`;
     return;
   }
 
@@ -22,7 +36,7 @@ _renderOnlineUsers(users) {
   const term = (this._userFilter || '').trim().toLowerCase();
   if (term) users = users.filter(u => (u.username || '').toLowerCase().includes(term));
   if (users.length === 0) {
-    el.innerHTML = `<p class="muted-text">${t('users.no_search_matches')}</p>`;
+    el.innerHTML = `<p class="surface-state muted-text" role="status">${t('users.no_search_matches')}</p>`;
     return;
   }
 
@@ -61,7 +75,7 @@ _renderOnlineUsers(users) {
     html += offlineUsers.map(u => this._renderUserItem(u)).join('');
   }
   if (!onlineUsers.length && !offlineUsers.length) {
-    html = `<p class="muted-text">${t('users.no_one_here')}</p>`;
+    html = `<p class="surface-state muted-text" role="status">${t('users.no_one_here')}</p>`;
   }
 
   el.innerHTML = html;
@@ -1198,7 +1212,7 @@ _renderVoiceUsers(users, channelCode) {
   this._lastVoiceUsers = users; // Cache for re-render on stream info updates
   const el = document.getElementById('voice-users');
   if (users.length === 0) {
-    el.innerHTML = `<p class="muted-text">${t('right_sidebar.no_one_in_voice')}</p>`;
+    el.innerHTML = `<p class="surface-state muted-text" role="status">${t('right_sidebar.no_one_in_voice')}</p>`;
     return;
   }
   const streams = this._streamInfo || [];

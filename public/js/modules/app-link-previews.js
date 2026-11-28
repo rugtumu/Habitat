@@ -11,7 +11,7 @@ export default {
 
 /**
  * Wire up fullscreen button and PiP seek support for uploaded video elements,
- * plus the undecodable-media download fallback for both video and audio.
+ * plus the audio download fallback. Video recovery is handled by the shared message media listener.
  */
 _setupVideos(containerEl) {
   containerEl.querySelectorAll('.file-audio').forEach(audio => {
@@ -26,12 +26,6 @@ _setupVideos(containerEl) {
 
     // ── Generate thumbnail poster from first frame ──
     this._generateVideoThumbnail(video);
-
-    // Container extension is only a hint at what's inside: a .mov carrying
-    // ProRes/HEVC, or an .mp4 with an exotic codec, decodes nowhere. When the
-    // element gives up, collapse the whole attachment back to a download link
-    // rather than leaving a broken player sitting in the message.
-    video.addEventListener('error', () => this._fallbackToDownload(video), { once: true });
 
     // A click on the picture plays or pauses it, as people expect from a
     // player. Clicks on the controls along the bottom are left alone, and if
@@ -315,34 +309,33 @@ _fetchLinkPreviews(containerEl) {
     }
 
     if (!host || host.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
-    // Habitat fork: reserve only a previously measured card. An ordinary link may have no preview.
-    let pending = null;
+    // Habitat fork: reserve a measured card on restore and a single status line on first visit.
     const folded = this._embedFolded(url, slot);
+    const pending = document.createElement('div');
+    pending.className = 'link-preview link-preview--rich lp-pending surface-state';
+    if (folded) pending.className += ' lp-collapsed';
+    pending.dataset.url = url;
+    pending.dataset.previewSlot = slot;
+    pending.setAttribute('role', 'status');
+    pending.textContent = t('surface.preview_loading');
     const snapshot = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
-    // Habitat fork: older snapshots contain only the height in rem.
     const height = snapshot?.height ?? snapshot;
-    if (Number.isFinite(height) && height > 0) {
-      pending = document.createElement('div');
-      pending.className = 'link-preview link-preview--rich lp-pending' + (folded ? ' lp-collapsed' : '');
-      pending.dataset.url = url;
-      pending.dataset.previewSlot = slot;
-      pending.setAttribute('aria-hidden', 'true');
-      pending._previewImageSize = snapshot?.width ? { width: snapshot.width, imageHeight: snapshot.imageHeight } : null;
-      pending.style.height = height + 'rem';
-      host.appendChild(pending);
-      reserved = true;
-    }
-    const release = () => {
-      if (!pending) return;
-      pending.remove();
+    if (Number.isFinite(height) && height > 0) pending.style.height = height + 'rem';
+    pending._previewImageSize = snapshot?.width ? { width: snapshot.width, imageHeight: snapshot.imageHeight } : null;
+    host.appendChild(pending);
+    reserved = true;
+    const status = (key, retry) => {
+      pending.style.height = '';
+      pending.className = 'link-preview';
+      pending.removeAttribute('role');
+      pending.replaceChildren(HabitatSurface.line(key, retry));
       if (this._coupledToBottom && host.isConnected) this._scrollToBottom(true);
     };
-    this._linkPreviewData(url)
+    const load = () => this._linkPreviewData(url)
       .then(data => {
-        if (!data || (!data.title && !data.description && !data.text)) { release(); return; }
+        if (!data || (!data.title && !data.description && !data.text)) { status('surface.preview_empty'); return; }
         const msgContent = link.closest('.message-content, .thread-msg-content');
-        if (!msgContent || msgContent !== host) { release(); return; }
-        if (!pending && msgContent.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
+        if (!msgContent || msgContent !== host) { pending.remove(); return; }
 
         // Unified rich embed card: social posts (Bluesky / X) gain an author
         // row, avatar and engagement stats; everything else renders the same
@@ -443,13 +436,17 @@ _fetchLinkPreviews(containerEl) {
         this._applyEmbedSpoiler(card, link);
 
         const wasAtBottom = this._coupledToBottom;
-        if (pending) pending.replaceWith(card); else msgContent.appendChild(card);
+        pending.replaceWith(card);
 
         // Scroll if coupled to bottom. Uses the tracked flag rather than
         // a point-in-time scrollHeight check that content-visibility can skew.
         if (wasAtBottom && msgContent.isConnected) this._scrollToBottom(true);
       })
-      .catch((err) => { release(); console.warn('[Links] could not render the preview card', err); });
+      .catch(() => status('surface.preview_failed', () => {
+        status('surface.preview_loading');
+        load();
+      }));
+    load();
   });
   if (reserved && this._coupledToBottom) this._scrollToBottom(true);
 },
@@ -480,7 +477,6 @@ _linkPreviewData(url) {
       }
       return data;
     })
-    .catch((err) => { console.warn('[Links] preview lookup failed', err); return null; })
     .finally(() => { this._linkPreviewInflight.delete(url); });
   this._linkPreviewInflight.set(url, p);
   return p;
@@ -494,8 +490,8 @@ _linkPreviewData(url) {
 _scheduleLinkPreview(url) {
   if (!this._lpQueue) this._lpQueue = [];
   if (this._lpActive == null) this._lpActive = 0;
-  return new Promise(resolve => {
-    this._lpQueue.push({ url, resolve, attempt: 0 });
+  return new Promise((resolve, reject) => {
+    this._lpQueue.push({ url, resolve, reject, attempt: 0 });
     this._pumpLinkPreviewQueue();
   });
 },
@@ -510,13 +506,13 @@ _pumpLinkPreviewQueue() {
 _runLinkPreviewTask(task) {
   const MAX_ATTEMPTS = 4;
   this._lpActive++;
-  const done = (data) => {
+  const done = (data, error) => {
     this._lpActive--;
-    task.resolve(data);
+    if (error) task.reject(error); else task.resolve(data);
     this._pumpLinkPreviewQueue();
   };
   fetch(`/api/link-preview?url=${encodeURIComponent(task.url)}`, {
-    headers: { 'Authorization': `Bearer ${this.token}` }
+    headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000),
   })
     .then(r => {
       // Rate limited: free the slot and re-queue after a backoff so the rest
@@ -534,10 +530,10 @@ _runLinkPreviewTask(task) {
         this._pumpLinkPreviewQueue();
         return;
       }
-      if (r.ok) r.json().then(done, () => done(null));
-      else done(null);
+      if (r.ok) return r.json().then(data => done(data));
+      throw new Error('Preview lookup failed');
     })
-    .catch(() => done(null));
+    .catch(error => done(null, error));
 },
 
 // ── Shared embed chrome (size toggle + per-message collapse) ──────────

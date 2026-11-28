@@ -25,7 +25,8 @@ _loadEmojiKeywords() {
     }
     this.emojiKeywords = out;
   };
-  this._emojiKeywordsLoading = fetch(KEYWORDS_URL)
+  // Habitat fork: optional keywords must settle so searches can use bundled names offline.
+  this._emojiKeywordsLoading = fetch(KEYWORDS_URL, { signal: AbortSignal.timeout(10000) })
     .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then(merge)
     .catch(err => {

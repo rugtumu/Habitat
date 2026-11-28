@@ -246,61 +246,34 @@ _setGifFooter(provider) {
   if (footer) footer.textContent = t('gifs.powered_by', { provider: label });
 },
 
-_loadTrendingGifs() {
+// Habitat fork: trending and searched GIFs share one deadline and only the latest result paints.
+_loadTrendingGifs() { return this._searchGifs(''); },
+
+async _searchGifs(query) {
   const grid = document.getElementById('gif-grid');
-  grid.innerHTML = `<div class="gif-picker-empty">${t('thread_list.loading')}</div>`;
-  fetch('/api/gif/trending?limit=20', {
-    headers: { 'Authorization': `Bearer ${this.token}` }
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (this._gifTab === 'favorites') return; // tab switched mid-flight
-      if (data.error === 'gif_not_configured') {
-        this._showGifSetupGuide(grid);
-        return;
-      }
-      if (data.error) {
-        grid.innerHTML = `<div class="gif-picker-empty" role="alert">${this._escapeHtml(data.error)}</div>`;
-        return;
-      }
-      this._setGifFooter(data.provider);
-      this._renderGifGrid(data.results || []);
-    })
-    .catch(() => {
-      if (this._gifTab === 'favorites') return;
-      grid.innerHTML = `<div class="gif-picker-empty" role="alert">${t('gifs.load_failed')}</div>`;
-    });
+  const pending = HabitatSurface.line(query ? 'gifs.searching' : 'thread_list.loading');
+  grid.replaceChildren(pending);
+  const url = query ? '/api/gif/search?q=' + encodeURIComponent(query) + '&limit=20' : '/api/gif/trending?limit=20';
+  try {
+    const data = await this._gifResults(url);
+    if (pending.parentElement !== grid) return;
+    if (data.error === 'gif_not_configured') return this._showGifSetupGuide(grid);
+    this._setGifFooter(data.provider);
+    if (data.results.length) this._renderGifGrid(data.results);
+    else grid.replaceChildren(HabitatSurface.line('gifs.no_results'));
+  } catch {
+    if (pending.parentElement === grid) grid.replaceChildren(HabitatSurface.line(
+      query ? 'gifs.search_failed' : 'gifs.load_failed', () => this._searchGifs(query)));
+  }
 },
 
-_searchGifs(query) {
-  const grid = document.getElementById('gif-grid');
-  grid.innerHTML = `<div class="gif-picker-empty">${t('gifs.searching')}</div>`;
-  fetch(`/api/gif/search?q=${encodeURIComponent(query)}&limit=20`, {
-    headers: { 'Authorization': `Bearer ${this.token}` }
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (this._gifTab === 'favorites') return; // tab switched mid-flight
-      if (data.error === 'gif_not_configured') {
-        this._showGifSetupGuide(grid);
-        return;
-      }
-      if (data.error) {
-        grid.innerHTML = `<div class="gif-picker-empty" role="alert">${this._escapeHtml(data.error)}</div>`;
-        return;
-      }
-      const results = data.results || [];
-      if (results.length === 0) {
-        grid.innerHTML = `<div class="gif-picker-empty">${t('gifs.no_results')}</div>`;
-        return;
-      }
-      this._setGifFooter(data.provider);
-      this._renderGifGrid(results);
-    })
-    .catch(() => {
-      if (this._gifTab === 'favorites') return;
-      grid.innerHTML = `<div class="gif-picker-empty" role="alert">${t('gifs.search_failed')}</div>`;
-    });
+async _gifResults(url) {
+  const response = await fetch(url, {
+    headers: { Authorization: 'Bearer ' + this.token }, signal: AbortSignal.timeout(10000),
+  });
+  const data = await response.json();
+  if (data.error !== 'gif_not_configured' && (!response.ok || data.error || !Array.isArray(data.results))) throw new Error('GIF lookup failed');
+  return data;
 },
 
 _showGifSetupGuide(grid) {
@@ -329,7 +302,7 @@ _showGifSetupGuide(grid) {
     saveBtn.addEventListener('click', () => {
       const key = input.value.trim();
       if (!key || !this._saveGiphyKey(key)) return;
-      grid.innerHTML = `<div class="gif-picker-empty">${t('gifs.setup.saved')}</div>`;
+      grid.innerHTML = `<div class="surface-state gif-picker-empty" role="status">${t('gifs.setup.saved')}</div>`;
       setTimeout(() => this._loadTrendingGifs(), 500);
     });
     input.addEventListener('keydown', (e) => {
@@ -392,7 +365,7 @@ _renderGifFavorites(query = '') {
   let favs = this._getGifFavorites();
   if (q) favs = favs.filter(g => (g.title || '').toLowerCase().includes(q));
   if (!favs.length) {
-    grid.innerHTML = `<div class="gif-picker-empty">${q ? t('gifs.no_favorite_matches') : t('gifs.no_favorites')}</div>`;
+    grid.innerHTML = `<div class="surface-state gif-picker-empty" role="status">${q ? t('gifs.no_favorite_matches') : t('gifs.no_favorites')}</div>`;
     return;
   }
   this._renderGifGrid(favs);
@@ -518,7 +491,7 @@ _showGifSlashResults(query) {
   const picker = document.createElement('div');
   picker.id = 'gif-slash-picker';
   picker.className = 'gif-slash-picker';
-  picker.innerHTML = `<div class="gif-slash-loading">${t('gifs.searching')}</div>`;
+  picker.innerHTML = `<div class="surface-state gif-slash-loading" role="status">${t('gifs.searching')}</div>`;
 
   // Position above the message input
   const inputArea = document.querySelector('.message-input-area');
@@ -530,18 +503,14 @@ _showGifSlashResults(query) {
   picker.addEventListener('close', close);
   setTimeout(() => { if (picker.isConnected) document.addEventListener('click', closeOnClick); }, 100);
 
-  fetch(`/api/gif/search?q=${encodeURIComponent(query)}&limit=12`, {
-    headers: { 'Authorization': `Bearer ${this.token}` }
-  })
-    .then(r => r.json())
+  this._gifResults(`/api/gif/search?q=${encodeURIComponent(query)}&limit=12`)
     .then(data => {
       if (data.error === 'gif_not_configured') {
-        picker.innerHTML = `<div class="gif-slash-loading">${t('gifs.setup.unavailable_desc')}</div>`;
+        picker.innerHTML = `<div class="surface-state gif-slash-loading" role="status">${t('gifs.setup.unavailable_desc')}</div>`;
         return;
       }
-      if (data.error) { picker.innerHTML = `<div class="gif-slash-loading">${this._escapeHtml(data.error)}</div>`; return; }
       const results = data.results || [];
-      if (results.length === 0) { picker.innerHTML = `<div class="gif-slash-loading">${t('gifs.no_results')}</div>`; return; }
+      if (results.length === 0) { picker.innerHTML = `<div class="surface-state gif-slash-loading" role="status">${t('gifs.no_results')}</div>`; return; }
 
       picker.innerHTML = `<div class="gif-slash-header"><span>/gif ${this._escapeHtml(query)}</span><button class="icon-btn small gif-slash-close">&times;</button></div><div class="gif-slash-grid"></div>`;
       const grid = picker.querySelector('.gif-slash-grid');
@@ -562,7 +531,7 @@ _showGifSlashResults(query) {
       });
     })
     .catch(() => {
-      picker.innerHTML = `<div class="gif-slash-loading">${t('gifs.search_failed')}</div>`;
+      picker.replaceChildren(HabitatSurface.line('gifs.search_failed', () => this._showGifSlashResults(query)));
     });
 },
 

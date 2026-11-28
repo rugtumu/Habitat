@@ -565,7 +565,7 @@ _listenMessageChanges() {
       this._closeThread({ discardDraft: true, restoreFocus });
     }
     this._threadDrafts?.delete(parent);
-    if (draft?.trim()) this._showToast('Your unsent thread reply was discarded because the parent message was deleted.', 'info');
+    if (draft?.trim()) this._showToast(t('surface.thread_discarded'), 'info');
     if (data.channelCode === this.currentChannel || data.channelCode === this._activeDMPip) {
       const msgEls = document.querySelectorAll(`[data-msg-id="${data.messageId}"]`);
       msgEls.forEach((msgEl) => {
@@ -726,8 +726,8 @@ _listenMessageChanges() {
       // new pin appears without requiring the user to reopen anything.
       const pinsPipPanel = document.getElementById('pins-pip-panel');
       if (pinsPipPanel && pinsPipPanel.style.display !== 'none' && this._pinsPipChannelCode === this.currentChannel) {
-        this._pinsPipSilentRefresh = true;
-        this.socket.emit('get-pinned-messages', { code: this.currentChannel });
+        // Habitat fork: a silent refresh also needs a deadline.
+        this._requestPins();
       }
     }
   });
@@ -754,7 +754,7 @@ _listenMessageChanges() {
         const remaining = document.querySelectorAll('#pinned-list .pinned-item').length;
         count.textContent = `📌 ${t(remaining !== 1 ? 'pinned_panel.count_other' : 'pinned_panel.count_one', { count: remaining })}`;
         if (remaining === 0) {
-          document.getElementById('pinned-list').innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
+          document.getElementById('pinned-list').innerHTML = `<p class="surface-state muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
         }
       }
       // Remove from Pins PiP if it's open (same DOM surgery, no re-fetch needed)
@@ -763,7 +763,7 @@ _listenMessageChanges() {
         pipItem.remove();
         const pipList = document.getElementById('pins-pip-list');
         if (pipList && !pipList.querySelector('.pinned-item')) {
-          pipList.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
+          pipList.innerHTML = `<p class="surface-state muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
         }
       }
       // Keep the cached _lastPins in sync so a subsequent pop-out isn't stale
@@ -782,10 +782,12 @@ _listenMessageChanges() {
       if (data.pins && data.pins.length) {
         await this._decryptMessages(data.pins, data.channelCode);
       }
+      // Habitat fork: decryption may finish after navigation or dismissal.
+      if (data.channelCode !== this.currentChannel) return;
       this._renderPinnedPanel(data.pins);
       // The user just opened the pinned panel and saw everything in it, so
       // mark all current pin ids as seen so the unread dot clears.
-      this._markPinsSeen?.(data.pins || []);
+      if (['pinned-panel', 'pins-pip-panel'].some(id => ['block', 'flex'].includes(document.getElementById(id)?.style.display))) this._markPinsSeen?.(data.pins || []);
     }
   });
 

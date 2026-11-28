@@ -4,6 +4,17 @@
 
 export default {
 
+// Habitat fork: retry the list in its open panel without resetting the active tab.
+_requestChannelList(event) {
+  const media = event === 'get-channel-media';
+  const host = document.getElementById(media ? 'media-gallery-body' : 'threads-list-body');
+  if (media) this._mediaGalleryData = null;
+  else this._threadListData = null;
+  HabitatSurface.wait(host, media ? 'surface.media_failed' : 'surface.threads_failed',
+    () => this._requestChannelList(event), this.socket);
+  this.socket.emit(event, { code: this.currentChannel });
+},
+
 _bindMediaGallery() {
   // ── Channel media gallery (#5350) ──
   const galleryBtn = document.getElementById('gallery-toggle-btn');
@@ -11,8 +22,6 @@ _bindMediaGallery() {
     galleryBtn.addEventListener('click', () => {
       if (!this.currentChannel) return;
       const modal = document.getElementById('media-gallery-modal');
-      const body = document.getElementById('media-gallery-body');
-      body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('media_gallery.loading')}</div>`;
       // Reset tab counts
       ['photos','videos','audios','files','links'].forEach(k => {
         const el = document.getElementById(`media-count-${k}`);
@@ -23,7 +32,7 @@ _bindMediaGallery() {
       this._mediaGalleryActiveTab = 'photos';
       this._mediaGalleryData = null;
       modal.style.display = 'flex';
-      this.socket.emit('get-channel-media', { code: this.currentChannel });
+      this._requestChannelList('get-channel-media');
     });
   }
   // ── Channel thread list (#5506) ──
@@ -32,13 +41,11 @@ _bindMediaGallery() {
     threadsBtn.addEventListener('click', () => {
       if (!this.currentChannel) return;
       const modal = document.getElementById('threads-list-modal');
-      const body = document.getElementById('threads-list-body');
       const search = document.getElementById('threads-list-search');
       this._threadListData = null;
       if (search) search.value = '';
-      body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('thread_list.loading')}</div>`;
       modal.style.display = 'flex';
-      this.socket.emit('get-channel-threads', { code: this.currentChannel });
+      this._requestChannelList('get-channel-threads');
       // Opened by pointer, so focusing the filter is a convenience, not a trap.
       if (search) setTimeout(() => search.focus(), 50);
     });
@@ -205,13 +212,13 @@ _bindMediaGallery() {
       if (url && url.startsWith('/uploads/')) attachmentsByMessage[message_id].push(url);
     }
     delBtn.disabled = true;
-    this.socket.emit('delete-channel-media', {
+    this.socket.timeout(10000).emit('delete-channel-media', {
       code: this.currentChannel,
       messageIds,
       attachmentsByMessage,
-    }, (res) => {
+    }, (err, res) => {
       delBtn.disabled = false;
-      if (!res || res.error) {
+      if (err || !res || res.error) {
         this._showToast(res?.error || t('media_gallery.delete_failed'), 'error');
         return;
       }
@@ -222,7 +229,7 @@ _bindMediaGallery() {
       if (this._mediaGallerySelected) this._mediaGallerySelected.clear();
       this._mediaGallerySelectMode = false;
       this._refreshMediaGalleryToolbar();
-      this.socket.emit('get-channel-media', { code: this.currentChannel });
+      this._requestChannelList('get-channel-media');
     });
   });
 
@@ -288,7 +295,7 @@ _renderThreadList(filter = '') {
 
   if (!rows.length) {
     const key = !all.length ? 'thread_list.empty' : (unreadOnly && !needle ? 'thread_list.no_unread' : 'thread_list.no_matches');
-    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t(key)}</div>`;
+    body.innerHTML = `<div class="surface-state media-gallery-empty muted-text" role="status">${t(key)}</div>`;
     return;
   }
 
@@ -455,14 +462,14 @@ _renderMediaGalleryTab(tab) {
       files:  t('media_gallery.empty_files'),
       links:  t('media_gallery.empty_links'),
     };
-    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${labels[tab] || t('media_gallery.empty')}</div>`;
+    body.innerHTML = `<div class="surface-state media-gallery-empty muted-text" role="status">${labels[tab] || t('media_gallery.empty')}</div>`;
     return;
   }
   // Tag filter: keep only items carrying EVERY selected tag (exact match, no
   // partials). Links have no backing upload so they are never tag-filtered.
   const rawItems = this._filterMediaItemsByTags(allItems, tab);
   if (rawItems.length === 0) {
-    body.innerHTML = `<div class="media-gallery-empty muted-text" role="status">${t('media_gallery.filter_no_match')}</div>`;
+    body.innerHTML = `<div class="surface-state media-gallery-empty muted-text" role="status">${t('media_gallery.filter_no_match')}</div>`;
     return;
   }
   const items = this._sortMediaItems(rawItems);
@@ -715,9 +722,15 @@ _mediaTagFilterSearch(query) {
   const input = document.getElementById('mtf-input');
   if (!input || !this.socket) return;
   const q = query;
-  this.socket.emit('search-upload-tags', { query: q, code: this.currentChannel }, (res) => {
-    if (input.value !== q) return;
-    if (res && res.error === 'rate_limited') return;
+  const list = document.getElementById('mtf-list');
+  const pending = HabitatSurface.line('thread_list.loading');
+  list.replaceChildren(pending);
+  this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
+    if (pending.parentElement !== list || !input.isConnected || input.value !== q) return;
+    if (err || !res || res.error) {
+      list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._mediaTagFilterSearch(q)));
+      return;
+    }
     this._mediaTagFilterRenderList((res && res.tags) || []);
   });
 },
@@ -755,7 +768,8 @@ _mediaTagFilterRenderList(results) {
   });
   if (!list.children.length) {
     const empty = document.createElement('div');
-    empty.className = 'tag-popup-empty';
+    empty.className = 'surface-state tag-popup-empty';
+    empty.setAttribute('role', 'status');
     empty.textContent = t('tags.none_yet');
     list.appendChild(empty);
   }
@@ -858,9 +872,15 @@ _mediaTagManageSearch(query) {
   const input = document.getElementById('mtm-input');
   if (!input || !this.socket || !this._mediaTagManage) return;
   const q = query;
-  this.socket.emit('search-upload-tags', { query: q, code: this.currentChannel }, (res) => {
-    if (!this._mediaTagManage || input.value !== q) return;
-    if (res && res.error === 'rate_limited') return;
+  const list = document.getElementById('mtm-list');
+  const pending = HabitatSurface.line('thread_list.loading');
+  list.replaceChildren(pending);
+  this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
+    if (pending.parentElement !== list || !input.isConnected || input.value !== q) return;
+    if (err || !res || res.error) {
+      list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._mediaTagManageSearch(q)));
+      return;
+    }
     this._mediaTagManageRenderList(q, (res && res.tags) || []);
   });
 },
@@ -890,7 +910,8 @@ _mediaTagManageRenderList(query, results) {
   }
   if (!list.children.length) {
     const empty = document.createElement('div');
-    empty.className = 'tag-popup-empty';
+    empty.className = 'surface-state tag-popup-empty';
+    empty.setAttribute('role', 'status');
     empty.textContent = norm ? t('tags.none_found') : t('tags.none_yet');
     list.appendChild(empty);
   }
@@ -933,8 +954,8 @@ _mediaTagManageApply() {
   const tags = st.tags.slice();
 
   const doEmit = () => {
-    this.socket.emit('bulk-tag-messages', { code: this.currentChannel, items, mode, tags }, (res) => {
-      if (!res || res.error) {
+    this.socket.timeout(10000).emit('bulk-tag-messages', { code: this.currentChannel, items, mode, tags }, (err, res) => {
+      if (err || !res || res.error) {
         this._showToast?.(res && res.error ? res.error : t('media_gallery.tags_update_failed'), 'error');
         return;
       }

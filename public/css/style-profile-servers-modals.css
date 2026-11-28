@@ -1039,8 +1039,7 @@ img[data-lazy="loaded"] { animation: lazy-media-in 0.15s ease; }
   align-items: center;
   justify-content: center;
 }
-.e2e-img-loading { animation: e2eImgPulse 1.2s ease-in-out infinite; }
-@keyframes e2eImgPulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+/* Habitat fork: encrypted images reserve a static frame during decryption. */
 .e2e-img-failed { opacity: 0.4; border-color: var(--danger, #e74c3c); }
 
 /* Full inline mode (toggled via client setting). The largest setting lets an
@@ -1094,9 +1093,8 @@ img[data-lazy="loaded"] { animation: lazy-media-in 0.15s ease; }
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: scale-down;
   background: transparent;
 }
-.lp-pending { box-sizing: border-box; pointer-events: none; visibility: hidden; }
-.lp-pending::before { content: ''; height: 1.25rem; }
-.lp-pending .lp-content::before { content: ''; height: 3.25rem; }
+/* Habitat fork: the reserved card contains its own visible loading line. */
+.lp-pending { box-sizing: border-box; }
 
 /* Image lightbox overlay */
 .image-lightbox {

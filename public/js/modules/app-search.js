@@ -112,7 +112,7 @@ _searchClose() {
   const key = this._searchContextKey();
   // Habitat fork: a pending query or a late public reply must not reopen a dismissed search.
   clearTimeout(this._searchInputTimer);
-  if (key === '__public__') this._searchNextToken();
+  if (key === '__public__') { this._searchNextToken(); clearTimeout(this._searchTimer); }
   this._searchSetLoading(false);
   this._searchClearContext(key);
   const panel = document.getElementById('search-panel');
@@ -137,9 +137,31 @@ _searchRun(query, page = 1) {
   if (ch && ch.is_dm) {
     this._searchDmCacheLocally(query);
   } else {
-    this._searchSetLoading(true);
-    this.socket.emit('search-messages', { code: this.currentChannel, query, page, sort: st.sort || 'newest', token: this._searchNextToken() });
+    this._requestSearch(st, page);
   }
+},
+
+// Habitat fork: keep the wait, failed page and retry with the public search context.
+_requestSearch(st, page) {
+  clearTimeout(this._searchTimer);
+  st.pending = true;
+  st.failure = null;
+  st.requestPage = page;
+  const token = this._searchNextToken();
+  this._searchRenderPanel();
+  this._searchTimer = setTimeout(() => {
+    if (this._searchSeq === token) this._searchFailed('surface.search_failed');
+  }, 10000);
+  this.socket.emit('search-messages', { code: this.currentChannel, query: st.query, page, sort: st.sort || 'newest', token });
+},
+
+_searchFailed(key) {
+  const st = this._searchGetState('__public__');
+  if (!st?.pending) return;
+  clearTimeout(this._searchTimer);
+  st.pending = false;
+  st.failure = key;
+  if (this._searchContextKey() === '__public__') this._searchRenderPanel();
 },
 
 // Monotonic token stamped on every server request. The socket handler drops any
@@ -183,20 +205,19 @@ _searchSetLoading(on) {
 // The server rejected a search for hitting the per-account rate limit. Stop the
 // spinner and let the user know, but keep whatever results are already shown.
 _searchOnThrottled() {
-  this._searchSetLoading(false);
-  this._showToast(t('header.search_rate_limited'), 'error');
+  this._searchFailed('header.search_rate_limited');
 },
 
 // Results arrive here from the socket handler (public: server-paged, so
 // `results` is one page and `total` is the full count) and from DM local
 // search (`results` is the full match set, sliced client-side).
 _searchReceiveResults(key, { results, total, page, query, filters, isDM } = {}) {
-  this._searchSetLoading(false);
+  if (key === '__public__') clearTimeout(this._searchTimer);
   const serverPaged = key === '__public__';
   this._searchSetState(key, {
     open: true,
     query: query != null ? query : (this._searchGetState(key)?.query || ''),
-    results: results || [],
+    pending: false, failure: null, results: results || [],
     filters: filters || null,
     isDM: !!isDM,
     serverPaged,
@@ -220,8 +241,7 @@ _searchGoToPage(delta) {
   const next = Math.min(pages, Math.max(1, (st.page || 1) + delta));
   if (next === st.page) return;
   if (st.serverPaged) {
-    this._searchSetLoading(true);
-    this.socket.emit('search-messages', { code: this.currentChannel, query: st.query, page: next, sort: st.sort || 'newest', token: this._searchNextToken() });
+    this._requestSearch(st, next);
   } else {
     st.page = next;
     st.scrollTop = 0;
@@ -314,6 +334,11 @@ _searchInvalidate(channels) {
 _searchMarkStale() {
   const st = this._searchState['__public__'];
   if (!st || !st.open || !(st.results?.length || st.query)) return;
+  // Habitat fork: a reply for the previous permissions cannot replace the refresh prompt.
+  clearTimeout(this._searchTimer);
+  this._searchNextToken();
+  st.pending = false;
+  st.failure = null;
   st.stale = true;
   st.results = [];
   // Only repaint if the public panel is the one on screen; if a DM is open the
@@ -526,7 +551,7 @@ _sfpRenderList(type, term) {
   }
 
   if (!entries.length) {
-    list.innerHTML = `<div class="sfp-empty">${t('header.filter_no_matches')}</div>`;
+    list.innerHTML = `<div class="surface-state sfp-empty" role="status">${t('header.filter_no_matches')}</div>`;
     return;
   }
   list.innerHTML = entries.slice(0, 100).map(e =>
@@ -546,11 +571,17 @@ _sfpRenderTagList(term) {
   if (!list) return;
   clearTimeout(this._sfpTagTimer);
   const q = (term || '').trim();
+  // Habitat fork: a tag query belongs to the current filter and its own loading row.
+  const pending = HabitatSurface.line('thread_list.loading');
+  list.replaceChildren(pending);
   this._sfpTagTimer = setTimeout(() => {
     if (this._sfpActive !== 'tag') return;   // picker changed while waiting
-    this.socket.emit('search-upload-tags', { query: q, code: this.currentChannel }, (res) => {
-      if (this._sfpActive !== 'tag') return;
-      if (res && res.error === 'rate_limited') return;
+    this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
+      if (this._sfpActive !== 'tag' || pending.parentElement !== list) return;
+      if (err || !res || res.error) {
+        list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._sfpRenderTagList(q)));
+        return;
+      }
       const tags = (res && res.tags) || [];
       if (!tags.length) {
         // No tag starts with what they typed. Offer to run the search anyway.
@@ -558,7 +589,7 @@ _sfpRenderTagList(term) {
           list.innerHTML = `<button type="button" class="sfp-item sfp-search-removed" data-token="${this._escapeHtml(this._tagSearchToken(q))}">${this._escapeHtml(t('tags.search_removed'))}</button>`;
           list.querySelector('.sfp-search-removed')?.addEventListener('click', (e) => this._sfpAppend(e.currentTarget.dataset.token));
         } else {
-          list.innerHTML = `<div class="sfp-empty">${t('header.filter_no_matches')}</div>`;
+          list.innerHTML = `<div class="surface-state sfp-empty" role="status">${t('header.filter_no_matches')}</div>`;
         }
         return;
       }
@@ -597,6 +628,16 @@ _searchRenderPanel() {
   if (!st || !st.open) { panel.style.display = 'none'; this._searchRestoreSidebar(); return; }
   panel.style.display = 'flex';
   this._searchEnsureVisible();
+
+  this._searchSetLoading(!!st.pending);
+  if (st.pending || st.failure) {
+    list.replaceChildren();
+    if (st.failure) list.appendChild(HabitatSurface.line(st.failure, () => this._requestSearch(st, st.requestPage)));
+    count.textContent = t('header.results');
+    if (pager) pager.style.display = 'none';
+    if (banner) banner.style.display = 'none';
+    return;
+  }
 
   // Stale banner (invalidated by a channels-list change).
   if (st.stale) {
@@ -646,7 +687,7 @@ _searchRenderPanel() {
     .trim();
 
   list.innerHTML = total === 0
-    ? `<p class="muted-text" role="status">${t('header.search_no_results')}</p>`
+    ? `<p class="surface-state muted-text" role="status">${t(!st.query ? 'surface.search_prompt' : st.query === 'mentions:me' ? 'surface.mentions_empty' : 'header.search_no_results')}</p>`
     : pageRows.map(r => {
         // Channel header per result (public/global search). DM local results
         // have no channel, so it's omitted there.

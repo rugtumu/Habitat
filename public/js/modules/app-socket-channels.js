@@ -88,6 +88,8 @@ _listenChannelsAndMessages() {
     // Habitat fork: merge mention IDs after rotations and unread seeding, before drawing the badges.
     this._mentionsMerge?.(channels);
     this._renderChannels();
+    // Habitat fork: a completed snapshot replaces inbox placeholders even when it contains no DMs.
+    this._dmSnapshotState?.();
     // Push accurate totals to the desktop shell / tab title immediately
     this._updateTabTitle();
     this._updateDesktopBadge();

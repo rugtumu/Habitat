@@ -62,7 +62,8 @@ _chooseEmoji(anchor) {
         html += `<div class="emoji-chooser-label">${this._escapeHtml(t(`emoji.categories.${g.key}`))}</div>`
           + items.map(e => `<button type="button" class="emoji-chooser-btn" data-emoji="${this._escapeHtml(e)}" title="${this._escapeHtml(NAMED.test(e) ? e : (this.emojiNames?.[e] || e).split(' ')[0])}">${this._emojiGlyphHtml(e, 22)}</button>`).join('');
       }
-      grid.innerHTML = html || `<div class="emoji-chooser-none">${this._escapeHtml(t('emoji.no_results'))}</div>`;
+      // Habitat fork: keep the chooser’s no-match message consistent with the composer picker.
+      grid.innerHTML = html || `<div class="surface-state emoji-chooser-none" role="status">${this._escapeHtml(t('emoji.no_results'))}</div>`;
     };
 
     const place = () => {

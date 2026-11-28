@@ -46,6 +46,7 @@ badge run `node scripts/habitat-icons.js`; never edit between the
 - Channel, DM, member and message lists use one roving row stop. Preserve channel codes, user IDs and message IDs on redraw. The focused row’s own buttons stay reachable with Tab.
 - Member rows open profiles. Birthday marks appear beside member names and on profiles. Scores stay on profiles. On touch the profile carries the DM and moderation actions. Another member’s default card can show a personal note saved in this browser.
 - The default message toolbar shows React, Reply, Edit on your own messages, and More. Quote is under More. Personal orders fill available slots.
+- List placeholders use `.surface-state` on the status line. Keep interactive lists outside live regions. A read that waits for a server reply needs a deadline and a Retry action in its own panel.
 - Sizes in `rem`. Colours through the tokens at the top of the theme.
 - Motion animates `opacity`, `translate`, `scale` or `rotate` only, never
   `transform`, never longer than 0.25s, nothing looping. Reduced motion is left

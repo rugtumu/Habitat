@@ -38,3 +38,16 @@
 /* The rules themselves live in the files imported above, in this order. Later
    files win over earlier ones on equal specificity, as they did when this was
    one file, so keep the order and add new rules to the file for their area. */
+
+/* Habitat fork: status text and thread recovery must work with the built-in theme. */
+.surface-state { grid-column: 1 / -1; margin: 0; padding: 1rem; text-align: center; color: var(--text-muted); overflow-wrap: anywhere; }
+.thread-status, .thread-status > span { display: none; }
+#thread-messages:empty + .thread-status,
+#thread-messages[data-failed] + .thread-status { display: block; }
+#thread-messages[aria-busy="true"] + .thread-status .thread-loading,
+#thread-messages[data-failed] + .thread-status .thread-failed,
+#thread-messages:not([data-failed]):not([aria-busy="true"]) + .thread-status .thread-empty { display: inline; }
+
+.media-failure { padding: .5rem; min-height: 2rem; }
+.media-failure a { margin-inline-start: .5rem; }
+.media-grid-tile:has(.media-failure) .media-grid-play { display: none; }

@@ -132,6 +132,33 @@ _toggleEmojiPicker(anchorEl) {
   this._emojiActiveCategory = this._emojiActiveCategory || Object.keys(this.emojiCategories)[0];
   this._emojiPickerSection = this._emojiPickerSection || 'emoji';
 
+  // Habitat fork: bundled emoji stay usable while optional server catalogs load or retry.
+  const stickerSection = this._emojiPickerSection === 'sticker';
+  const catalogs = stickerSection ? ['Stickers'] : ['StandardEmojis', 'CustomEmojis'];
+  const states = this._pickerCatalogs || {};
+  const refreshCatalog = name => {
+    if (picker.style.display !== 'flex' || !catalogs.includes(name)) return;
+    const search = picker.querySelector('.emoji-search-input');
+    const filter = search?.value;
+    const previous = document.activeElement;
+    const scroll = picker.querySelector('.emoji-grid, .sticker-grid')?.scrollTop || 0;
+    picker.style.display = 'none';
+    this._toggleEmojiPicker(anchorEl);
+    const next = picker.querySelector('.emoji-search-input');
+    if (filter && next) { next.value = filter; next.dispatchEvent(new Event('input')); }
+    const grid = picker.querySelector('.emoji-grid, .sticker-grid');
+    if (grid) grid.scrollTop = scroll;
+    if (previous?.isConnected && !picker.contains(previous)) previous.focus({ preventScroll: true });
+  };
+  picker._catalogRefresh = refreshCatalog;
+  const catalogNotice = () => {
+    const failed = catalogs.filter(key => states[key] === 'failed');
+    if (failed.length) return HabitatSurface.line(stickerSection ? 'surface.stickers_failed' : 'surface.catalog_failed',
+      () => failed.forEach(key => this['_load' + key]()));
+    if (catalogs.some(key => states[key] === 'loading')) return HabitatSurface.line('thread_list.loading');
+    return null;
+  };
+
   // Section toggle (Emoji | Sticker)
   const sectionRow = document.createElement('div');
   // Habitat fork: the shared picker remembers the composer button even after moving to the page root.
@@ -160,6 +187,8 @@ _toggleEmojiPicker(anchorEl) {
   sectionRow.appendChild(mkSectionBtn('emoji', t('emoji.section_emoji')));
   sectionRow.appendChild(mkSectionBtn('sticker', t('emoji.section_sticker')));
   picker.appendChild(sectionRow);
+  const notice = catalogNotice();
+  if (notice) picker.appendChild(notice);
 
   // ── Sticker section ──
   if (this._emojiPickerSection === 'sticker') {
@@ -217,7 +246,8 @@ _toggleEmojiPicker(anchorEl) {
         list = stickers.filter(s => (s.pack_name || 'General') === self._activeStickerPack);
       }
       if (list.length === 0) {
-        grid.innerHTML = `<p class="muted-text emoji-empty" role="status">${
+        if (notice && !stickers.length) return;
+        grid.innerHTML = `<p class="surface-state muted-text emoji-empty" role="status">${
           stickers.length === 0
             ? t('emoji.no_stickers')
             : t('emoji.no_results')
@@ -463,7 +493,7 @@ _toggleEmojiPicker(anchorEl) {
         });
       }
       if (matched.size === 0) {
-        grid.innerHTML = `<p class="muted-text emoji-empty" role="status">${t('emoji.no_results')}</p>`;
+        grid.innerHTML = `<p class="surface-state muted-text emoji-empty" role="status">${t('emoji.no_results')}</p>`;
         return;
       }
       const results = document.createElement('div');
@@ -485,7 +515,8 @@ _toggleEmojiPicker(anchorEl) {
       section.appendChild(header);
       const items = cat === 'Favorites' ? favoriteList() : list;
       const catGrid = document.createElement(items.length ? 'div' : 'p');
-      catGrid.className = items.length ? 'emoji-cat-grid' : 'emoji-fav-hint muted-text';
+      catGrid.className = items.length ? 'emoji-cat-grid' : 'surface-state emoji-fav-hint muted-text';
+      if (!items.length) catGrid.setAttribute('role', 'status');
       if (!items.length) catGrid.textContent = t('emoji.favorites_hint');
       items.forEach(e => appendEmojiButton(catGrid, e));
       section.appendChild(catGrid);
@@ -1112,7 +1143,8 @@ _showFullReactionPicker(msgEl, msgId, quickPicker) {
     }
     if (!grid.firstChild) {
       const none = document.createElement('p');
-      none.className = 'muted-text emoji-empty';
+      // Habitat fork: the no-match notice spans the reaction grid.
+      none.className = 'surface-state muted-text emoji-empty';
       none.setAttribute('role', 'status');
       none.textContent = t('emoji.no_results');
       grid.appendChild(none);

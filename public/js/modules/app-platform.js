@@ -1819,6 +1819,16 @@ _decryptE2EFiles(root) {
     if (!url || !url.startsWith('/uploads/') || !partner) {
       row.classList.add('e2e-file-failed');
       if (btn) btn.disabled = true;
+      if (mime.startsWith('video/')) {
+        const retry = () => {
+          row.querySelector('.surface-state')?.remove();
+          row.classList.remove('e2e-file-failed');
+          row.classList.add('e2e-file-pending');
+          if (btn) btn.disabled = false;
+          this._decryptE2EFiles(root);
+        };
+        row.appendChild(HabitatSurface.line('surface.file_failed', url?.startsWith('/uploads/') ? retry : null, { name }));
+      }
       return;
     }
     if (!btn) return;
@@ -1826,9 +1836,12 @@ _decryptE2EFiles(root) {
       e.preventDefault();
       if (btn.disabled) return;
       btn.disabled = true;
+      row.querySelector('.surface-state')?.remove();
+      row.classList.remove('e2e-file-failed');
       row.classList.add('e2e-file-loading');
       try {
-        const resp = await fetch(url);
+        // Habitat fork: a stalled encrypted attachment must release the download control.
+        const resp = await fetch(url, { signal: AbortSignal.timeout(120000) });
         if (!resp.ok) throw new Error(resp.status);
         const buf = await resp.arrayBuffer();
         const plain = await this._e2eDecryptBytes(partner, new Uint8Array(buf));
@@ -1891,7 +1904,8 @@ _decryptE2EFiles(root) {
           // it. Disconnect the revoke observer first, since the fallback pulls
           // mediaEl out of the DOM and would otherwise kill the blob URL the
           // download link is about to point at.
-          mediaEl.addEventListener('error', () => {
+          // Habitat fork: video retry keeps the player and its blob URL alive until removal.
+          if (isAudio) mediaEl.addEventListener('error', () => {
             obs.disconnect();
             this._fallbackToDownload(mediaEl);
           }, { once: true });
@@ -1915,6 +1929,7 @@ _decryptE2EFiles(root) {
         this._showToast(t('platform.e2e.downloaded', { name }), 'success');
       } catch (err) {
         row.classList.add('e2e-file-failed');
+        row.appendChild(HabitatSurface.line('surface.file_failed', () => btn.click(), { name }));
       } finally {
         row.classList.remove('e2e-file-loading');
         btn.disabled = false;
@@ -1939,18 +1954,25 @@ _decryptE2EImages(root) {
   const partner = inPip && this._activeDMPip
     ? this._getE2EPartnerFor(this._activeDMPip)
     : this._getE2EPartner();
-  if (!partner) return;
-
+  // Habitat fork: a missing key is a recoverable image failure in the same DM.
   imgs.forEach(img => {
     img.classList.remove('e2e-img-pending');
     img.classList.add('e2e-img-loading');
     const url = img.dataset.e2eSrc;
 
     // Only fetch local upload paths to prevent SSRF
-    if (!url || !url.startsWith('/uploads/')) {
+    const retry = () => {
+      img._failureLine?.remove();
+      img._failureLine = null;
+      img.classList.remove('e2e-img-failed');
+      img.classList.add('e2e-img-pending');
+      this._decryptE2EImages(root);
+    };
+    if (!partner || !url || !url.startsWith('/uploads/')) {
       img.alt = t('platform.e2e.invalid_image_url');
       img.classList.remove('e2e-img-loading');
       img.classList.add('e2e-img-failed');
+      this._showMediaFailure(img, retry);
       return;
     }
 
@@ -1961,6 +1983,7 @@ _decryptE2EImages(root) {
         // so scrolling a media-heavy DM slowly locks up hundreds of MB. Same
         // revoke-on-load pattern the upload previews use. (#5426)
         const objectUrl = URL.createObjectURL(blob);
+        img.style.removeProperty('display');
         img.src = objectUrl;
         // Revoking in the load handler blanks the picture on some Tauri
         // webviews (the bitmap is still tied to the blob URL). Keep it
@@ -1972,6 +1995,7 @@ _decryptE2EImages(root) {
         img.alt = t('platform.e2e.image_decrypt_failed');
         img.classList.remove('e2e-img-loading');
         img.classList.add('e2e-img-failed');
+        this._showMediaFailure(img, retry);
       });
   });
 },
@@ -1994,7 +2018,7 @@ _e2eImageBlob(img, partner = null) {
   const mime = (img && img.dataset && img.dataset.e2eMime) || 'image/png';
   if (!partner) partner = this._e2ePartnerForNode(img);
   if (!partner || !url || !url.startsWith('/uploads/')) return Promise.reject(new Error('not decryptable here'));
-  return fetch(url)
+  return fetch(url, { signal: AbortSignal.timeout(120000) })
     .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
     .then(buf => this._e2eDecryptBytes(partner, new Uint8Array(buf)))
     .then(plain => new Blob([plain], { type: mime }));

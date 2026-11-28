@@ -1332,21 +1332,71 @@ _dmLinkBlocked(text) {
 // rest of the message, its text and other files, stays as it is.
 _setupHeldUploadNotes() {
   document.addEventListener('error', (e) => {
-    const el = e.target;
+    // Habitat fork: a source inside a video may receive the error instead of the player.
+    const el = e.target.tagName === 'SOURCE' ? e.target.parentElement : e.target;
+    if ((el instanceof HTMLImageElement || el instanceof HTMLVideoElement) &&
+        el.matches('.chat-image, .file-video, .media-grid-video, .lp-image, .lp-video, .link-preview-gallery-img')) {
+      this._showMediaFailure(el);
+    }
     if ((el instanceof HTMLImageElement || el instanceof HTMLVideoElement) && el.matches('.chat-image, .file-video, .media-grid-video')) {
       this._showHeldUploadNote(el);
     }
   }, true);
 },
 
+// Habitat fork: leave the original node available for the lazy loader, proxy retry and held-upload check.
+_showMediaFailure(el, retryDecrypt) {
+  if (el._failureLine) return;
+  const video = el.tagName === 'VIDEO';
+  const src = el.currentSrc || el.src || el.querySelector('source')?.src || el.dataset.e2eSrc;
+  if (!src && !retryDecrypt) return;
+  const box = el.closest('.file-attachment');
+  let name = box?.querySelector('.file-name')?.textContent || el.closest('.media-grid-tile')?.dataset.filename;
+  if (!name && el.alt && el.alt !== 'image' && !el.dataset.e2eSrc) name = el.alt;
+  if (!name) {
+    try {
+      const url = new URL(el.dataset.mpOrigin || src, location.href);
+      if (['https:', 'http:'].includes(url.protocol)) name = decodeURIComponent(url.pathname.split('/').pop());
+    } catch { /* A malformed path still gets a media label. */ }
+  }
+  const line = HabitatSurface.line('surface.file_failed', () => {
+    if (retryDecrypt) retryDecrypt();
+    else if (video) {
+      // A hidden preload=none player cannot be pressed to start its retry.
+      el.preload = 'metadata';
+      el.load();
+    }
+    else el.src = el.getAttribute('src') || src;
+  }, { name: name || t(video ? 'surface.video' : 'surface.image') });
+  el._failureLine = line;
+  line.classList.add('media-failure');
+  line.addEventListener('click', event => event.stopPropagation());
+  const anchor = el.closest('a') || el;
+  anchor.after(line);
+  el.style.display = 'none';
+  if (video && box && !box.querySelector('.file-download-link')) {
+    const download = document.createElement('a');
+    download.href = src;
+    download.download = name || '';
+    download.textContent = t('surface.download');
+    line.appendChild(download);
+  }
+  el.addEventListener(video ? 'loadedmetadata' : 'load', () => {
+    line.remove();
+    if (el._failureLine === line) el._failureLine = null;
+    el.style.removeProperty('display');
+  }, { once: true });
+},
+
 async _showHeldUploadNote(el) {
   let url;
   try { url = new URL(el.currentSrc || el.src, location.href); } catch { return; }
   if (url.origin !== location.origin || !url.pathname.startsWith('/uploads/')) return;
-  const rel = decodeURIComponent(url.pathname.slice('/uploads/'.length));
+  let rel;
+  try { rel = decodeURIComponent(url.pathname.slice('/uploads/'.length)); } catch { return; }
   if (!this._heldUploadStates) this._heldUploadStates = new Map();
   if (!this._heldUploadStates.has(rel)) {
-    this._heldUploadStates.set(rel, fetch(`/api/upload-status?path=${encodeURIComponent(rel)}`, { headers: { Authorization: `Bearer ${this.token}` } })
+    this._heldUploadStates.set(rel, fetch(`/api/upload-status?path=${encodeURIComponent(rel)}`, { headers: { Authorization: `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000) })
       .then(r => (r.ok ? r.json() : null)).then(d => d?.state || null).catch(() => null));
   }
   const tile = el.closest('.media-grid-tile');
@@ -1356,6 +1406,7 @@ async _showHeldUploadNote(el) {
   if (!state || !piece.isConnected || !content) return;
 
   const grid = tile?.closest('.media-grid');
+  el._failureLine?.remove();
   piece.remove();
   if (grid) this._reflowMediaGrid(grid);
 
@@ -1364,7 +1415,8 @@ async _showHeldUploadNote(el) {
   let note = content.querySelector(':scope > .upload-held-note');
   if (!note) {
     note = document.createElement('div');
-    note.className = 'upload-held-note';
+    note.className = 'surface-state upload-held-note';
+    note.setAttribute('role', 'status');
     content.appendChild(note);
   }
   // "This file" when it is the only one held; counts once there are more,

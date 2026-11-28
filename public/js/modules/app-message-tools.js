@@ -6,6 +6,18 @@ export default {
 
 // ── Pinned Messages Panel ─────────────────────────────
 
+// Habitat fork: the same pending request follows pins between the dock and the float.
+_requestPins() {
+  const code = this.currentChannel;
+  if (!code) return;
+  this._lastPins = null;
+  const retry = () => this._requestPins();
+  for (const id of ['pinned-list', 'pins-pip-list']) {
+    HabitatSurface.wait(document.getElementById(id), 'surface.pins_failed', retry, this.socket);
+  }
+  this.socket.emit('get-pinned-messages', { code });
+},
+
 _renderPinnedPanel(pins) {
   // Always cache the latest pin list. It's used by the pop-out button and by
   // the PiP to refresh after a pin/unpin event without a full re-open.
@@ -21,7 +33,7 @@ _renderPinnedPanel(pins) {
   const canUnpin = this.user?.isAdmin || this._hasPerm('pin_message');
 
   if (pins.length === 0) {
-    list.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
+    list.innerHTML = `<p class="surface-state muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
   } else {
     list.innerHTML = pins.map(p => `
       <div class="pinned-item" role="link" tabindex="0" data-msg-id="${p.id}">
@@ -38,20 +50,8 @@ _renderPinnedPanel(pins) {
     `).join('');
   }
 
-  // When this render was triggered by a PiP auto-refresh (message-pinned
-  // event), skip showing/re-showing the sidebar panel; only update it if
-  // the user already has it visible.
-  const silentRefresh = this._pinsPipSilentRefresh;
-  this._pinsPipSilentRefresh = false;
-  if (silentRefresh) {
-    if (panel.style.display === 'block') {
-      // Sidebar is already open: re-wire its click handlers to the fresh DOM
-      this._rewirePinnedSidebarHandlers(list, panel);
-    }
-  } else {
-    panel.style.display = 'block';
-    this._rewirePinnedSidebarHandlers(list, panel);
-  }
+  // Habitat fork: the opener owns visibility, so a late receipt cannot reopen a closed panel.
+  if (panel.style.display === 'block') this._rewirePinnedSidebarHandlers(list, panel);
 
   // If the PiP is currently open, refresh it with the latest pin data too.
   const pipPanel = document.getElementById('pins-pip-panel');
@@ -102,7 +102,8 @@ _openPinsPiP(pins) {
     titleEl.textContent = ch ? `# ${ch.name}` : (this.currentChannel || t('status_bar.channel'));
   }
 
-  this._renderPinsPiPList(pins || []);
+  // Habitat fork: the request already placed its loading or retry line in both lists.
+  if (this._lastPins != null) this._renderPinsPiPList(pins || []);
   this._applyPinsPiPGeometry(panel);
   this._bindPinsPiPDrag();
 },
@@ -133,7 +134,7 @@ _renderPinsPiPList(pins) {
   // Habitat fork: both pin lists expose the message jump separately from its permission-gated action.
   const canUnpin = this.user?.isAdmin || this._hasPerm('pin_message');
   if (!pins || pins.length === 0) {
-    list.innerHTML = `<p class="muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
+    list.innerHTML = `<p class="surface-state muted-text" role="status">${t('pinned_panel.no_messages')}</p>`;
     return;
   }
   list.innerHTML = pins.map(p => `

@@ -349,7 +349,6 @@ _openRenameModal() {
   // Populate bio
   const bioInput = document.getElementById('edit-profile-bio');
   if (bioInput) bioInput.value = this.user.bio || '';
-  this._bioOpened = bioInput ? bioInput.value : null;
   this._syncBirthdayEditor();
   this._pendingBannerColor = this.user.bannerColor || null;
   this._pendingProfileTheme = this.user.profileTheme || null;
@@ -432,7 +431,7 @@ async _saveRename() {
     changes.push(['rename-user', { username: newName }, 'renamed', input, response => response?.user?.displayName === newName]);
   }
   // Habitat fork: a refreshed session may already know the edited bio while the form is open.
-  if (bio && bio.value !== this._bioOpened && bio.value.trim() !== (this.user.bio || '')) {
+  if (bio && bio.value.trim() !== (this.user.bio || '')) {
     changes.push(['set-bio', { bio: bio.value.trim() }, 'bio-updated', bio]);
   }
   const birthday = this.user.birthday ? null : date.value || null;
@@ -446,7 +445,7 @@ async _saveRename() {
   }
   const theme = this._pendingProfileTheme;
   if (theme?.top !== this.user.profileTheme?.top || theme?.bottom !== this.user.profileTheme?.bottom) {
-    changes.push(['set-profile-theme', theme || { top: null, bottom: null }, 'profile-theme-updated']);
+    changes.push(['set-profile-theme', theme || { top: null, bottom: null }, 'profile-theme-updated', document.getElementById('profile-theme-top')]);
   }
 
   // Habitat fork: let independent changes finish and keep refused or unconfirmed edits on screen.
@@ -457,9 +456,10 @@ async _saveRename() {
     if (field && stillOpen()) HabitatForm.invalid(field, message);
     else notices.add(message || t('badges.save_failed'));
   };
+  if (!this.socket?.connected) return this._showToast(t('auth.errors.connection_error'), 'error');
   HabitatForm.busy(button, true);
   try {
-    for (const [event, data, receipt, field, accept] of changes) {
+    const saveField = async ([event, data, receipt, field, accept]) => {
       if (event === 'rename-user') this._profileRenameExpected = newName;
       let result;
       try {
@@ -471,16 +471,20 @@ async _saveRename() {
       }
       const { status, message } = result;
       if (status === 'refused') refused(message, result.general ? null : field);
-      if (status === 'unconfirmed') refused('The server did not confirm all profile changes. Check them before saving again.');
-      if (!stillOpen()) return;
-      if (status === 'received' && event === 'set-bio') this._bioOpened = data.bio;
-      if (status === 'offline') {
-        this._showToast(t('auth.errors.connection_error'), 'error');
-        return;
-      }
-    }
-    if (await this._GroupManagerSaveGroups(refused) === false || !stillOpen()) return;
-    if (await this._commitAvatarSettings(refused) !== false && stillOpen() && !failed) modal.style.display = 'none';
+      if (status === 'unconfirmed' && event === 'set-birthday') {
+        // Habitat fork: SQLite silently accepts a birthday already saved by another tab.
+        if (data.birthday) this.user.birthday = data.birthday;
+        this.user.birthdayHidden = data.hidden;
+        this.user.birthdayHideYear = data.hideYear;
+        localStorage.setItem('haven_user', JSON.stringify(this.user));
+      } else if (status === 'unconfirmed') refused(t('surface.profile_unconfirmed'));
+      else if (status === 'offline') refused(t('auth.errors.connection_error'));
+    };
+    // Habitat fork: each field has its own receipt. Only avatar operations depend on the upload.
+    const results = await Promise.all([
+      ...changes.map(saveField), this._GroupManagerSaveGroups(refused), this._commitAvatarSettings(refused),
+    ]);
+    if (stillOpen() && !failed && !results.includes(false)) modal.style.display = 'none';
   } finally {
     HabitatForm.busy(button, false);
     if (notices.size) this._showToast([...notices].join(' '), 'error');

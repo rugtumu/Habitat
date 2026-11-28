@@ -296,9 +296,10 @@ class HabitatLayout {
       this._badgeObserver.observe(badge, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style'] });
       sync();
     }
-    const empty = this._make('p', { 'data-habitat-dm-empty': '' });
+    const empty = this._make('div', { 'data-habitat-dm-empty': '' });
     empty.textContent = this._text('noDM');
     split.appendChild(empty);
+    window.app?._dmSnapshotState?.(empty);
     this._watchDmAvatars();
     this._setAttr(split, 'data-habitat-list', '');
     select(this._list || (document.body.classList.contains('viewing-dm') ? 'messages' : 'channels'));
@@ -455,7 +456,7 @@ class HabitatLayout {
     toggle.appendChild(this._icon('m6 9 6 6 6-6'));
     this._make('span', {}, toggle).textContent = this._text('voiceRooms');
     const rooms = this._make('div', { id: 'habitat-voice-rooms', 'data-habitat-rooms': '' }, section);
-    this._make('p', { 'data-habitat-no-rooms': '' }, section).textContent = this._text('emptyVoice');
+    this._make('p', { 'data-habitat-no-rooms': '', class: 'surface-state', role: 'status' }, section).textContent = this._text('emptyVoice');
     this._on(toggle, 'click', () => {
       rooms.hidden = !rooms.hidden;
       toggle.setAttribute('aria-expanded', String(!rooms.hidden));
@@ -587,7 +588,9 @@ class HabitatLayout {
     const title = this._make('h2', {}, intro);
     const hint = this._make('p', {}, intro);
     // Who is already in the room, so joining is not a step into the dark.
-    const people = this._make('p', { 'data-habitat-room-people': '' }, intro);
+    const people = this._make('div', { 'data-habitat-room-people': '', role: 'status' }, intro);
+    const roster = document.getElementById('voice-users');
+    let shownRosterLine;
     const join = this._make('button', { type: 'button', class: 'btn-sm btn-accent', 'data-habitat-join-room': '' }, intro);
     join.textContent = this._text('joinRoom');
     this._on(join, 'click', () => window.app?._joinVoice());
@@ -610,11 +613,25 @@ class HabitatLayout {
       join.hidden = !voiceRoom || !app?._canUseVoice?.() || intro.hidden;
       people.hidden = !voiceRoom || intro.hidden;
       if (people.hidden) return;
+      // Before joining, the stage is hidden. Keep roster recovery reachable beside Join.
+      const line = roster?.firstElementChild;
+      if (line?.dataset.surface) {
+        if (shownRosterLine !== line) {
+          const copy = line.cloneNode(true);
+          copy.querySelector('button')?.addEventListener('click', () => line.querySelector('button')?.click());
+          people.replaceChildren(copy);
+          shownRosterLine = line;
+        }
+        people.className = '';
+        return;
+      }
+      shownRosterLine = null;
       // Haven lists a room's people in the row after it; count what it drew.
       const row = [...document.querySelectorAll('.channel-item')].find(item => item.dataset?.code === channel);
       const list = row?.nextElementSibling;
       const count = String(list?.className || '').includes('channel-voice-users')
         ? list.querySelectorAll('.channel-voice-user').length : 0;
+      people.className = count ? '' : 'surface-state';
       const text = count ? this._text(count === 1 ? 'roomOne' : 'roomMany').replace('{n}', count) : this._text('roomEmpty');
       if (people.textContent !== text) people.textContent = text;
     };
@@ -682,6 +699,7 @@ class HabitatLayout {
     if (channels) {
       this._peopleObserver = new MutationObserver(syncJoin);
       this._peopleObserver.observe(channels, { childList: true, subtree: true });
+      if (roster) this._peopleObserver.observe(roster, { childList: true });
     }
     this._nameObserver = new MutationObserver(sync);
     this._nameObserver.observe(header, { childList: true, characterData: true, subtree: true });
@@ -1012,6 +1030,8 @@ class HabitatLayout {
       // Too small for a name under the face: the face alone, the name on hover.
       const dense = grid.height < 5 * rem;
       flag(stage, 'data-habitat-dense', dense);
+      // The second row of camera controls needs clearance above the name plate.
+      flag(stage, 'data-habitat-short-camera', grid.height < 7.5 * rem);
       const now = new Set();
       const put = (slot, cell, box = {}) => {
         for (const part of slot.parts) {
@@ -1257,6 +1277,7 @@ class HabitatLayout {
         stage.remove();
         stage.removeAttribute('data-habitat-focus');
         stage.removeAttribute('data-habitat-dense');
+        stage.removeAttribute('data-habitat-short-camera');
         stage.removeAttribute('style');
       }
       resume();
@@ -3241,6 +3262,7 @@ html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: 
 [data-habitat-call-stage] [data-habitat-on-camera] > * { pointer-events: auto; }
 [data-habitat-call-stage][data-habitat-dense] :is(.voice-user-item, .webcam-tile, .screen-share-tile):not([data-habitat-focused])
   :is(.user-item-name, .webcam-tile-label, .screen-share-tile-label, .voice-user-menu-btn, .voice-stream-badge.watching) { display: none; }
+[data-habitat-call-stage][data-habitat-short-camera] [data-habitat-on-camera]:not([data-habitat-focused]) .voice-user-menu-btn { display: none; }
 [data-habitat-call-stage][data-habitat-dense] .voice-user-item:not([data-habitat-focused]) { padding: .25rem; }
 [data-habitat-call-stage] [data-habitat-on-camera] :is([data-habitat-call-avatar], .user-dot, .voice-stream-badge.webcam),
 [data-habitat-call-stage] .webcam-tile[data-habitat-paired] > .webcam-tile-label { display: none; }
@@ -3365,7 +3387,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-list] > .sidebar-split-handle,
 [data-habitat-dm-empty] { display: none; }
 [data-habitat-list="messages"]:has(> #dm-pane[style*="display: none"]) > [data-habitat-dm-empty] {
-  display: block; margin: .5rem 1rem; color: var(--text-secondary); line-height: 1.5;
+  display: block;
 }
 /* Settings owns embed size and channel actions owns the empty topic editor. */
 html[data-habitat-layout] #channel-topic-bar[data-empty-topic],

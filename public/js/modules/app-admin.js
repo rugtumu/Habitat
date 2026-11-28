@@ -608,7 +608,7 @@ _applyServerSettings() {
   }
   // Habitat fork: the invite dialog fetches its list when opened. Refresh only while it is visible.
   if (this.socket?.connected && document.getElementById('invite-links-modal')?.style.display === 'flex') {
-    try { this.socket.emit('get-invite-codes'); } catch (err) { console.warn('[Admin] could not request invite codes', err); }
+    this._requestInviteCodes();
   }
 
   // Apply configurable message length limit to message input and edit textareas

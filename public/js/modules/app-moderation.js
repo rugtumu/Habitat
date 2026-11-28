@@ -97,7 +97,7 @@ _setupAuditLog() {
   const renderRows = (append = false) => {
     if (!append) listEl.innerHTML = '';
     if (!this._auditRows.length) {
-      listEl.innerHTML = `<div class="audit-log-empty">${t('modals.audit_log.empty')}</div>`;
+      listEl.innerHTML = `<div class="surface-state audit-log-empty" role="status">${t('modals.audit_log.empty')}</div>`;
       loadMoreBtn.style.display = 'none';
       return;
     }
@@ -144,16 +144,25 @@ _setupAuditLog() {
     actorUsername: filterActor.value.trim() || null,
   });
 
+  // Habitat fork: keep the previous page when pagination fails and ignore superseded filters.
+  let generation = 0;
   const load = (append = false) => {
+    const current = ++generation;
+    loadMoreBtn.style.display = 'none';
+    listEl.querySelector('.surface-state')?.remove();
     const opts = { limit: 50, ...filters(), beforeId: append ? this._auditOldestId : 0 };
     if (!append) {
       this._auditRows = [];
       this._auditOldestId = 0;
-      listEl.innerHTML = `<div class="audit-log-empty">${t('modals.audit_log.loading')}</div>`;
+      listEl.replaceChildren();
     }
-    this.socket.emit('get-audit-log', opts, (resp) => {
-      if (!resp || resp.error) {
-        listEl.innerHTML = `<div class="audit-log-empty">${_esc(resp && resp.error ? resp.error : t('modals.audit_log.load_failed'))}</div>`;
+    const status = HabitatSurface.line('modals.audit_log.loading');
+    listEl.appendChild(status);
+    this.socket.timeout(10000).emit('get-audit-log', opts, (err, resp) => {
+      if (current !== generation) return;
+      status.remove();
+      if (err || !resp || resp.error) {
+        listEl.appendChild(HabitatSurface.line('modals.audit_log.load_failed', () => load(append)));
         loadMoreBtn.style.display = 'none';
         return;
       }
@@ -172,7 +181,7 @@ _setupAuditLog() {
     const all = [];
     let beforeId = 0;
     for (let page = 0; page < 500; page++) {
-      const resp = await new Promise(res => this.socket.emit('get-audit-log', { limit: 200, ...filters(), beforeId }, res));
+      const resp = await this.socket.timeout(10000).emitWithAck('get-audit-log', { limit: 200, ...filters(), beforeId });
       if (!resp || resp.error) throw new Error(resp && resp.error ? resp.error : 'load failed');
       const rows = resp.rows || [];
       all.push(...rows);

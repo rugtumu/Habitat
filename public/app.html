@@ -182,7 +182,7 @@
           <div class="sidebar-split-handle" id="sidebar-split-handle" data-i18n-title="app.actions.drag_to_resize" title="Drag to resize"></div>
           <div class="sidebar-section dm-section-pane" id="dm-pane" data-haven-region="direct-messages">
             <h5 class="section-label dm-section-label dm-toggle" id="dm-toggle-header" style="cursor:pointer;user-select:none"><span class="dm-toggle-arrow" id="dm-toggle-arrow">▾</span><span class="section-label-text" style="flex:1" data-i18n="app.sidebar.direct_messages">Direct Messages</span><span style="display:flex;align-items:center;gap:4px;position:relative;z-index:2"><span class="dm-unread-count" id="dm-unread-badge" style="display:none"></span><button class="icon-btn small" id="new-group-dm-btn" data-i18n-title="groups.new_group" title="New group DM" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">👥</button><button class="icon-btn small" id="dm-sort-btn" data-i18n-title="channels.dm_sort" title="Sort DMs" aria-haspopup="menu" aria-expanded="false" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">⇅</button><button class="icon-btn small" id="organize-dms-btn" data-i18n-title="app.actions.organize_dms" title="Organize DMs" style="font-size:0.85rem;padding:2px 6px;opacity:0.6">📋</button></span></h5>
-            <div class="dm-list-scroll" id="dm-list" role="list" tabindex="0" data-i18n-aria-label="app.sidebar.direct_messages" aria-label="Direct messages"></div>
+            <div class="dm-list-scroll" id="dm-list" role="list" tabindex="0" data-i18n-aria-label="app.sidebar.direct_messages" aria-label="Direct messages"><p class="surface-state" role="status" data-i18n="thread_list.loading">Loading…</p></div>
           </div>
         </div>
         </div>
@@ -767,8 +767,8 @@
             <span data-i18n="header.search_stale">A channel or role you have has changed, please refresh the search to continue.</span>
             <button id="search-rerun-btn" class="btn-secondary small" data-i18n="header.search_refresh">Refresh search</button>
           </div>
-          <div id="search-panel-loading" role="status" class="search-panel-loading" style="display:none">
-            <span class="search-spinner"></span><span data-i18n="header.searching">Searching...</span>
+          <div id="search-panel-loading" role="status" class="surface-state search-panel-loading" style="display:none">
+            <span data-i18n="header.searching">Searching...</span>
           </div>
           <div id="search-panel-list" class="search-panel-list"></div>
           <div id="search-panel-pager" class="search-panel-pager" style="display:none">
@@ -793,7 +793,7 @@
             </div>
             <button id="voice-join-mobile" class="btn-voice mobile-voice-join" style="display:none"><span data-i18n="voice.join">🎤 Join Voice</span></button>
             <div id="voice-users" class="user-list">
-              <p class="muted-text" data-i18n="right_sidebar.no_one_in_voice">No one in voice</p>
+              <p class="surface-state" role="status" data-i18n="right_sidebar.no_one_in_voice">Join voice to appear here.</p>
             </div>
           </div>
         </div>
@@ -809,7 +809,7 @@
             </div>
             <!-- Habitat fork: the member list keeps its name across presence updates. -->
             <div id="online-users" role="list" tabindex="0" data-i18n-aria-label="settings.nav.members" aria-label="Members" class="user-list">
-              <p class="muted-text" data-i18n="right_sidebar.select_channel">Select a channel</p>
+              <p class="surface-state" role="status" data-i18n="right_sidebar.select_channel">Select a channel</p>
             </div>
           </div>
         </div>
@@ -998,10 +998,10 @@
     </div>
     <!-- Habitat fork: loading, empty and failure labels are translated outside the counted reply rows. -->
     <div class="thread-messages" id="thread-messages"></div>
-    <div class="thread-status" role="status" hidden>
+    <div class="thread-status surface-state" role="status">
       <span class="thread-loading" data-i18n="thread_list.loading">Loading…</span>
       <span class="thread-empty" data-i18n="thread_runtime.no_replies">No replies yet.</span>
-      <span class="thread-failed" data-i18n="history.failed">Messages couldn’t load.</span>
+      <span class="thread-failed"><span data-i18n="history.failed">Messages couldn’t load.</span> <button type="button" id="thread-load-retry" data-i18n="history.retry">Retry</button></span>
     </div>
     <div class="thread-jump-wrap">
       <button id="thread-jump-latest" class="jump-to-bottom thread-jump-latest" type="button" data-i18n-title="thread_runtime.jump_latest" title="Jump to the latest reply">
@@ -4673,7 +4673,7 @@
       <h3 data-i18n="settings.admin.invite_links_title">🔗 Invite Links</h3>
       <small class="settings-hint" style="display:block;margin-bottom:8px" data-i18n-html="settings.admin.invite_links_modal_hint">Shareable links that drop people straight into the channels you pick. Share <code>https://your-server/?invite=CODE</code> or <code>/invite/CODE</code>. Private channels are never granted by a link.</small>
       <div id="invite-codes-list" style="overflow-y:auto;flex:1;min-height:60px;display:flex;flex-direction:column;gap:8px;padding-right:2px">
-        <p class="muted-text" style="margin:4px 0;font-size:0.85rem" data-i18n="settings.admin.invite_links_loading">Loading invite links…</p>
+        <p class="surface-state" role="status" data-i18n="settings.admin.invite_links_loading">Loading invite links…</p>
       </div>
       <details id="invite-code-create" style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:10px;flex:none">
         <summary style="cursor:pointer;font-weight:600;font-size:0.9rem" data-i18n="settings.admin.invite_links_create_title">➕ Create a new invite link</summary>
@@ -5471,6 +5471,8 @@
 
   <!-- Habitat fork: members open the app without a desktop download prompt. -->
   <!-- Habitat fork: both pages use the same accessible request and field states. -->
+  <!-- Habitat fork: list requests share accessible feedback and a bounded wait. -->
+  <script src="/js/surface-state.js"></script>
   <script src="/js/form-state.js"></script>
   <!-- Habitat fork: keyboard navigation binds once to each persistent list. -->
   <script src="/js/list-navigation.js"></script>

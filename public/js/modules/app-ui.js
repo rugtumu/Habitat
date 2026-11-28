@@ -121,6 +121,11 @@ _bindSearchAndPins() {
     if (q.length >= min && this.currentChannel) {
       this._searchInputTimer = setTimeout(() => this._searchRun(q), 400);
     } else if (!q) {
+      // Habitat fork: a cleared query cannot reopen on a late reply or deadline.
+      const key = this._searchContextKey();
+      if (key === '__public__') { this._searchNextToken(); clearTimeout(this._searchTimer); }
+      this._searchSetLoading(false);
+      this._searchClearContext(key);
       document.getElementById('search-panel').style.display = 'none';
     }
   });
@@ -132,13 +137,20 @@ _bindSearchAndPins() {
     }
   });
 
+  // Habitat fork: retry the open thread without touching its draft.
+  document.getElementById('thread-load-retry')?.addEventListener('click', () => {
+    if (this._activeThreadParent) this._openThread(this._activeThreadParent);
+  });
+
   // Pinned messages panel
   document.getElementById('pinned-toggle-btn').addEventListener('click', () => {
     const panel = document.getElementById('pinned-panel');
     if (panel.style.display === 'block') {
       panel.style.display = 'none';
     } else if (this.currentChannel) {
-      this.socket.emit('get-pinned-messages', { code: this.currentChannel });
+      // Habitat fork: show the destination before the receipt arrives.
+      panel.style.display = 'block';
+      this._requestPins();
     }
   });
   document.getElementById('pinned-close').addEventListener('click', () => {
@@ -180,7 +192,10 @@ _bindSearchAndPins() {
   if (pinsPipPopin) pinsPipPopin.addEventListener('click', () => {
     // Habitat fork: the panel that holds focus is about to hide.
     this._closePinsPiP?.({ restoreFocus: true });
-    if (this.currentChannel) this.socket.emit('get-pinned-messages', { code: this.currentChannel });
+    if (this.currentChannel) {
+      document.getElementById('pinned-panel').style.display = 'block';
+      this._requestPins();
+    }
   });
 
   // Pins PiP: delegated click handler for the pin list

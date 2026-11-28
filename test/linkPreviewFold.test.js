@@ -11,10 +11,10 @@ const load = (name, globals) => {
   return context.module.exports;
 };
 const globals = {
-  document: { createElement: () => ({ className: '', dataset: {}, style: { setProperty() {} }, set innerHTML(v) {}, querySelector: () => null }), body: { className: 'embed-size-medium' } },
+  document: { createElement: () => ({ className: '', dataset: {}, style: { setProperty() {} }, setAttribute() {}, set innerHTML(v) {}, querySelector: () => null }), body: { className: 'embed-size-medium' } },
   window: { location: { origin: 'https://haven.test' } },
   CSS: { escape: s => s },
-  t: k => k,
+  t: k => k, HabitatSurface: { line: key => ({ textContent: key }) },
   Promise,
 };
 const methods = load('app-link-previews.js', globals);
@@ -34,7 +34,10 @@ const view = (over = {}) => Object.assign(Object.create(methods), {
 }, over);
 const message = urls => {
   const cards = [];
-  const host = { querySelector: () => null, querySelectorAll: () => cards, appendChild: card => cards.push(card) };
+  const host = { querySelector: () => null, querySelectorAll: () => cards, appendChild(card) {
+    cards.push(card);
+    card.replaceWith = replacement => { cards[cards.indexOf(card)] = replacement; };
+  } };
   const links = urls.map(href => ({ href, dataset: {}, closest: () => host }));
   return { cards, container: { querySelectorAll: () => links } };
 };
@@ -77,6 +80,7 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
     querySelectorAll() { return this.card ? [this.card] : []; }, appendChild(card) { this.card = card; } };
   const dom = { ...globals.document, createElement: () => ({
     dataset: {}, style: { setProperty(k, v) { this[k] = v; } }, setAttribute(k, v) { this[k] = v; },
+    removeAttribute(k) { delete this[k]; }, replaceChildren(line) { this.line = line; },
     querySelector() { return this.innerHTML?.includes('class="lp-media"') ? image : null; },
     replaceWith(card) { assert.equal(host.card, this); host.card = card; }, remove() { host.card = null; }
   }) };
@@ -89,7 +93,7 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   app._fetchLinkPreviews(container);
   assert.match(host.card.className, /lp-pending/);
   assert.equal(host.card.style.height, '20rem');
-  assert.equal(host.card['aria-hidden'], 'true');
+  assert.equal(host.card.role, 'status');
   assert.equal(scrolls, 1);
   app._fetchLinkPreviews(container);
   assert.equal(requests, 1);
@@ -108,7 +112,8 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   app._coupledToBottom = false;
   finish(null);
   await settle();
-  assert.equal(host.card, null);
+  assert.equal(host.card.line.textContent, 'surface.preview_empty');
+  host.card = null;
   assert.equal(scrolls, 3, 'a failed preview releases its space without scrolling the reader back');
   app._coupledToBottom = true;
   app._restoredPreviewHeights = () => ({ '42/0/false': { height: 20, width: 80, imageHeight: 120 } });
@@ -125,7 +130,8 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
     host.card = null;
     app._restoredPreviewHeights = () => heights;
     app._fetchLinkPreviews(container);
-    assert.equal(host.card, null, 'an unmeasured link takes no space while pending');
+    assert.equal(host.card.role, 'status');
+    assert.equal(host.card.style.height, undefined, 'an unmeasured link reserves just the status line');
     finish({ title: 'Article' });
     await settle();
     assert.match(host.card.innerHTML, /Article/);

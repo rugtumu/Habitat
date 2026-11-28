@@ -338,14 +338,21 @@ _renderEmojiCropFrame() {
 
 // Replace the built-in picker list with the full Unicode set served by the
 // server. On any failure the hand-curated built-in list stays in place.
+// Habitat fork: refresh only an open picker's current section when a catalog changes.
+_pickerCatalogState(name, state) {
+  (this._pickerCatalogs ||= {})[name] = state;
+  document.getElementById('emoji-picker')?._catalogRefresh?.(name);
+},
+
 async _loadStandardEmojis() {
+  this._pickerCatalogState('StandardEmojis', 'loading');
   try {
     const res = await fetch('/api/standard-emojis', {
-      headers: { 'Authorization': `Bearer ${this.token}` }
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
     });
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
-    if (!data.categories || !Object.keys(data.categories).length) return;
+    if (!data.categories || !Object.keys(data.categories).length) throw new Error('Empty Unicode catalog');
     // Keep Haven's bundled categories (platform icons, and flags, whose
     // :flag_xx: images render on every OS, unlike Unicode's regional-indicator
     // flags) and layer the rest under them.
@@ -361,19 +368,22 @@ async _loadStandardEmojis() {
     if (Array.isArray(data.modifierBase) && data.modifierBase.length) {
       this._emojiModifierBase = new Set(data.modifierBase.map(h => String.fromCodePoint(parseInt(h, 16))));
     }
-  } catch { /* keep the built-in list */ }
+    this._pickerCatalogState('StandardEmojis', 'ready');
+  } catch { this._pickerCatalogState('StandardEmojis', 'failed'); }
 },
 
 async _loadCustomEmojis() {
+  this._pickerCatalogState('CustomEmojis', 'loading');
   try {
     const res = await fetch('/api/emojis', {
-      headers: { 'Authorization': `Bearer ${this.token}` }
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
     });
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
     this.customEmojis = data.emojis || []; // [{name, url}]
     this._renderEmojiList(this.customEmojis);
-  } catch (err) { console.warn('[Emoji] could not load custom emojis', err); }
+    this._pickerCatalogState('CustomEmojis', 'ready');
+  } catch { this._pickerCatalogState('CustomEmojis', 'failed'); }
 },
 
 _renderEmojiList(emojis) {
@@ -419,15 +429,17 @@ _renderEmojiList(emojis) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async _loadStickers() {
+  this._pickerCatalogState('Stickers', 'loading');
   try {
     const res = await fetch('/api/stickers', {
-      headers: { 'Authorization': `Bearer ${this.token}` }
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
     });
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
     this.stickers = data.stickers || [];
     this._renderStickerList(this.stickers);
-  } catch (err) { console.warn('[Stickers] could not load stickers', err); }
+    this._pickerCatalogState('Stickers', 'ready');
+  } catch { this._pickerCatalogState('Stickers', 'failed'); }
 },
 
 _renderStickerList(stickers) {

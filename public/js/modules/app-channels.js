@@ -259,6 +259,12 @@ async switchChannel(code) {
   this._updateThreadsButtonBadge?.();
   // Auto-close pinned panel and Pins PiP on channel switch so stale pins don't linger
   document.getElementById('pinned-panel').style.display = 'none';
+  // Habitat fork: these lists and cached pins belong to the conversation just left.
+  this._lastPins = null;
+  for (const id of ['media-gallery-modal', 'threads-list-modal']) {
+    const modal = document.getElementById(id);
+    if (modal) modal.style.display = 'none';
+  }
   this._closePinsPiP?.();
 
   // Show "Select messages" button for admins/mods on non-DM channels
@@ -335,6 +341,8 @@ async switchChannel(code) {
   this._loadingFuture = false;
   this._historyAfter = null;
 
+  // Habitat fork: entering the channel requests its first member snapshot.
+  this._waitForRoster?.(false, code);
   this.socket.emit('enter-channel', { code });
   // E2E: fetch DM partner's public key BEFORE requesting messages.
   // Must not be allowed to reject: the channel UI is already fully swapped in
@@ -385,6 +393,7 @@ async switchChannel(code) {
   if (!stillViewing) return;
   this.socket.emit('get-channel-members', { code });
   // VOICE panel shows who's in voice in the channel you just opened.
+  this._waitForRoster?.(true, code);
   this.socket.emit('request-voice-users', {
     code,
     iAmInVoice: !!(this.voice && this.voice.inVoice && this.voice.currentChannel === code)
@@ -1454,6 +1463,22 @@ _navigateUnreadChannel(direction) {
 /**
  * Open a Ctrl+K style quick channel/DM switcher overlay.
  */
+// Habitat fork: the inbox uses the channels handshake, including when its empty pane is relocated.
+_dmSnapshotState(pane = document.querySelector('[data-habitat-dm-empty]')) {
+  if (this.channels?.some(channel => channel.is_dm)) return;
+  if (this._channelsListGotResponse) {
+    if (pane) pane.replaceChildren(HabitatSurface.line('surface.dm_empty'));
+    return;
+  }
+  const retry = () => {
+    this._dmSnapshotState();
+    this.socket.emit('get-channels');
+  };
+  for (const host of [document.getElementById('dm-list'), pane]) {
+    HabitatSurface.wait(host, 'surface.dm_failed', retry, this.socket);
+  }
+},
+
 _openQuickSwitcher() {
   // Remove any existing overlay
   document.getElementById('quick-switcher-overlay')?.remove();
@@ -1509,7 +1534,7 @@ _openQuickSwitcher() {
           <span class="qs-name">${this._escapeHtml(c.name)}</span>${mark}
         </div>`;
       }).join('');
-    }).join('') || (q ? `<div class="qs-empty" role="status">${this._escapeHtml(t('channels.quick_switcher_empty'))}</div>` : '');
+    }).join('') || `<div class="surface-state qs-empty" role="status">${this._escapeHtml(t(q ? 'channels.quick_switcher_empty' : 'surface.switch_empty'))}</div>`;
     results.scrollTop = 0;
     results.querySelector('.quick-switcher-item')?.classList.add('selected');
     results.querySelectorAll('.quick-switcher-item').forEach(el => {

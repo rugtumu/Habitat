@@ -3030,6 +3030,16 @@ img.badge-icon[src$="/img/badges/trophy.svg"] { content: var(--hb-badge-trophy);
   background: var(--bg-input); color: var(--text-primary); font-size: var(--hb-text-sm); box-shadow: none;
 }
 
+/* Grid and list placeholders occupy the same text column in both palettes. */
+/* The page mark is on <body>. The doubled class outranks the older
+   per-surface empty rules (.muted-text is italic and 12px) so every state
+   reads the same. */
+[data-haven-page="app"] .surface-state.surface-state {
+  grid-column: 1 / -1; margin: 0; padding: 1.5rem 1rem; color: var(--text-muted);
+  text-align: center; font-size: var(--hb-text-sm); font-style: normal; line-height: 1.5;
+}
+[data-haven-page="app"] .surface-state.surface-state.media-failure { padding: .5rem; }
+.surface-state button { margin-inline-start: .5rem; }
 /* The emoji button occupies the avatar column. Group heads, follow-ups and the reply field
    have the same left inset even as the member changes density. */
 #thread-panel { --thread-face: 2rem; --thread-gap: .75rem; --thread-inset: .75rem; --thread-group-gap: .75rem; }

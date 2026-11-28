@@ -807,7 +807,10 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   const doc = page();
   doc.body.innerHTML = '<div id="thread-panel"><span id="thread-panel-title"></span><span id="thread-parent-preview"></span>' +
     '<div id="thread-messages"></div><textarea id="thread-input"></textarea></div>';
-  const app = load(doc, ['threads', 'socket-events', 'ui'], { localStorage: { getItem: () => null } });
+  let expireThread;
+  const app = load(doc, ['threads', 'socket-events', 'ui'], { localStorage: { getItem: () => null },
+    setTimeout(fn, ms) { if (ms === 15000) expireThread = fn; },
+  });
   const socket = new EventEmitter();
   Object.assign(app, { socket, _autoEmoteWords: text => text });
   app._listenMessageChanges();
@@ -822,7 +825,13 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   const del = messageId => socket.emit('message-deleted', { messageId, channelCode: 'elsewhere' });
   open(1);
   input.value = '  unfinished reply\n';
+  expireThread();
+  const feed = doc.getElementById('thread-messages');
+  assert.equal(feed.getAttribute('aria-busy'), 'false');
+  assert.ok(feed.hasAttribute('data-failed'));
   open('1');
+  assert.equal(feed.getAttribute('aria-busy'), 'true');
+  assert.ok(!feed.hasAttribute('data-failed'));
   assert.equal(input.value, '  unfinished reply\n');
   open(2);
   assert.equal(input.value, '');
@@ -888,7 +897,7 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   assert.equal(input.value, '42');
 });
 
-function profileEditor() {
+function profileEditor(globals = {}) {
   const doc = page();
   doc.body.innerHTML = '<div id="rename-modal"><input id="rename-input"><textarea id="edit-profile-bio"></textarea>' +
     '<input id="edit-profile-birthday"><input id="edit-profile-birthday-hidden"><input id="edit-profile-birthday-hide-year">' +
@@ -903,14 +912,14 @@ function profileEditor() {
   const timers = new Map();
   const context = { document: doc, t, setTimeout(fn, ms) { timers.set(fn, ms); return fn; }, clearTimeout(fn) { timers.delete(fn); } };
   const HabitatForm = vm.runInNewContext(read('public/js/form-state.js') + '\nHabitatForm', context);
-  const app = load(doc, ['people', 'socket-channels', 'socket-events', 'avatar-editor'], { HabitatForm, localStorage: { setItem() {} } });
+  const app = load(doc, ['people', 'socket-channels', 'socket-events', 'avatar-editor'], { HabitatForm, localStorage: { setItem() {} }, ...globals });
   const socket = new EventEmitter();
   socket.connected = true;
   const sent = [], notices = [];
   const theme = { top: '#abcdef', bottom: '#124578' };
   Object.assign(app, {
     socket, user: { username: 'Ada', bio: 'from second session', roles: [{ id: 5, level: 0 }], profileTheme: theme },
-    _bioOpened: 'old bio', _pendingBannerColor: null, _pendingProfileTheme: { bottom: theme.bottom, top: theme.top },
+    _pendingBannerColor: null, _pendingProfileTheme: { bottom: theme.bottom, top: theme.top },
     _showToast: (...args) => notices.push(args), _renderUserBarAvatar() {}, _commitBorderDraft() {},
     _commitBannerPicture() { sent.push('avatar settings'); }, _renderUserProfileGroupsList() {},
     _hasGlobalPerm: () => false, _hasAnyAdminSettingsAccess: () => false, _safeHexColor: c => c,
@@ -953,20 +962,19 @@ test('profile save skips known values and waits for each changed field and group
     return new Promise(resolve => { ack = resolve; });
   } });
   const save = app._saveRename();
-  for (const [event, receipt, data] of [
+  assert.deepEqual(sent, ['rename-user', 'set-bio', 'set-birthday', 'set-banner-color', 'set-profile-theme', 'update-groups', 'avatar settings']);
+  assert.deepEqual([...timers.values()], Array(5).fill(8000));
+  for (const [, receipt, data] of [
     ['rename-user', 'renamed', { user: { displayName: 'Ada Lovelace' } }],
     ['set-bio', 'bio-updated', { bio: 'changed bio' }],
     ['set-birthday', 'birthday-updated', { birthdayHidden: true }],
     ['set-banner-color', 'banner-color-updated', { color: '#123456' }],
     ['set-profile-theme', 'profile-theme-updated', { theme: null }],
   ]) {
-    assert.equal(sent.at(-1), event);
-    assert.deepEqual([...timers.values()], [8000]);
     assert.equal(button.disabled, true);
     socket.emit(receipt, data);
     await new Promise(setImmediate);
   }
-  assert.equal(sent.at(-1), 'update-groups');
   assert.equal(button.disabled, true);
   ack({ groups: [] });
   await save;
@@ -977,6 +985,89 @@ test('profile save skips known values and waits for each changed field and group
   assert.equal(timers.size, 0);
   assert.equal(socket.listenerCount('disconnect'), 0);
   assert.equal(socket.listenerCount('error-msg'), 1);
+});
+
+test('profile receipts can finish during avatar upload and the avatar event waits for its URL', async () => {
+  let finishUpload;
+  const { app, socket, field, button, modal } = profileEditor({
+    FormData,
+    fetch(url) {
+      assert.equal(url, '/api/upload-avatar');
+      return new Promise(resolve => { finishUpload = resolve; });
+    },
+  });
+  const urls = [];
+  socket.on('set-avatar', data => urls.push(data.url));
+  app._pendingAvatarFile = new Blob(['picture']);
+  app._pendingAvatarColor = async () => null;
+  app._resetAvatarEditState = () => {};
+  field('edit-profile-bio').value = 'Updated bio';
+  const save = app._saveRename();
+  await new Promise(setImmediate);
+  assert.equal(typeof finishUpload, 'function');
+  socket.emit('bio-updated', { bio: 'Updated bio' });
+  assert.equal(button.disabled, true);
+  assert.deepEqual(urls, []);
+  finishUpload({ ok: true, json: async () => ({ url: '/uploads/avatar.jpg' }) });
+  await save;
+  assert.deepEqual(urls, ['/uploads/avatar.jpg']);
+  assert.equal(modal.style.display, 'none');
+});
+
+test('silent birthday no-ops refresh both privacy flags and a first date once', async () => {
+  for (const birthday of ['', '2000-11-28']) {
+    const { app, field, timers, sent, notices, modal } = profileEditor();
+    field('edit-profile-birthday').value = birthday;
+    field('edit-profile-birthday-hidden').checked = true;
+    field('edit-profile-birthday-hide-year').checked = false;
+    const save = app._saveRename();
+    for (const expire of [...timers.keys()]) expire();
+    await save;
+    assert.equal(app.user.birthday || '', birthday);
+    assert.equal(app.user.birthdayHidden, true);
+    assert.equal(app.user.birthdayHideYear, false);
+    assert.equal(modal.style.display, 'none');
+    modal.style.display = 'flex';
+    await app._saveRename();
+    assert.equal(sent.filter(event => event === 'set-birthday').length, 1);
+    assert.deepEqual(notices, []);
+  }
+});
+
+test('one deadline settles five silent fields while a refused birthday stays an error', async () => {
+  const { app, field, socket, timers, notices, modal } = profileEditor();
+  field('rename-input').value = 'Changed';
+  field('edit-profile-bio').value = 'Updated';
+  field('edit-profile-birthday').value = '2000-11-28';
+  app._pendingBannerColor = '#123456';
+  app._pendingProfileTheme = null;
+  const save = app._saveRename();
+  assert.equal(timers.size, 5);
+  socket.emit('error-msg', 'Your birthday can only be set once.');
+  for (const expire of [...timers.keys()]) expire();
+  await save;
+  assert.equal(modal.style.display, 'flex');
+  assert.equal(field('edit-profile-birthday-error').textContent, 'Your birthday can only be set once.');
+  assert.equal(app.user.birthday, undefined);
+  assert.deepEqual(notices, [[t('surface.profile_unconfirmed'), 'error']]);
+});
+
+test('a late bio receipt allows saving the opening text again', async () => {
+  const { app, field, socket, timers, sent } = profileEditor();
+  const bio = field('edit-profile-bio');
+  const opening = app.user.bio;
+  app._bioOpened = opening; // Opening snapshot used by clients before this fix.
+  bio.value = 'Later';
+  let save = app._saveRename();
+  for (const expire of [...timers.keys()]) expire();
+  await save;
+  socket.emit('bio-updated', { bio: 'Later' });
+  bio.value = opening;
+  save = app._saveRename();
+  assert.equal(sent.filter(event => event === 'set-bio').length, 2);
+  socket.emit('bio-updated', { bio: opening });
+  await save;
+  assert.equal(app.user.bio, opening);
 });
 
 test('server refusals preserve the name and bio and unrelated errors keep their ordinary notices', async () => {
@@ -1007,6 +1098,19 @@ test('server refusals preserve the name and bio and unrelated errors keep their 
   assert.equal(field('edit-profile-bio-error').textContent, 'Profile verdict');
   assert.deepEqual(notices, ['Slow mode: wait 5s before sending another message', 'Chat verdict',
     'A second unrelated error', 'Group refused.'].map(message => [message, 'error']));
+});
+
+test('a shared profile verdict follows the missing receipt when both text fields are pending', async () => {
+  const { app, socket, field } = profileEditor();
+  field('rename-input').value = 'Accepted Name';
+  field('edit-profile-bio').value = 'refused bio';
+  const saving = app._saveRename();
+  socket.emit('automod-refused', { surface: 'profile' });
+  socket.emit('error-msg', 'Profile verdict');
+  socket.emit('renamed', { user: { displayName: 'Accepted Name' } });
+  await saving;
+  assert.equal(field('edit-profile-bio-error').textContent, 'Profile verdict');
+  assert.equal(field('rename-input-error'), null);
 });
 
 test('untagged preview automod is a bio refusal and a shared flood warning is a general error', async () => {
