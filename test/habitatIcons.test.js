@@ -199,3 +199,17 @@ test('the server banner cannot sit behind message text at full strength', () => 
   assert.ok(dim > 0 && dim <= 0.35, `the picture is drawn at ${dim}`);
   assert.match(rules.join('\n'), /mask-image:\s*linear-gradient\(to bottom,[^)]*transparent/);
 });
+
+test('the default profile geometry and action row leave member themes and hover previews alone', () => {
+  const theme = themeSource('habitat-grafit.theme.css');
+  const section = theme.slice(theme.indexOf('/* Both kinds of default card'), theme.indexOf('/* ── Voice'));
+  const rules = [...section.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  assert.ok(rules.length >= 9);
+  for (const [, selector] of rules) assert.match(selector, /\.profile-popup:not\(\.has-profile-theme/);
+  assert.match(section, /\.profile-popup-banner \{ height: 6rem/);
+  assert.match(section, /--face-size: 5rem[\s\S]*?margin-block-start: calc\(var\(--face-size\) \/ -2\)/);
+  assert.match(section, /:not\(\.has-profile-theme\):not\(\.profile-popup-hover\) \.profile-popup-actions/);
+  // The main action keeps its word on one line; the rest are square marks.
+  assert.match(section, /\.profile-popup-action-btn\.profile-dm-btn \{\s*flex: 1 1 auto;/);
+  assert.match(section, /\.profile-popup-action-btn\[hidden\] \{ display: none; \}/);
+});

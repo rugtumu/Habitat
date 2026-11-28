@@ -14,7 +14,8 @@ const SETTINGS_PAGES = {
     ['server', '🏠', 'settings.pages.server_channels', 'Server & channels', ['section-branding', 'section-channel-types', 'section-presence', 'section-custom-tos', 'section-modmode']],
     ['people', '👥', 'settings.pages.people_safety', 'People & safety', ['section-members', 'section-roles', 'section-badges', 'section-moderation', 'section-security', 'section-automod', 'section-whitelist', 'section-invite', 'section-guests', 'section-audit-log']],
     ['content', '😎', 'settings.pages.content_integrations', 'Content & integrations', ['section-emojis', 'section-stickers', 'section-gifs', 'section-sounds-admin', 'section-uploads', 'section-tags-admin', 'section-bots', 'section-ferry', 'section-import']],
-    ['network', '🛠️', 'settings.pages.operations', 'Operations', ['section-update', 'section-extension-updates', 'section-connectivity', 'section-privacy', 'section-large-server', 'section-tunnel', 'section-backup', 'section-template', 'section-cleanup']]
+    // Habitat fork: release preferences stay on Operations for delegated managers.
+    ['network', '🛠️', 'settings.pages.operations', 'Operations', ['section-update', 'section-update-preferences', 'section-extension-updates', 'section-connectivity', 'section-privacy', 'section-large-server', 'section-tunnel', 'section-backup', 'section-template', 'section-cleanup']]
   ]
 };
 export default {

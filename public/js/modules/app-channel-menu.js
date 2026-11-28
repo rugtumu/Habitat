@@ -216,41 +216,17 @@ _bindChannelMenu() {
     this._closeChannelCtxMenu();
     this._leaveVoice();
   });
-  // Channel Functions panel toggle: sideways popout
+  // Habitat fork: disclose channel functions below their trigger.
   document.querySelector('[data-action="channel-functions"]')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const panel = document.getElementById('channel-functions-panel');
     if (!panel) return;
     const isHidden = panel.style.display === 'none' || panel.style.display === '';
-    if (isHidden) {
-      panel.style.display = 'block';
-      // Position the panel to the right of the context menu
-      const menu = this._ctxMenuEl;
-      if (menu) {
-        const menuRect = menu.getBoundingClientRect();
-        const btnRect = e.currentTarget.getBoundingClientRect();
-        let left = menuRect.right + 4;
-        let top = btnRect.top;
-        // Show on screen, measure, then adjust
-        panel.style.left = left + 'px';
-        panel.style.top = top + 'px';
-        requestAnimationFrame(() => {
-          const pr = panel.getBoundingClientRect();
-          // If it overflows right, flip to the left side
-          if (pr.right > window.innerWidth - 8) {
-            left = menuRect.left - pr.width - 4;
-          }
-          // If it overflows bottom, nudge up
-          if (pr.bottom > window.innerHeight - 8) {
-            top = Math.max(4, window.innerHeight - pr.height - 8);
-          }
-          panel.style.left = left + 'px';
-          panel.style.top = top + 'px';
-        });
-      }
-    } else {
-      panel.style.display = 'none';
-    }
+    // Habitat fork: keep the switches in the menu's scroll area, including on phones.
+    panel.style.display = isHidden ? 'block' : 'none';
+    e.currentTarget.setAttribute('aria-expanded', String(isHidden));
+    e.currentTarget.querySelector('.cfn-arrow').textContent = isHidden ? '▼' : '▶';
+    this._fitCtxMenu(this._ctxMenuEl, this._ctxMenuEl._anchorEl.getBoundingClientRect());
   });
   // Channel Functions panel: row clicks
   document.getElementById('channel-functions-panel')?.addEventListener('click', (e) => {
@@ -321,7 +297,7 @@ _bindChannelMenu() {
       optimistic({ is_nsfw: newVal });
       this.socket.emit('toggle-channel-permission', { code, permission: 'nsfw' });
     } else if (fn === 'forum-tags') {
-      document.getElementById('channel-functions-panel').style.display = 'none';
+      this._closeChannelCtxMenu();
       this._forumEditTags?.(code);
     } else if (fn === 'forum-blog') {
       // Blog mode (#5742). Everyone viewing the forum redraws when the
@@ -334,7 +310,7 @@ _bindChannelMenu() {
       optimistic({ forum_blog_pics_only: newVal });
       this.socket.emit('toggle-channel-permission', { code, permission: 'forum_blog_pics_only' });
     } else if (fn === 'forum-votes') {
-      document.getElementById('channel-functions-panel').style.display = 'none';
+      this._closeChannelCtxMenu();
       this._forumVotesEdit?.(code);
     } else if (fn === 'slow-mode') {
       const badge = row.querySelector('.cfn-badge');

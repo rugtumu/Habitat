@@ -29,6 +29,68 @@ html[data-habitat-boot] :is(#fx-layers, #status-bar-toggle, #sidebar-toggle-btn,
   visibility: hidden;
 }
 
+/* Habitat fork: paint in the reserved shell, including Welcome while history is pending.
+   Only the empty pseudo-elements are visible over the concealed conversation. */
+html[data-habitat-boot] [data-haven-region="welcome"] { position: relative; }
+html[data-habitat-boot] [data-haven-region="channel-header"]::before,
+html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="message-area"])::before,
+html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="message-area"])::after,
+html[data-habitat-boot="desktop"] [data-haven-region="navigation-sidebar"]::before {
+  content: "";
+  position: absolute;
+  visibility: visible;
+  pointer-events: none;
+  --boot-line: linear-gradient(var(--bg-hover), var(--bg-hover));
+  --boot-face: radial-gradient(circle closest-side, var(--bg-active) 98%, transparent);
+}
+html[data-habitat-boot] [data-haven-region="channel-header"]::before {
+  inset-inline-start: 1rem;
+  width: min(8rem, 50%);
+  height: .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="message-area"])::before {
+  inset: auto 1.5rem calc(6rem + env(safe-area-inset-bottom, 0rem));
+  height: 11rem;
+  background:
+    var(--boot-face) left top / 2.5rem 2.5rem,
+    var(--boot-line) 3.5rem .25rem / 22% .75rem,
+    var(--boot-line) 3.5rem 1.5rem / 58% .5rem,
+    var(--boot-line) 3.5rem 2.5rem / 40% .5rem,
+    var(--boot-face) left 4rem / 2.5rem 2.5rem,
+    var(--boot-line) 3.5rem 4.25rem / 16% .75rem,
+    var(--boot-line) 3.5rem 5.5rem / 45% .5rem,
+    var(--boot-face) left 8rem / 2.5rem 2.5rem,
+    var(--boot-line) 3.5rem 8.25rem / 24% .75rem,
+    var(--boot-line) 3.5rem 9.5rem / 55% .5rem,
+    var(--boot-line) 3.5rem 10.5rem / 32% .5rem;
+  background-repeat: no-repeat;
+}
+html[data-habitat-boot] :is([data-haven-region="welcome"], [data-haven-region="message-area"])::after {
+  inset: auto 1rem calc(1.5rem + env(safe-area-inset-bottom, 0rem));
+  height: 3rem;
+  border: 1px solid var(--bg-active);
+  border-radius: var(--radius);
+}
+@media (min-width: 901px) {
+  html[data-habitat-boot="desktop"] [data-haven-region="navigation-sidebar"]::before {
+    inset: 0 1rem;
+    background:
+      var(--boot-line) left 12rem / 60% .75rem,
+      var(--boot-line) left 14.25rem / 45% .75rem,
+      var(--boot-line) left 16.5rem / 70% .75rem,
+      var(--boot-line) left 18.75rem / 52% .75rem,
+      var(--boot-face) left bottom .75rem / 2rem 2rem,
+      var(--boot-line) left 2.5rem bottom 2rem / 42% .5rem,
+      var(--boot-line) left 2.5rem bottom 1rem / 28% .5rem;
+    background-repeat: no-repeat;
+  }
+}
+@media (max-width: 768px) {
+  html[data-habitat-boot] [data-haven-region="channel-header"]::before { inset-inline-start: 3.5rem; }
+}
+
 /* ── Left Sidebar ──────────────────────────────────────── */
 
 .sidebar {

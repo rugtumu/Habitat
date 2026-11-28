@@ -101,8 +101,9 @@ badge run `node scripts/habitat-icons.js`; never edit between the
 - The page opens straight into Habitat. `public/js/theme-init.js` marks the
   root with `data-habitat-boot` before first paint when Habitat is the saved
   layout; the regions the layout moves stay out of sight until the plugin
-  stamps `data-habitat-layout`, and the mark expires after three seconds so
-  a failed plugin never leaves the page hidden. A returning member lands in
+  stamps `data-habitat-layout`. Static CSS placeholders paint the header, recent
+  messages and composer during that interval. Desktop also shows channel rows and
+  the account bar. The mark expires after three seconds if the plugin fails. A returning member lands in
   the last conversation saved in `habitat_last_conversation_<userId>` once
   the tab is visible. DMs follow the member’s opening preference. Opening a
   conversation marks it read, so a new device starts at Welcome. The message list carries

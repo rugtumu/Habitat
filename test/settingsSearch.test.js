@@ -99,3 +99,15 @@ test('Privacy & delivery is admin-only in Operations and in matching search resu
     }
   }
 });
+
+test('Manage Server can find release preferences while the update and shutdown controls stay admin-only', () => {
+  for (const user of [{ permissions: [] }, { permissions: ['manage_server'] }, { isAdmin: true, permissions: [] }]) {
+    const allowed = !!user.isAdmin || user.permissions.includes('manage_server');
+    const r = search('Early access updates', user);
+    const id = 'section-update-preferences';
+    assert.equal(r.navItem(id).style.display !== 'none', allowed);
+    assert.equal(r.unit(id).style.display !== 'none' && !hidden(r.unit(id)), allowed);
+    assert.equal(r.unit('section-update').style.display !== 'none', !!user.isAdmin);
+    assert.equal(r.navItem('section-update').style.display !== 'none', !!user.isAdmin);
+  }
+});

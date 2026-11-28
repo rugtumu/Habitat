@@ -1601,6 +1601,7 @@ test('on a desktop the call buttons stay docked in the sidebar footer', () => {
 
 test('a click on someone under a voice room opens their profile, and the card carries their volume', () => {
   const { doc } = buildApp();
+  window.t = key => key;
   const asked = [];
   const volumes = new Map();
   const applied = [];
@@ -1642,6 +1643,12 @@ test('a click on someone under a voice room opens their profile, and the card ca
   assert.ok(tools, 'someone in a voice room gets the volume row');
   assert.equal(tools.nextSibling, theirs.querySelector('.profile-popup-actions'), 'above the card\'s own buttons');
   assert.ok(window.app.placed, 'the taller card is placed again');
+  const volumeButton = theirs.querySelector('[data-habitat-profile-action="volume"]');
+  assert.equal(volumeButton.getAttribute('aria-expanded'), 'true');
+  volumeButton.click();
+  assert.equal(tools.hidden, true);
+  volumeButton.click();
+  assert.equal(tools.hidden, false);
   const slider = tools.querySelector('input');
   const mute = tools.querySelector('button');
   assert.equal(slider.value, '100');
@@ -1657,6 +1664,15 @@ test('a click on someone under a voice room opens their profile, and the card ca
   FakeMutationObserver.notify(doc.body);
   assert.equal(theirs.querySelectorAll('[data-habitat-voice-tools]').length, 1, 'drawn once');
 
+  window.app.voiceChannelUsers = {};
+  FakeMutationObserver.notify(list);
+  assert.equal(theirs.querySelector('[data-habitat-voice-tools]'), null);
+  assert.equal(volumeButton.hidden, true);
+  window.app.voiceChannelUsers = { lobi: [{ id: 2 }] };
+  FakeMutationObserver.notify(list);
+  assert.equal(volumeButton.hidden, false);
+  assert.ok(theirs.querySelector('[data-habitat-voice-tools]'));
+
   // Your own card, and the card of someone who is not in a voice room, stay as they are.
   theirs.remove();
   for (const id of [1, 5]) {
@@ -1666,7 +1682,16 @@ test('a click on someone under a voice room opens their profile, and the card ca
     assert.equal(plain.querySelector('[data-habitat-voice-tools]'), null);
     plain.remove();
   }
+  const custom = card(5);
+  custom.setAttribute('class', 'profile-popup has-profile-theme');
+  doc.body.appendChild(custom);
+  FakeMutationObserver.notify(doc.body);
+  assert.equal(custom.querySelector('[data-habitat-profile-action]'), null);
+  custom.remove();
+  doc.body.appendChild(theirs);
   layout.stop();
+  assert.equal(theirs.querySelector('[data-habitat-profile-action]'), null);
+  assert.equal(theirs.querySelector('[data-habitat-voice-tools]'), null);
   assert.equal(list.listenerCount(), 0);
 });
 
@@ -2070,4 +2095,39 @@ test('toast clearance follows multiline input, a docked call bar and the keyboar
   plugin.stop();
   assert.equal(observed.size, 0);
   assert.equal(toast.style.getPropertyValue(property), '1rem');
+});
+
+test('a personal profile note reopens for the same account and can be cleared', async t => {
+  const { doc } = buildApp();
+  const saved = new Map();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key),
+  } });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else delete globalThis.localStorage;
+  });
+  window.t = key => key;
+  const prompts = [];
+  let answer = 'Lunch on Tuesday';
+  const card = el(doc, 'div', {}, [el(doc, 'div', { class: 'profile-popup-actions' })]);
+  const layout = new HabitatLayout();
+  Object.assign(window.app, { user: { id: 2 }, _closeProfilePopup() {},
+    _showPromptModal(label, hint, value) { prompts.push(value); return answer; },
+  });
+  layout._profileActions(card, 5, false);
+  const note = card.querySelector('[data-habitat-profile-action="note"]');
+  note.click();
+  await Promise.resolve();
+  window.app.user = { id: 3 };
+  answer = null;
+  note.click();
+  await Promise.resolve();
+  window.app.user = { id: 2 };
+  answer = '';
+  note.click();
+  await Promise.resolve();
+  assert.deepEqual(prompts, ['', '', 'Lunch on Tuesday']);
+  assert.equal(saved.size, 0);
 });

@@ -4,7 +4,9 @@ export default {
 
 _showUserContextMenu(e, targetUserId, targetNameOverride) {
   this._hideUserContextMenu();
-  this._closeProfilePopup();
+  // Habitat fork: a profile gear keeps its card beneath the menu for Escape.
+  const profileGear = e.target.closest('.profile-popup');
+  if (!profileGear) this._closeProfilePopup();
 
   const menu = document.createElement('div');
   menu.id = 'user-context-menu';
@@ -28,6 +30,7 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
     if (danger) btn.classList.add('user-ctx-danger');
     btn.addEventListener('click', onClick);
     menu.appendChild(btn);
+    return btn;
   };
   const addDivider = () => {
     const div = document.createElement('div');
@@ -41,13 +44,14 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
   addBtn(`👤 ${t('context.view_profile')}`, () => {
     this._hideUserContextMenu();
     this._isHoverPopup = false;
-    this._profilePopupAnchor = e.target.closest('.user-item') || e.target;
+    if (!profileGear) this._profilePopupAnchor = e.target.closest('.user-item') || e.target;
     this.socket.emit('get-user-profile', { userId: targetUserId });
   });
 
   // Only the admin can open this menu on themselves, and all it offers them
   // besides their profile is their own roles. The rest targets other people.
   if (targetUserId === this.user?.id) {
+    addDivider();
     addBtn(`👑 ${t('users.gear_menu.role_management')}`, () => {
       this._hideUserContextMenu();
       this._openRoleAssignCenter(targetUserId);
@@ -67,6 +71,20 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
     this._showToast(t('users.opening_dm', { name: targetName }), 'info');
   });
 
+  // Habitat fork: personal actions come before channel and moderation tools.
+  const _mutedForMe = this._mutedUserIds?.().has(Number(targetUserId));
+  const mute = addBtn(`${_mutedForMe ? '🔔' : '🔕'} ${t(_mutedForMe ? 'mute.unmute_member' : 'mute.mute_member')}`, () => {
+    this._hideUserContextMenu();
+    this._toggleUserMute(targetUserId, targetName);
+  });
+  mute.setAttribute('aria-checked', String(!!_mutedForMe));
+
+  // Set Nickname
+  addBtn(`🏷️ ${t('users.set_nickname')}`, () => {
+    this._hideUserContextMenu();
+    this._showNicknameDialog(targetUserId, targetName, targetName);
+  });
+
   // Invite to Channel (submenu)
   // Private channels are excluded for non-admins: regular members can't bypass
   // the code requirement by using the right-click invite menu.
@@ -81,6 +99,7 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
     ((!ch.is_private && ch.code_visibility !== 'private') || this.user?.isAdmin || ch.canInvitePrivate)
   );
   if (inviteChannels.length > 0) {
+    addDivider();
     const inviteItem = document.createElement('div');
     inviteItem.className = 'user-ctx-submenu-wrapper';
     const inviteBtn = document.createElement('button');
@@ -103,27 +122,19 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
       });
       submenu.appendChild(chBtn);
     }
-    // Flip submenu left if it would overflow viewport right edge
-    inviteItem.addEventListener('mouseenter', () => {
-      const wrapRect = inviteItem.getBoundingClientRect();
-      const submenuWidth = Math.max(submenu.scrollWidth || 0, 180);
-      if (wrapRect.right + submenuWidth > window.innerWidth) {
-        submenu.style.left = 'auto';
-        submenu.style.right = '100%';
-      } else {
-        submenu.style.left = '100%';
-        submenu.style.right = 'auto';
-      }
-    });
+    // Habitat fork: expand inside the scrolling menu so touch and keyboard can reach every channel.
+    inviteBtn.setAttribute('aria-expanded', 'false');
+    const expand = open => {
+      inviteBtn.setAttribute('aria-expanded', String(open));
+      submenu.style.display = open ? 'block' : 'none';
+      this._fitCtxMenu(menu, { top: e.clientY });
+    };
+    inviteBtn.addEventListener('click', () => expand(inviteBtn.getAttribute('aria-expanded') !== 'true'));
+    inviteItem.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') expand(true); });
+    inviteItem.addEventListener('pointerleave', () => { if (!submenu.contains(document.activeElement)) expand(false); });
     inviteItem.appendChild(submenu);
     menu.appendChild(inviteItem);
   }
-
-  // Set Nickname
-  addBtn(`🏷️ ${t('users.set_nickname')}`, () => {
-    this._hideUserContextMenu();
-    this._showNicknameDialog(targetUserId, targetName, targetName);
-  });
 
   // ── Moderation sections: same gating the old gear menu used ──
   const isAdmin = this.user.isAdmin;
@@ -143,11 +154,16 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
   );
   const canAddToChannel = (canMod || canPromote || canBan) && addToChannelList.length > 0 && targetUserId !== this.user?.id;
 
+  if (canAddToChannel) addBtn(`➕ ${t('users.gear_menu.add_to_channel')}`, () => {
+    this._hideUserContextMenu();
+    this._openMemberChannelPicker(targetUserId, targetName, 'add', addToChannelList);
+  });
+
   // Hand-given badges (#5632); the server checks rank.
   const canBadge = this._canManageBadges();
 
   // ── Section 2: role / channel management ──
-  if (canPromote || canAddToChannel || canBadge) {
+  if (canPromote || canBadge) {
     addDivider();
     if (canPromote) addBtn(`👑 ${t('users.gear_menu.role_management')}`, () => {
       this._hideUserContextMenu();
@@ -157,19 +173,6 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
       this._hideUserContextMenu();
       this._openMemberBadges(targetUserId, targetName);
     });
-    if (canAddToChannel) addBtn(`➕ ${t('users.gear_menu.add_to_channel')}`, () => {
-      this._hideUserContextMenu();
-      this._openMemberChannelPicker(targetUserId, targetName, 'add', addToChannelList);
-    });
-  }
-
-  // Mute for me: their messages stop notifying you (app-server-mute.js).
-  if (targetUserId !== this.user?.id) {
-    const _mutedForMe = this._mutedUserIds?.().has(Number(targetUserId));
-    addBtn(`${_mutedForMe ? '🔔' : '🔕'} ${t(_mutedForMe ? 'mute.unmute_member' : 'mute.mute_member')}`, () => {
-      this._hideUserContextMenu();
-      this._toggleUserMute(targetUserId, targetName);
-    });
   }
 
   // ── Section 3: moderation (kick / mute / ban / delete / transfer) ──
@@ -178,28 +181,28 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
   const canResetPassword = isAdmin && this.serverSettings?.admin_password_reset_enabled === 'true' && targetUserId !== this.user?.id;
   if (canMod || canBan || isAdmin) {
     addDivider();
-    if (canMod) addBtn(`👢 ${t('users.gear_menu.kick')}`, () => {
+    // Moderation history (#5759): a warning with a reason, notes, and the
+    // record of everything done to this member.
+    if ((canMod || canBan || this._hasPerm('view_audit_log')) && targetUserId !== this.user?.id) addBtn(`📋 ${t('mod_cases.history')}`, () => {
       this._hideUserContextMenu();
-      this._showAdminActionModal('kick', targetUserId, targetName);
-    });
-    if (canMod) addBtn(`⏳ ${t('users.gear_menu.mute')}`, () => {
-      this._hideUserContextMenu();
-      this._showAdminActionModal('mute', targetUserId, targetName);
+      this._openModHistory(targetUserId, targetName);
     });
     if (canMod) addBtn(`⌛ ${t('users.gear_menu.unmute')}`, () => {
       this._hideUserContextMenu();
       this.socket.emit('unmute-user', { userId: targetUserId });
     });
-    // Moderation history (#5759): a warning with a reason, notes, and the
-    // record of everything done to this member.
     if ((canMod || canBan) && targetUserId !== this.user?.id) addBtn(`⚠️ ${t('mod_cases.warn')}`, () => {
       this._hideUserContextMenu();
       this._openWarnDialog(targetUserId, targetName);
     });
-    if ((canMod || canBan || this._hasPerm('view_audit_log')) && targetUserId !== this.user?.id) addBtn(`📋 ${t('mod_cases.history')}`, () => {
+    if (canMod) addBtn(`👢 ${t('users.gear_menu.kick')}`, () => {
       this._hideUserContextMenu();
-      this._openModHistory(targetUserId, targetName);
-    });
+      this._showAdminActionModal('kick', targetUserId, targetName);
+    }, true);
+    if (canMod) addBtn(`⏳ ${t('users.gear_menu.mute')}`, () => {
+      this._hideUserContextMenu();
+      this._showAdminActionModal('mute', targetUserId, targetName);
+    }, true);
     if (canBan) addBtn(`⛔ ${t('users.gear_menu.ban')}`, () => {
       this._hideUserContextMenu();
       this._showAdminActionModal('ban', targetUserId, targetName);
@@ -223,26 +226,31 @@ _placeUserContextMenu(menu, e) {
   menu.style.top = e.clientY + 'px';
   document.body.appendChild(menu);
 
-  // Clamp to viewport
-  const rect = menu.getBoundingClientRect();
-  if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
-  if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+  // Habitat fork: preserve the opener when the pointer lands on an icon inside a row.
+  this._focusContextMenu(menu, e.target.closest('button, .user-item, .message-author, .message-avatar, .message-avatar-img') || e.target);
+  this._fitCtxMenu(menu, { top: e.clientY });
 
   // Close on click elsewhere
   const closer = (ev) => {
     if (!menu.contains(ev.target)) {
       this._hideUserContextMenu();
-      document.removeEventListener('click', closer, true);
-      document.removeEventListener('contextmenu', closer, true);
     }
   };
+  this._userContextCloser = closer;
   setTimeout(() => {
+    if (!menu.isConnected) return;
     document.addEventListener('click', closer, true);
     document.addEventListener('contextmenu', closer, true);
   }, 0);
 },
 
 _hideUserContextMenu() {
+  // Habitat fork: Escape can dismiss the menu without an outside click.
+  if (this._userContextCloser) {
+    document.removeEventListener('click', this._userContextCloser, true);
+    document.removeEventListener('contextmenu', this._userContextCloser, true);
+    this._userContextCloser = null;
+  }
   const existing = document.getElementById('user-context-menu');
   if (existing) existing.remove();
 },

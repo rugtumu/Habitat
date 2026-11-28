@@ -84,7 +84,7 @@ test('each moved control has one home and its original ID-based consumer', () =>
     ['content-privacy', 'context', ['hide-nsfw-channels', 'blur-nsfw-topics']],
     ['call-settings', 'context', ['auto-accept-streams', 'hide-voice-panel', 'sidebar-voice-controls', 'notif-voice-action-cues-enabled']],
     ['call-settings', 'media', ['pref-voice-mute-on-join', 'pref-voice-listener-only']],
-    ['update', 'admin', ['update-banner-admin-only', 'update-channel-early']],
+    ['update-preferences', 'admin', ['update-banner-admin-only', 'update-channel-early']],
     ['channel-types', 'admin', ['category-layout-tabs', 'hide-disabled-badges']],
     ['connectivity', 'moderation', ['voice-force-relay']],
     ['privacy', 'admin', ['referrer-policy-select']],

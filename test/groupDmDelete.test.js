@@ -32,9 +32,11 @@ const CODE = 'bbbbbbbb';
 /** Menu buttons and an app whose server answers the roster with `members`. */
 function setup({ members, cached, confirmed = true, admin = false }) {
   const buttons = Object.fromEntries(['dm-mute', 'dm-mark-read', 'dm-group-add', 'dm-group-leave', 'dm-group-delete', 'dm-group-delete-all', 'dm-delete']
-    .map((a) => [a, { style: { display: 'none' }, textContent: '' }]));
+    .map((a) => [a, { style: { display: 'none' }, textContent: '', setAttribute(k, v) { this[k] = v; } }]));
   const menu = {
     style: {},
+    offsetWidth: 240,
+    get offsetHeight() { return buttons['dm-group-delete'].style.display === 'none' ? 160 : 196; },
     querySelector: (sel) => buttons[(sel.match(/data-action="([^"]+)"/) || [])[1]] || null,
     querySelectorAll: (sel) => [...sel.matchAll(/data-action="([^"]+)"/g)].map((m) => buttons[m[1]]),
     getBoundingClientRect: () => ({ right: 0, bottom: 0, width: 0, height: 0, top: 0 }),
@@ -56,6 +58,7 @@ function setup({ members, cached, confirmed = true, admin = false }) {
     _dmCtxMenuEl: menu,
     // Opening a DM menu closes the channel menu (#5744); there is no page here.
     _closeChannelCtxMenu: () => {},
+    _focusContextMenu: () => {},
     _groupName: (ch) => ch.name,
     _groupRoster: async () => (members ? { members } : null),
     _collectDmAttachments: async () => ['/uploads/a.bin'],
@@ -72,9 +75,10 @@ const flush = () => new Promise((r) => setImmediate(r));
 test('the menu offers Delete group only to the last member, by the current list', async () => {
   // The app still thinks bob is in the group; the server knows he left.
   const alone = setup({ members: [{ id: ME }], cached: [{ id: ME }, { id: 2 }] });
-  alone.app._openDmCtxMenu(CODE, { getBoundingClientRect: () => ({ bottom: 0, left: 0 }) });
+  alone.app._openDmCtxMenu(CODE, { getBoundingClientRect: () => ({ top: 630, bottom: 630, left: 0 }) });
   await flush();
   assert.equal(alone.buttons['dm-group-delete'].style.display, '');
+  assert.ok(parseFloat(alone.app._dmCtxMenuEl.style.top) + 196 <= 800, 'the added item fits above the viewport edge');
   assert.equal(alone.buttons['dm-delete'].style.display, 'none', 'the 1:1 Delete DM stays hidden for groups');
 
   const notAlone = setup({ members: [{ id: ME }, { id: 2 }], cached: [{ id: ME }] });

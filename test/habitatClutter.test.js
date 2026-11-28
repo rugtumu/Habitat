@@ -123,3 +123,20 @@ test('Sound Manager fits short tabs and scrolls long ones inside the resizable m
   assert.match(theme, /#sound-modal \.modal\s*\{[^}]*max-height: 85dvh/);
   assert.doesNotMatch(theme, /#sound-modal [^{}]*\{[^{}]*resize: none/);
 });
+
+test('static boot placeholders paint without adding a box to the shell layout', () => {
+  const css = read('public/css/style-sidebar.css');
+  const boot = css.slice(css.indexOf('/* Habitat fork: paint in the reserved shell'), css.indexOf('/* ── Left Sidebar'));
+  const rules = [...boot.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const paint = rules.filter(([, selector]) => /::(before|after)/.test(selector));
+  for (const [, selectors] of paint) {
+    for (const selector of selectors.trim().split(/,\s*(?=html)/)) assert.match(selector, /^html\[data-habitat-boot[=\]]/);
+  }
+  const [, boxes, declarations] = paint.find(([, , body]) => body.includes('content:'));
+  for (const region of ['welcome', 'message-area', 'channel-header', 'navigation-sidebar']) assert.ok(boxes.includes(region));
+  assert.match(declarations, /position: absolute/);
+  assert.match(declarations, /pointer-events: none/);
+  assert.equal((boot.match(/var\(--boot-face\) left (?:top|[48]rem)/g) || []).length, 3);
+  assert.match(boot, /@media \(min-width: 901px\) \{\s*html\[data-habitat-boot="desktop"\]/);
+  assert.doesNotMatch(boot, /animation:|transition:|infinite/);
+});

@@ -298,3 +298,130 @@ test('the open search filters are not clipped by the fixed header', () => {
   const css = read('public/css/style-tags-uploads-search.css');
   assert.match(css, /html\[data-habitat-layout\] \.channel-header:has\(#search-filter-popover\[style\*="flex"\]\) \{ overflow: visible; z-index: 65; \}/);
 });
+
+function menuGroups(menu, name = el => el.dataset.action) {
+  const groups = [[]];
+  for (const el of menu.children) {
+    if (el.tagName === 'hr' || el.classList.contains('user-ctx-divider')) groups.push([]);
+    else if (el.tagName === 'button') groups.at(-1).push(name(el));
+    else if (el.classList.contains('user-ctx-submenu-wrapper')) groups.at(-1).push(name(el.querySelector('button')));
+  }
+  return groups.map(group => group.join(' '));
+}
+
+// These inventories come from the pre-redesign menu builders at HEAD, including alternate states.
+test('channel and DM groups retain every original action in source and keyboard order', () => {
+  const html = read('public/app.html');
+  for (const [id, expected] of [
+    ['channel-ctx-menu', ['mark-read mark-all-read mute copy-channel-link join-voice leave-voice',
+      'hide-channel rename-channel create-sub-channel organize move-to-parent promote-channel',
+      'add-members channel-type channel-functions channel-roles webhooks merge-channel leave-channel delete']],
+    ['dm-ctx-menu', ['dm-mark-read mark-all-read dm-mute', 'dm-pin',
+      'dm-group-add dm-group-leave dm-group-delete dm-group-delete-all dm-delete']],
+  ]) {
+    const doc = page();
+    const source = html.slice(html.indexOf('<div id="' + id + '"'));
+    doc.body.innerHTML = source.slice(0, source.indexOf('\n  </div>') + 9);
+    assert.deepEqual(menuGroups(doc.body.children[0]), expected, id);
+  }
+});
+
+test('the message popup groups permitted actions and renders the inverse of each active toggle', () => {
+  const doc = page();
+  const app = load(doc, ['message-tools', 'message-nsfw']);
+  const msg = doc.createElement('div');
+  Object.assign(msg.dataset, { msgId: '12', userId: '1' });
+  msg.innerHTML = '<div class="role-menu-widget"></div>';
+  Object.assign(app, { user: { isAdmin: true, id: 1 }, _canShareChannelLink: () => true,
+    _getMessageAttachments: () => ['file'], _canHighlightMessages: () => true, _fitCtxMenu() {}, _focusContextMenu() {} });
+  const link = { href: 'https://example.org', closest() { return this; } };
+  const open = () => {
+    app._showMessageContextMenu({ target: link, clientX: 0, clientY: 0 }, msg);
+    return doc.getElementById('message-context-menu');
+  };
+  assert.deepEqual(menuGroups(open()), ['copy-href reply quote react edit copy-link',
+    'pin thread edit-tags select-messages', 'archive edit-role-menu nsfw highlight-on delete']);
+  Object.assign(msg.dataset, { pinned: '1', archived: '1', highlighted: '1', nsfw: '1' });
+  const menu = open();
+  assert.deepEqual(menuGroups(menu), ['copy-href reply quote react copy-link',
+    'unpin thread edit-tags select-messages', 'unarchive edit-role-menu unnsfw highlight-off']);
+  assert.deepEqual(menu.querySelectorAll('[aria-checked="true"]').map(el => el.dataset.action), ['unpin', 'unarchive', 'unnsfw', 'highlight-off']);
+});
+
+test('member right-click and the gear build the same groups, including the self and group-owner actions', () => {
+  const doc = page();
+  const app = load(doc, ['context', 'users', 'groups'], { t: key => key });
+  const anchor = { closest: () => null, getBoundingClientRect: () => ({ left: 0, bottom: 0 }) };
+  Object.assign(app, { user: { isAdmin: true, id: 1 }, currentChannel: 'g',
+    channels: [{ name: 'General' }, { code: 'g', is_group: 1, is_dm: 1, created_by: 1, group_members: [{ id: 2 }] }],
+    serverSettings: { admin_password_reset_enabled: 'true' }, _canManageBadges: () => true, _hasPerm: () => true,
+    _closeProfilePopup() {}, _placeUserContextMenu(menu) { this.groups = menuGroups(menu, btn => btn.textContent.match(/[a-z][\w.]+/)[0]); } });
+  const expected = ['context.view_profile users.direct_message mute.mute_member users.set_nickname',
+    'context.invite_to_channel users.gear_menu.add_to_channel', 'users.gear_menu.role_management badges.menu',
+    'mod_cases.history users.gear_menu.unmute mod_cases.warn users.gear_menu.kick users.gear_menu.mute users.gear_menu.ban users.gear_menu.delete_user users.gear_menu.reset_password',
+    'groups.remove_member'];
+  app._showUserContextMenu({ target: anchor }, 2, 'Member');
+  assert.deepEqual(app.groups, expected);
+  app._openUserMenuFromButton(anchor, 2, 'Member');
+  assert.deepEqual(app.groups, expected);
+  app._openUserMenuFromButton(anchor, 1, 'Self');
+  assert.deepEqual(app.groups, ['context.view_profile', 'users.gear_menu.role_management badges.menu']);
+});
+
+test('context keys wrap past hidden items, match the next label and restore the opener on Escape', () => {
+  const doc = page();
+  const app = load(doc, ['channel-context', 'ui']);
+  doc.body.innerHTML = '<button id="opener"></button><div class="channel-ctx-menu" id="dm-ctx-menu">' +
+    '<button>✅ Mark read</button><hr class="channel-ctx-sep"><button>Mute</button><button>Pin</button><button>Delete</button></div>';
+  const menu = doc.getElementById('dm-ctx-menu'), opener = doc.getElementById('opener');
+  const buttons = menu.querySelectorAll('button');
+  buttons[2].style.display = 'none';
+  for (const el of menu.children) el.matches = selector => selector.split(', ').some(part => el._matches(part));
+  let clicks = 0;
+  for (const btn of buttons) {
+    btn.closest = () => null;
+    btn.click = () => clicks++;
+    btn.insertBefore = (node, before) => btn.childNodes.splice(btn.childNodes.indexOf(before), 0, node);
+  }
+  opener.isConnected = true;
+  app._dmCtxMenuEl = menu;
+  app._focusContextMenu(menu, opener);
+  app._bindEscapeShortcuts();
+  assert.equal(doc.activeElement, buttons[0]);
+  for (const [key, index] of [['m', 1], ['M', 0], ['ArrowUp', 3], ['Home', 0], ['End', 3], ['ArrowDown', 0]]) {
+    menu.onkeydown({ key, target: doc.activeElement, preventDefault() {}, stopPropagation() {} });
+    assert.equal(doc.activeElement, buttons[index], key);
+  }
+  for (const key of ['Enter', ' ']) menu.onkeydown({ key, target: doc.activeElement, preventDefault() {}, stopPropagation() {} });
+  assert.equal(clicks, 2);
+  doc.listeners.keydown[0]({ key: 'Escape', preventDefault() {}, stopImmediatePropagation() {} });
+  assert.equal(menu.style.display, 'none');
+  assert.equal(doc.activeElement, opener);
+});
+
+test('only the open profile and requesting connection can turn a DM reply into a call', async () => {
+  const doc = page();
+  doc.documentElement = { hasAttribute: () => true };
+  doc.body.innerHTML = '<div id="profile-popup" data-habitat-avatar-id="9"><button data-habitat-profile-action="call" data-call-socket="tab"></button></div>';
+  const card = doc.getElementById('profile-popup');
+  const app = load(doc, ['socket-events', 'calls']);
+  const events = new Map(), calls = [];
+  Object.assign(app, { socket: { id: 'tab', on: (key, fn) => events.set(key, fn) }, channels: [],
+    _renderChannels() {}, _fetchDMPartnerKey() {}, _dmOpensInMain: () => true,
+    switchChannel(code) { this.currentChannel = code; }, _joinVoice(code) { calls.push(code); },
+    _closeProfilePopup() { card.remove(); } });
+  app._listenFeatureEvents();
+  const opened = (id, incoming = false) => events.get('dm-opened')({ code: 'dm-' + id, is_dm: 1, dm_target: { id } }, incoming);
+  opened(9, true);
+  opened(8);
+  app.socket.id = 'reconnected';
+  opened(9);
+  assert.deepEqual(calls, []);
+  app.socket.id = 'tab';
+  opened(9);
+  await Promise.resolve();
+  assert.deepEqual(calls, ['dm-9']);
+  opened(9);
+  await Promise.resolve();
+  assert.deepEqual(calls, ['dm-9']);
+});

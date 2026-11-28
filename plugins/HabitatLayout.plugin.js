@@ -1364,6 +1364,58 @@ class HabitatLayout {
   // else. A click now opens the person's profile card, and the card of anyone
   // who is in a voice room carries their volume and a mute switch, so the
   // same controls are one tap away on a phone, where there is no right click.
+  _profileActions(card, userId, inVoice) {
+    const row = card.querySelector('.profile-popup-actions');
+    if (!row) return;
+    const existing = row.querySelector('[data-habitat-profile-action="volume"]');
+    if (existing) {
+      if (existing.hidden && inVoice) existing.setAttribute('aria-expanded', 'true');
+      existing.hidden = !inVoice;
+      return;
+    }
+    const app = window.app;
+    const add = (key, label, icon, activate) => {
+      const button = this._make('button', { type: 'button', class: 'profile-popup-action-btn',
+        'data-habitat-profile-action': key, title: label, 'aria-label': label }, row);
+      button.textContent = icon;
+      button.addEventListener('click', activate);
+      return button;
+    };
+    if (!app.user.isGuest && (app.user.isAdmin || app._hasPerm?.('use_voice'))) {
+      add('call', window.t('calls.start'), '📞', event => {
+        if (!app.socket.connected) return app._showToast(window.t('voice.disconnected'), 'error');
+        // The matching DM reply can ring only while this card is still open.
+        event.currentTarget.setAttribute('data-call-socket', app.socket.id);
+        app.socket.emit('start-dm', { targetUserId: userId });
+      });
+    }
+    const noteLabel = window.t('mod_cases.add_note');
+    add('note', noteLabel, '📝', async () => {
+      const key = 'habitat_profile_note_' + app.user.id + '_' + userId;
+      app._closeProfilePopup();
+      try {
+        const text = await app._showPromptModal(noteLabel, window.t('app.messages.only_visible_to_you'), localStorage.getItem(key) || '');
+        if (text === null) return;
+        if (text.trim()) localStorage.setItem(key, text.trim());
+        else localStorage.removeItem(key);
+      } catch {
+        app._showToast(window.t('badges.save_failed'), 'error');
+      }
+    });
+    const volume = add('volume', this._text('volume'), '🔊', () => {
+      const tools = card.querySelector('[data-habitat-voice-tools]');
+      tools.hidden = !tools.hidden;
+      volume.setAttribute('aria-expanded', String(!tools.hidden));
+      app._positionProfilePopup?.(card);
+    });
+    volume.setAttribute('aria-expanded', 'true');
+    volume.hidden = !inVoice;
+    // Keep More last and the native buttons in their original relative order.
+    const gear = row.querySelector('.profile-gear-btn');
+    if (gear) row.appendChild(gear);
+    app._positionProfilePopup?.(card);
+  }
+
   _buildVoicePeople() {
     const list = document.getElementById('channel-list');
     if (list) {
@@ -1386,12 +1438,19 @@ class HabitatLayout {
     const dress = () => {
       const card = document.getElementById('profile-popup');
       const app = window.app;
-      if (!card || !app || card.querySelector('[data-habitat-voice-tools]')) return;
+      if (!card || !app) return;
       const userId = parseInt(card.getAttribute('data-habitat-avatar-id'), 10);
       const inVoice = Object.values(app.voiceChannelUsers || {})
         .some(room => Array.isArray(room) && room.some(person => person.id === userId));
       const body = card.querySelector('.profile-popup-body');
-      if (!body || Number.isNaN(userId) || userId === app.user?.id || !inVoice) return;
+      if (!body || Number.isNaN(userId) || userId === app.user?.id) return;
+      if (!card.matches('.has-profile-theme')) this._profileActions(card, userId, inVoice);
+      const existingTools = card.querySelector('[data-habitat-voice-tools]');
+      if (!inVoice) {
+        existingTools?.remove();
+        return;
+      }
+      if (existingTools) return;
       const tools = this._make('div', { 'data-habitat-voice-tools': '' }, body);
       const label = this._make('label', {}, tools);
       this._make('span', {}, label).textContent = this._text('volume');
@@ -1438,6 +1497,9 @@ class HabitatLayout {
     };
     this._cardObserver = new MutationObserver(dress);
     this._cardObserver.observe(document.body, { childList: true });
+    // A join or leave can change the controls on a profile that is already open.
+    if (list) this._cardObserver.observe(list, { childList: true, subtree: true });
+    dress();
   }
 
   // ── The signal mark: how the call is doing ─────────────────
@@ -2328,7 +2390,9 @@ class HabitatLayout {
     this._cardObserver?.disconnect();
     this._signalSync?.(false);
     this._signalSync = null;
-    document.getElementById('profile-popup')?.querySelector('[data-habitat-voice-tools]')?.remove();
+    const card = document.getElementById('profile-popup');
+    for (const extra of card?.querySelectorAll('[data-habitat-voice-tools], [data-habitat-profile-action]') || []) extra.remove();
+    if (card) window.app?._positionProfilePopup?.(card);
     document.documentElement.removeAttribute('data-habitat-in-voice');
     document.documentElement.removeAttribute('data-habitat-layout');
     document.documentElement.removeAttribute('data-habitat-layout-desktop');
@@ -3045,6 +3109,8 @@ html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
 [data-habitat-voice-tools] {
   display: grid; gap: .5rem; margin-block: .75rem; padding-block: .75rem; border-block: 1px solid var(--border);
 }
+[data-habitat-voice-tools][hidden],
+.profile-popup-hover:not(.has-profile-theme) [data-habitat-voice-tools] { display: none; }
 [data-habitat-voice-tools] label {
   display: grid; grid-template-columns: auto minmax(0, 1fr) 3rem; align-items: center; gap: .5rem;
   color: var(--text-secondary); font-size: var(--hb-text-sm);

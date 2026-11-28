@@ -910,10 +910,28 @@ _showProfilePopup(profile) {
   this._setProfileBannerImage(bannerEl, profile.banner, profile.animateProfile);
   this._applyProfileTheme(popup, profile.profileTheme);
 
+  // Habitat fork: add the bio heading and optional pronouns only to default cards.
+  if (!popup.classList.contains('has-profile-theme')) {
+    const bio = popup.querySelector('.profile-popup-bio');
+    if (bio) {
+      const heading = document.createElement('div');
+      heading.className = 'profile-popup-section-label';
+      heading.textContent = t('modals.edit_profile.bio_label');
+      bio.before(heading);
+    }
+    if (profile.pronouns) popup.querySelector('.profile-popup-username').append(' · ' + profile.pronouns);
+  }
+
   // Hover mode: translucent, non-interactive preview (pointer-events:none via CSS)
   if (this._isHoverPopup) popup.classList.add('profile-popup-hover');
 
   document.body.appendChild(popup);
+
+  // Habitat fork: expanding a bio or badge can outgrow the original position.
+  if (!popup.classList.contains('has-profile-theme') && typeof ResizeObserver === 'function') {
+    this._profileSizeObserver = new ResizeObserver(() => this._positionProfilePopup(popup));
+    this._profileSizeObserver.observe(popup);
+  }
 
   // Opening the profile card is a trigger context: flag the card so the freeze
   // observer leaves its animated pfp (avatar and later-folded border) playing.
@@ -1044,6 +1062,8 @@ _bindProfilePopupOutsideClose(popup) {
     this._profilePopupOutsideHandler = (e) => {
       const lightbox = document.getElementById('image-lightbox');
       if (lightbox && lightbox.contains(e.target)) return;
+      // Habitat fork: the gear's invite disclosure still belongs to this open card.
+      if (document.getElementById('user-context-menu')?.contains(e.target)) return;
       if (!popup.contains(e.target)) this._closeProfilePopup();
     };
     document.addEventListener('click', this._profilePopupOutsideHandler);
@@ -1062,6 +1082,8 @@ _promoteHoverPopup(popup) {
   popup.style.animation = 'none';
   popup.offsetHeight; // force reflow
   popup.style.animation = '';
+  // Habitat fork: the action row can make a promoted preview taller.
+  if (!popup.classList.contains('has-profile-theme')) this._positionProfilePopup(popup);
   this._bindProfilePopupOutsideClose(popup);
   if (popup.dataset.birthday) this._rainBirthdayConfetti(popup);
 },
@@ -1095,11 +1117,19 @@ _positionProfilePopup(popup) {
   // so it stays fully on-screen in short viewports.
   let top = Math.max(margin, Math.min(rect.top, window.innerHeight - ph - margin));
 
+  // Habitat fork: the default card's pop originates at the edge nearest the opener.
+  if (!popup.classList.contains('has-profile-theme')) {
+    const x = Math.max(0, Math.min(pw, (rect.left + rect.right) / 2 - left));
+    const y = Math.max(0, Math.min(ph, (rect.top + rect.bottom) / 2 - top));
+    popup.style.setProperty('--hb-profile-origin', x + 'px ' + y + 'px');
+  }
   popup.style.left = left + 'px';
   popup.style.top = top + 'px';
 },
 
 _closeProfilePopup() {
+  this._profileSizeObserver?.disconnect();
+  this._profileSizeObserver = null;
   clearInterval(this._activityProgressTimer);
   this._openProfileUserId = null;
   const existing = document.getElementById('profile-popup');

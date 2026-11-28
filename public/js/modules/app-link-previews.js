@@ -231,7 +231,9 @@ _restoredPreviewHeights(list) {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
       for (const card of list.querySelectorAll('.link-preview--rich[data-preview-slot]')) {
         const id = card.closest('[data-msg-id]')?.dataset.msgId;
-        if (id) heights[id + '/' + card.dataset.previewSlot + '/' + card.classList.contains('lp-collapsed')] = card.offsetHeight / rem;
+        if (!id) continue;
+        const key = id + '/' + card.dataset.previewSlot + '/' + card.classList.contains('lp-collapsed');
+        heights[key] = { height: card.offsetHeight / rem, ...card._previewImageSize };
       }
       try { sessionStorage.setItem(storageKey, JSON.stringify({ view: context(), heights })); } catch { /* Storage is optional. */ }
     });
@@ -316,13 +318,16 @@ _fetchLinkPreviews(containerEl) {
     // Habitat fork: reserve only a previously measured card. An ordinary link may have no preview.
     let pending = null;
     const folded = this._embedFolded(url, slot);
-    const height = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
+    const snapshot = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
+    // Habitat fork: older snapshots contain only the height in rem.
+    const height = snapshot?.height ?? snapshot;
     if (Number.isFinite(height) && height > 0) {
       pending = document.createElement('div');
       pending.className = 'link-preview link-preview--rich lp-pending' + (folded ? ' lp-collapsed' : '');
       pending.dataset.url = url;
       pending.dataset.previewSlot = slot;
       pending.setAttribute('aria-hidden', 'true');
+      pending._previewImageSize = snapshot?.width ? { width: snapshot.width, imageHeight: snapshot.imageHeight } : null;
       pending.style.height = height + 'rem';
       host.appendChild(pending);
       reserved = true;
@@ -391,12 +396,6 @@ _fetchLinkPreviews(containerEl) {
           const posterAttr = data.image ? ` poster="${this._escapeHtml(this._proxyMediaUrl(data.image) || '')}"` : '';
           media += `<video class="lp-video" controls preload="${vidPreload}" playsinline${posterAttr}><source src="${this._escapeHtml(data.video)}" type="${this._escapeHtml(data.videoType || 'video/mp4')}"></video>`;
         } else if (data.image) {
-          // Habitat fork: use a supplied thumbnail's proportions before the lazy image decodes.
-          const width = Number(data.imageWidth ?? data.image_width ?? data.thumbnail_width);
-          const height = Number(data.imageHeight ?? data.image_height ?? data.thumbnail_height);
-          if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
-            card.style.setProperty('--lp-image-ratio', width + ' / ' + height);
-          }
           media += `<a class="lp-media" href="${this._escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow"><img class="lp-image" ${this._imgSrcAttr(data.image)} alt="" loading="lazy">${data.video ? '<span class="lp-play"></span>' : ''}</a>`;
         }
 
@@ -416,6 +415,26 @@ _fetchLinkPreviews(containerEl) {
             media +
             stats +
           '</div>';
+        // Habitat fork: reserve the measured proportions before replacing the pending card.
+        // The decoded image is authoritative, including when the browser already cached it.
+        const image = card.querySelector('.lp-media > .lp-image');
+        if (image) {
+          const sizeImage = (width, imageHeight) => {
+            if (!(Number.isFinite(width) && width > 0 && Number.isFinite(imageHeight) && imageHeight > 0)) return;
+            card._previewImageSize = { width, imageHeight };
+            card.style.setProperty('--lp-image-ratio', String(width / imageHeight));
+            card.style.setProperty('--lp-image-width', width + 'px');
+          };
+          sizeImage(Number(data.imageWidth ?? data.image_width ?? data.thumbnail_width),
+            Number(data.imageHeight ?? data.image_height ?? data.thumbnail_height));
+          sizeImage(snapshot?.width, snapshot?.imageHeight);
+          const decoded = () => {
+            sizeImage(image.naturalWidth, image.naturalHeight);
+            if (this._coupledToBottom && card.isConnected) this._scrollToBottom(true);
+          };
+          image.addEventListener('load', decoded);
+          if (image.complete) decoded();
+        }
         this._wireEmbedControls(card, url);
         this._applyEmbedSpoiler(card, link);
 

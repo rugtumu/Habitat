@@ -83,7 +83,9 @@ _updateComposerVisibility(channel) {
 // A member's explicit choice still governs single-click and double-click.
 _dmOpensInMain() {
   const choice = localStorage.getItem('haven_dm_fullscreen_default');
-  return choice === null ? document.documentElement.hasAttribute('data-habitat-layout') : choice === 'true';
+  // Habitat fork: restore can run before the layout has claimed the shell.
+  const root = document.documentElement;
+  return choice === null ? root.hasAttribute('data-habitat-layout') || root.hasAttribute('data-habitat-boot') : choice === 'true';
 },
 
 // Habitat fork: the stable ID survives channel code rotations and belongs only to this member on this origin.
@@ -851,8 +853,8 @@ _renderChannels() {
     // Right-click to open context menu
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      const btn = el.querySelector('.channel-more-btn');
-      if (btn) this._openChannelCtxMenu(ch.code, btn);
+      // Habitat fork: Escape returns to the row or button that opened this menu.
+      this._openChannelCtxMenu(ch.code, e.target.closest('.channel-more-btn') || el);
     });
     return el;
   };

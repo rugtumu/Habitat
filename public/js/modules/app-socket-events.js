@@ -257,6 +257,15 @@ _listenFeatureEvents() {
     }
     const habitat = document.documentElement.hasAttribute('data-habitat-layout');
     if (habitat && incoming) return;
+    // Habitat fork: only a fresh Call press on this person's open card may ring the DM.
+    const card = document.getElementById('profile-popup');
+    const requested = card?.querySelector('[data-habitat-profile-action="call"]')?.dataset.callSocket;
+    if (!incoming && requested && requested === this.socket.id &&
+        Number(card.dataset.habitatAvatarId) === data.dm_target?.id) {
+      this._closeProfilePopup();
+      this._acceptCall(data.code);
+      return;
+    }
     // Auto-expand DM section when a DM opens
     const dmList = document.getElementById('dm-list');
     if (dmList && dmList.style.display === 'none') {

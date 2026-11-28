@@ -214,11 +214,30 @@ _bindEscapeShortcuts() {
   const menus = {
     'channel-ctx-menu': () => this._closeChannelCtxMenu(),
     'dm-ctx-menu': () => this._closeDmCtxMenu(),
+    'user-context-menu': () => this._hideUserContextMenu(),
     'message-context-menu': () => this._hideMessageContextMenu(),
     'search-context-menu': () => this._searchHideContextMenu(),
   };
   const closeEvent = el => el.dispatchEvent(new Event('close'));
   const remove = el => el.remove();
+  // Habitat fork: Escape returns even a pointer-opened menu to its row.
+  const closeMenu = el => {
+    if (!menus[el.id]) return closeEvent(el);
+    const trigger = el.querySelector('[aria-expanded="true"]');
+    if (trigger) {
+      trigger.click();
+      trigger.focus();
+      return;
+    }
+    const opener = el._anchorEl;
+    menus[el.id]();
+    if (!opener?.isConnected) return;
+    if (opener.tabIndex < 0 && !opener.hasAttribute('tabindex')) {
+      opener.tabIndex = -1;
+      opener.addEventListener('blur', () => opener.removeAttribute('tabindex'), { once: true });
+    }
+    opener.focus({ preventScroll: true });
+  };
   const leading = [
     ['#emoji-dropdown, #slash-dropdown, #mention-dropdown, #channel-dropdown, #persona-dropdown, #ferry-dropdown',
       (_, e) => this._handleAutocompleteKeydown(e)],
@@ -226,10 +245,11 @@ _bindEscapeShortcuts() {
     ['#quick-switcher-overlay', remove],
     ['#video-lightbox', closeEvent],
     ['#image-lightbox', () => this._closeLightbox()],
+    ['#user-context-menu', closeMenu],
     ['.profile-popup', () => this._closeProfilePopup()],
   ];
   const trailing = [
-    ['.channel-ctx-menu', el => (menus[el.id] || closeEvent)(el)],
+    ['.channel-ctx-menu', closeMenu],
     ['#emoji-picker', () => this._toggleEmojiPicker()],
     ['#gif-picker', () => this._closeGifPicker()],
     ['.reaction-full-picker, .quick-emoji-editor', remove],
@@ -270,6 +290,13 @@ _bindEscapeShortcuts() {
     const field = e.target;
     if ((field?.id === 'settings-search' || field?.id === 'user-search') && field.value) return;
     if (field?.closest?.('.bitrate-value, .cfn-input-wrap')) return;
+    // Habitat fork: a native context menu can sit above the layout menu or profile that opened it.
+    const focusedMenu = document.activeElement?.closest?.('#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu');
+    if (focusedMenu?.getClientRects().length) {
+      consume(e);
+      closeMenu(focusedMenu);
+      return;
+    }
     if (dismiss(leading, e)) return;
     // The layout closes its own menus and restores focus. Its Add dialog can
     // itself open a Haven confirmation with a higher stacking order.
@@ -306,6 +333,14 @@ _bindEscapeShortcuts() {
 },
 
 _bindAppChrome() {
+  // Habitat fork: rotation and window resizing can move an open menu beyond the new edge.
+  window.addEventListener('resize', () => {
+    for (const menu of document.querySelectorAll('#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu')) {
+      if (menu.getClientRects().length) this._fitCtxMenu(menu, menu._anchorEl?.getBoundingClientRect() || menu.getBoundingClientRect());
+    }
+    const card = document.querySelector('.profile-popup:not(.has-profile-theme)');
+    if (card) this._positionProfilePopup(card);
+  });
   // Right sidebar collapse toggle (persisted to localStorage)
   const sidebarToggle = document.getElementById('sidebar-toggle-btn');
   const rightSidebar = document.getElementById('right-sidebar');

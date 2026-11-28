@@ -48,20 +48,11 @@ _openChannelCtxMenu(code, btnEl) {
     const cur = typeCtxBtn.querySelector('.ct-ctx-current');
     if (cur) cur.textContent = current ? `${current.icon} ${current.name}` : '';
   }
-  if (!canManageChannels && canManageSettings) {
-    const adminSeps = menu.querySelectorAll('hr.channel-ctx-sep.admin-only');
-    if (adminSeps[0]) adminSeps[0].style.display = '';
-  }
   // Webhook button: also accessible to users with manage_webhooks permission
   const webhooksCtxBtn = menu.querySelector('[data-action="webhooks"]');
   const canManageWebhooks = canManageChannels || this._hasPerm('manage_webhooks');
   if (webhooksCtxBtn) {
     webhooksCtxBtn.style.display = canManageWebhooks ? '' : 'none';
-    // If user only has manage_webhooks (not full admin), show a separator above
-    if (!canManageChannels && canManageWebhooks) {
-      const adminSeps = menu.querySelectorAll('hr.channel-ctx-sep.admin-only');
-      if (adminSeps[0]) adminSeps[0].style.display = '';
-    }
   }
   // Show delete button for users with delete_channel permission even if not admin
   const deleteBtn = menu.querySelector('[data-action="delete"]');
@@ -111,14 +102,6 @@ _openChannelCtxMenu(code, btnEl) {
     const renamePerm = ch.parent_channel_id ? 'rename_sub_channel' : 'rename_channel';
     const canRename = isMod || this._hasPerm(renamePerm);
     renameCtxBtn.style.display = canRename ? '' : 'none';
-  }
-  // Only display the divider when the "rename-channel" and/or "create-sub-channel" buttons are visible.
-  // this eliminates a double divider being displayed when both of these buttons are not displayed
-  const renameOrCreateSubDivider = menu.querySelector('.channel-ctx-sep.rename-or-createSub');
-  if (renameOrCreateSubDivider && ch) {
-    const renameCtxBtn_visible = renameCtxBtn && renameCtxBtn.style.display !== 'none';
-    const createSubBtn_visible = createSubBtn && createSubBtn.style.display !== 'none';
-    renameOrCreateSubDivider.style.display = (renameCtxBtn_visible || createSubBtn_visible) ? '' : 'none';
   }
   // Hide "Leave Channel" for admins (always in all channels)
   const leaveBtn = menu.querySelector('[data-action="leave-channel"]');
@@ -181,10 +164,13 @@ _openChannelCtxMenu(code, btnEl) {
   if (leaveVoiceBtn) leaveVoiceBtn.style.display = inVoice ? '' : 'none';
   // Position near the button
   const rect = btnEl.getBoundingClientRect();
-  menu._anchorEl = btnEl;
   menu.style.display = 'block';
   menu.style.top  = rect.bottom + 4 + 'px';
   menu.style.left = rect.left + 'px';
+  // Habitat fork: focus the permitted items after Haven has set their visibility.
+  muteBtn?.setAttribute('aria-checked', String(muted.includes(code)));
+  cfnCtxBtn?.setAttribute('aria-expanded', 'false');
+  this._focusContextMenu(menu, btnEl);
   requestAnimationFrame(() => this._fitCtxMenu(menu, rect));
 },
 
@@ -676,7 +662,10 @@ _openDmCtxMenu(code, anchorEl, mouseEvent) {
     groupDelBtn.style.display = 'none';
     if (isGroup) {
       this._groupIsMineAlone(code).then(alone => {
-        if (alone && this._dmCtxMenuCode === code) groupDelBtn.style.display = '';
+        if (!alone || this._dmCtxMenuCode !== code) return;
+        groupDelBtn.style.display = '';
+        // Habitat fork: the roster reply can add a row after the menu was fitted.
+        this._fitCtxMenu(menu, anchor);
       });
     }
   }
@@ -688,20 +677,85 @@ _openDmCtxMenu(code, anchorEl, mouseEvent) {
   if (markReadBtn) markReadBtn.style.display = (this.unreadCounts[code] > 0) ? '' : 'none';
 
   // Position
+  const anchor = mouseEvent
+    ? { top: mouseEvent.clientY, bottom: mouseEvent.clientY }
+    : anchorEl.getBoundingClientRect();
   if (mouseEvent) {
     menu.style.top = mouseEvent.clientY + 'px';
     menu.style.left = mouseEvent.clientX + 'px';
   } else {
-    const rect = anchorEl.getBoundingClientRect();
-    menu.style.top = rect.bottom + 4 + 'px';
-    menu.style.left = rect.left + 'px';
+    menu.style.top = anchor.bottom + 4 + 'px';
+    menu.style.left = anchor.left + 'px';
   }
   menu.style.display = 'block';
 
-  const anchor = mouseEvent
-    ? { top: mouseEvent.clientY, bottom: mouseEvent.clientY }
-    : anchorEl.getBoundingClientRect();
+  // Habitat fork: both the pointer and the more button remember the opening row.
+  muteBtn?.setAttribute('aria-checked', String(muted.includes(code)));
+  pinBtn?.setAttribute('aria-checked', String(this._isDmPinned(code)));
+  this._focusContextMenu(menu, anchorEl);
   requestAnimationFrame(() => this._fitCtxMenu(menu, anchor));
+},
+
+// Habitat fork: all four menus navigate the same visible items and remember their opener.
+_focusContextMenu(menu, opener) {
+  menu._anchorEl = opener;
+  menu.setAttribute('role', 'menu');
+  const selector = 'button, .cfn-row';
+  const visibleItems = () => [...menu.querySelectorAll(selector)].filter(el =>
+    !el.disabled && !el.classList.contains('cfn-disabled') && el.getClientRects().length);
+  for (const item of menu.querySelectorAll(selector)) {
+    item.setAttribute('role', item.hasAttribute('aria-checked') ? 'menuitemcheckbox' : 'menuitem');
+    item.tabIndex = -1;
+    // Some labels are rewritten as a single text node when the mute state changes.
+    const first = item.firstChild;
+    const parts = first?.nodeType === 3 && first.textContent.match(/^(\p{Extended_Pictographic}\S*)\s+(.+)/u);
+    if (parts) {
+      const icon = document.createElement('span');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = parts[1];
+      first.textContent = parts[2];
+      item.insertBefore(icon, first);
+    }
+  }
+  // A permission can empty a whole group. Show just one divider between surviving groups.
+  let hasItems = false, divider = null;
+  for (const row of menu.children) {
+    if (row.matches('.channel-ctx-sep, .user-ctx-divider')) {
+      row.style.display = 'none';
+      divider = row;
+    } else if (row.matches('button, .user-ctx-submenu-wrapper') && row.getClientRects().length) {
+      if (hasItems && divider) divider.style.display = '';
+      hasItems = true;
+      divider = null;
+    }
+  }
+  menu.onkeydown = event => {
+    if (event.ctrlKey || event.altKey || event.metaKey || event.target.closest('input, select, textarea')) return;
+    const items = visibleItems();
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    let next;
+    switch (event.key) {
+      case 'ArrowDown': next = items[(i + 1) % items.length]; break;
+      case 'ArrowUp': next = items[(i + items.length - 1) % items.length]; break;
+      case 'Home': next = items[0]; break;
+      case 'End': next = items.at(-1); break;
+      case 'Enter': case ' ':
+        event.preventDefault();
+        event.stopPropagation();
+        items[i]?.click();
+        return;
+      default:
+        if (!/^\p{L}$/u.test(event.key)) return;
+        next = items.slice(i + 1).concat(items.slice(0, i + 1)).find(item =>
+          item.textContent.replace(/^[^\p{L}\p{N}]+/u, '').toLocaleLowerCase().startsWith(event.key.toLocaleLowerCase()));
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    next?.focus();
+  };
+  menu.scrollTop = 0;
+  visibleItems()[0]?.focus({ preventScroll: true });
 },
 
 /* Keep a context menu on screen. Open below the anchor, flip above when
@@ -710,23 +764,15 @@ _openDmCtxMenu(code, anchorEl, mouseEvent) {
    it scroll instead of running off screen. */
 _fitCtxMenu(menu, anchor) {
   const pad = 8;
-  menu.style.maxHeight = '';
-  menu.style.overflowY = '';
-  const mr = menu.getBoundingClientRect();
-  const vh = window.innerHeight;
-  if (mr.right > window.innerWidth) menu.style.left = Math.max(pad, window.innerWidth - mr.width - pad) + 'px';
-  if (mr.bottom <= vh - pad) return;
-  const above = anchor.top - 4 - pad;
-  if (mr.height <= above) {
-    menu.style.top = (anchor.top - mr.height - 4) + 'px';
-    return;
-  }
-  const top = mr.height <= vh - pad * 2 ? Math.max(pad, vh - pad - mr.height) : pad;
-  menu.style.top = top + 'px';
-  if (mr.height > vh - pad * 2) {
-    menu.style.maxHeight = (vh - pad * 2) + 'px';
-    menu.style.overflowY = 'auto';
-  }
+  // Use layout dimensions so the entrance animation cannot skew the clamp.
+  const left = parseFloat(menu.style.left);
+  const top = parseFloat(menu.style.top);
+  const width = menu.offsetWidth, height = menu.offsetHeight;
+  const lastTop = window.innerHeight - pad - height;
+  const above = anchor.top - 4 - height;
+  const preferred = top > lastTop && above >= pad ? above : top;
+  menu.style.left = Math.max(pad, Math.min(left, window.innerWidth - pad - width)) + 'px';
+  menu.style.top = Math.max(pad, Math.min(preferred, lastTop)) + 'px';
 },
 
 _closeDmCtxMenu() {

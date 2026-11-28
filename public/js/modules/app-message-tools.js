@@ -443,74 +443,67 @@ _showMessageContextMenu(e, msgEl) {
   const canEditTags  = !isDm && hasAttachment &&
                        (isOwn || this.user?.isAdmin || this._hasPerm('manage_tags'));
 
-  // Layout: the actions defined first (Edit, Reply, Quote, Pin), separator,
-  // the remaining hover-toolbar actions (React, Thread, Copy Link, Protect),
-  // separator, Delete. Every item carries the same data-action the toolbar
-  // uses, and each action is gated on the same permission, so the two menus
-  // stay behaviourally identical.
-  const items = [];
+  // Habitat fork: build only nonempty groups, after the original permission checks.
+  const everyday = [], organise = [], manage = [];
   // Right-clicking a link: its address first, as the browser's menu would.
   const link = e.target?.closest?.('a[href]');
   const linkHref = link && /^https?:/i.test(link.href) ? link.href : null;
   if (linkHref) {
-    items.push(`<button class="channel-ctx-item" data-action="copy-href">🔗 <span>${t('msg_toolbar.copy_link_address')}</span></button>`);
-    items.push('<hr class="channel-ctx-sep">');
+    everyday.push(`<button class="channel-ctx-item" data-action="copy-href">🔗 <span>${t('msg_toolbar.copy_link_address')}</span></button>`);
   }
-  // First group (as originally defined)
-  if (isOwn && !isArchived) items.push(`<button class="channel-ctx-item" data-action="edit">✏️ <span>${t('msg_toolbar.edit')}</span></button>`);
-  if (!postBlocked) items.push(`<button class="channel-ctx-item" data-action="reply">↩️ <span>${t('msg_toolbar.reply')}</span></button>`, `<button class="channel-ctx-item" data-action="quote">💬 <span>${t('msg_toolbar.quote')}</span></button>`);
+  if (!postBlocked) everyday.push(`<button class="channel-ctx-item" data-action="reply">↩️ <span>${t('msg_toolbar.reply')}</span></button>`, `<button class="channel-ctx-item" data-action="quote">💬 <span>${t('msg_toolbar.quote')}</span></button>`);
+  everyday.push(`<button class="channel-ctx-item" data-action="react">😀 <span>${t('msg_toolbar.react')}</span></button>`);
+  if (isOwn && !isArchived) everyday.push(`<button class="channel-ctx-item" data-action="edit">✏️ <span>${t('msg_toolbar.edit')}</span></button>`);
+  if (canShareLink) everyday.push(`<button class="channel-ctx-item" data-action="copy-link">🔗 <span>${t('msg_toolbar.copy_link')}</span></button>`);
   if (canPin) {
-    items.push(isPinned
+    organise.push(isPinned
       ? `<button class="channel-ctx-item" data-action="unpin">📌 <span>${t('msg_toolbar.unpin')}</span></button>`
       : `<button class="channel-ctx-item" data-action="pin">📌 <span>${t('msg_toolbar.pin')}</span></button>`);
   }
-  // Separator, then the rest of the hover-toolbar actions
-  items.push('<hr class="channel-ctx-sep">');
-  items.push(`<button class="channel-ctx-item" data-action="react">😀 <span>${t('msg_toolbar.react')}</span></button>`);
-  if (!isDm && !postBlocked) items.push(`<button class="channel-ctx-item" data-action="thread">🧵 <span>${t('msg_toolbar.thread')}</span></button>`);
-  if (canShareLink) items.push(`<button class="channel-ctx-item" data-action="copy-link">🔗 <span>${t('msg_toolbar.copy_link')}</span></button>`);
+  if (!isDm && !postBlocked) organise.push(`<button class="channel-ctx-item" data-action="thread">🧵 <span>${t('msg_toolbar.thread')}</span></button>`);
+  if (canEditTags) organise.push(`<button class="channel-ctx-item" data-action="edit-tags">🏷️ <span>${t('tags.edit')}</span></button>`);
+  // Picking messages to move or put in a thread, starting with this one. The
+  // header's Select button is hidden on phones, so this is their way in.
+  if (!isDm && (this.user?.isAdmin || this._canModerate())) organise.push(`<button class="channel-ctx-item" data-action="select-messages">☑️ <span>${t('header.select_messages_to_move')}</span></button>`);
   if (canArchive) {
-    items.push(isArchived
+    manage.push(isArchived
       ? `<button class="channel-ctx-item" data-action="unarchive">🛡️ <span>${t('app.messages.unprotect_btn')}</span></button>`
       : `<button class="channel-ctx-item" data-action="archive">🛡️ <span>${t('app.messages.protect_btn')}</span></button>`);
   }
   // A posted role menu's roles, emojis and text can be changed later (#5644).
   const canEditRoleMenu = !!msgEl.querySelector('.role-menu-widget') &&
                           !!(this.user?.isAdmin || this._hasPerm('manage_roles') || this._hasPerm('promote_user'));
-  if (canEditRoleMenu) items.push(`<button class="channel-ctx-item" data-action="edit-role-menu">🎭 <span>${t('settings.admin.role_menu.edit')}</span></button>`);
-  if (canEditTags) items.push(`<button class="channel-ctx-item" data-action="edit-tags">🏷️ <span>${t('tags.edit')}</span></button>`);
-  if (this._canSetMessageNsfw?.(msgEl, isDm)) items.push(this._messageNsfwMenuHtml(msgEl.dataset.nsfw === '1'));
-  // Picking messages to move or put in a thread, starting with this one. The
-  // header's Select button is hidden on phones, so this is their way in.
-  if (!isDm && (this.user?.isAdmin || this._canModerate())) items.push(`<button class="channel-ctx-item" data-action="select-messages">☑️ <span>${t('header.select_messages_to_move')}</span></button>`);
+  if (canEditRoleMenu) manage.push(`<button class="channel-ctx-item" data-action="edit-role-menu">🎭 <span>${t('settings.admin.role_menu.edit')}</span></button>`);
+  if (this._canSetMessageNsfw?.(msgEl, isDm)) manage.push(this._messageNsfwMenuHtml(msgEl.dataset.nsfw === '1'));
   // Official message: mark your own; take the mark off your own, or anyone's
   // you could delete.
   const isHighlighted = msgEl.dataset.highlighted === '1';
   const isPlainOwn = isOwn && !msgEl.dataset.personaId && !msgEl.classList.contains('webhook-message');
   if (!isDm && !isHighlighted && isPlainOwn && this._canHighlightMessages?.()) {
-    items.push(`<button class="channel-ctx-item" data-action="highlight-on">📣 <span>${t('msg_toolbar.highlight_on')}</span></button>`);
+    manage.push(`<button class="channel-ctx-item" data-action="highlight-on">📣 <span>${t('msg_toolbar.highlight_on')}</span></button>`);
   } else if (!isDm && isHighlighted && (isOwn || canDelete)) {
-    items.push(`<button class="channel-ctx-item" data-action="highlight-off">📣 <span>${t('msg_toolbar.highlight_off')}</span></button>`);
+    manage.push(`<button class="channel-ctx-item" data-action="highlight-off">📣 <span>${t('msg_toolbar.highlight_off')}</span></button>`);
   }
-  // Separator right above Delete. A protected message has no Delete: nobody
-  // can delete it until it is unprotected.
   if (canDelete && !isArchived) {
-    items.push('<hr class="channel-ctx-sep">');
-    items.push(`<button class="channel-ctx-item danger" data-action="delete">🗑️ <span>${t('msg_toolbar.delete')}</span></button>`);
+    manage.push(`<button class="channel-ctx-item danger" data-action="delete">🗑️ <span>${t('msg_toolbar.delete')}</span></button>`);
   }
 
   const menu = document.createElement('div');
   menu.id = 'message-context-menu';
   menu.className = 'channel-ctx-menu';
-  menu.innerHTML = items.join('');
+  menu.innerHTML = [everyday, organise, manage].filter(group => group.length)
+    .map(group => group.join('')).join('<hr class="channel-ctx-sep">');
   menu.style.left = e.clientX + 'px';
   menu.style.top  = e.clientY + 'px';
   document.body.appendChild(menu);
 
-  // Clamp inside the viewport (same as the image/channel menus).
-  const rect = menu.getBoundingClientRect();
-  if (rect.right  > window.innerWidth)  menu.style.left = (window.innerWidth  - rect.width  - 8) + 'px';
-  if (rect.bottom > window.innerHeight) menu.style.top  = (window.innerHeight - rect.height - 8) + 'px';
+  // Habitat fork: each toggle announces the state represented by its current action.
+  for (const [on, off] of [['pin', 'unpin'], ['archive', 'unarchive'], ['nsfw', 'unnsfw'], ['highlight-on', 'highlight-off']]) {
+    const toggle = menu.querySelector(`[data-action="${on}"], [data-action="${off}"]`);
+    toggle?.setAttribute('aria-checked', String(toggle.dataset.action === off));
+  }
+  this._focusContextMenu(menu, e.target.closest('button, a[href]') || msgEl);
+  this._fitCtxMenu(menu, { top: e.clientY });
 
   menu.addEventListener('click', async (ev) => {
     const btn = ev.target.closest('[data-action]');
@@ -579,6 +572,7 @@ _showMessageContextMenu(e, msgEl) {
   };
   this._msgCtxCloser = closer;
   setTimeout(() => {
+    if (!menu.isConnected) return;
     document.addEventListener('click', closer, true);
     document.addEventListener('contextmenu', closer, true);
     document.getElementById('messages')?.addEventListener('scroll', closer, true);

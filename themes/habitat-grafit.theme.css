@@ -530,6 +530,48 @@ html[data-haven-theme-api="1"] :focus-visible {
   background: var(--border-light);
 }
 
+/* Right-click and gear menus share the same inset, row targets and elevation. */
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) {
+  padding: .25rem;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--hb-elev-popover);
+}
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) :is(button, .cfn-row) {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 2.25rem;
+  padding: .25rem .75rem;
+  border-radius: var(--radius);
+  font: 500 var(--hb-text-sm)/1.25 var(--font-main);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  transition: none;
+}
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) button:is(:hover, :focus-visible) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) button:is(.danger, .user-ctx-danger) {
+  color: var(--danger);
+}
+[data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) [aria-checked="true"]::after {
+  content: "✓";
+  margin-inline-start: auto;
+}
+[data-haven-page="app"] :is(.channel-ctx-sep, .user-ctx-divider) {
+  height: 1px;
+  margin: .25rem .5rem;
+  border: 0;
+  background: var(--border);
+}
+@media (pointer: coarse) {
+  [data-haven-page="app"] :is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) :is(button, .cfn-row) { min-height: 2.75rem; }
+}
+
 /* ── Profile card ────────────────────────────────
    A member's own profile theme supplies the card and badge surfaces and
    chooses the ink that stays readable over the gradient. */
@@ -641,6 +683,60 @@ html[data-haven-theme-api="1"] :focus-visible {
   border-radius: var(--radius);
   font-weight: 600;
 }
+
+/* Both kinds of default card use the same silhouette before and after promotion. */
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) {
+  animation: hb-pop var(--hb-base) var(--hb-ease);
+  transform-origin: var(--hb-profile-origin, center);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner { height: 6rem; }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-avatar-wrapper {
+  --face-size: 5rem;
+  width: var(--face-size);
+  height: var(--face-size);
+  margin-block-start: calc(var(--face-size) / -2);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-avatar { width: 100%; height: 100%; }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-role { min-height: 1.5rem; }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-username {
+  color: var(--text-secondary);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-section-label {
+  color: var(--text-secondary);
+}
+/* One row: the main action takes the width and keeps its word; the others
+   are square marks with their names in the title and for a screen reader.
+   Four equal columns left 64px each, which broke "Message" over two lines. */
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme):not(.profile-popup-hover) .profile-popup-actions {
+  display: flex;
+  gap: .5rem;
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  flex: none; width: 2.5rem; min-height: 2.5rem; margin: 0; padding: 0;
+  font-size: 0; white-space: nowrap;
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn[hidden] { display: none; }
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn.profile-dm-btn {
+  flex: 1 1 auto; width: auto; padding: 0 .75rem; font-size: var(--hb-text-sm);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn:not(.profile-dm-btn) > .haven-glyph,
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-profile-action="call"] {
+  font-size: var(--hb-text-md);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-profile-action] {
+  color: var(--text-secondary);
+  background: var(--bg-active);
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-voice-tools] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-voice-tools] label {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-voice-tools] label > span,
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-move-member] { grid-column: 1 / -1; }
 
 /* ── Voice ───────────────────────────────────────
    The bar that says you are in a call reads the way people expect: signal

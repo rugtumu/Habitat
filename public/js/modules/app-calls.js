@@ -71,7 +71,8 @@ async _acceptCall(code) {
   this._endIncomingCall(code, 'answered');
   this._closeDMPiP?.();
   await this.switchChannel(code);
-  await this._joinVoice();
+  // Habitat fork: key lookup may finish after the caller has navigated to another room.
+  if (this.currentChannel === code) await this._joinVoice(code);
 },
 _declineCall(code) {
   this.socket.emit('dm-call-decline', { code });

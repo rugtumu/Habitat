@@ -1080,15 +1080,19 @@ img[data-lazy="loaded"] { animation: lazy-media-in 0.15s ease; }
 .embed-size-small .link-preview--rich .lp-text { -webkit-line-clamp: 4; }
 .embed-size-small .link-preview--yt .link-preview-yt { max-width: 100%; }
 
-/* Habitat fork: the size picker sets the frame before a thumbnail loads.
-   The image paints inside that frame even when its intrinsic size arrives later. */
+/* Habitat fork: the media frame honors both picker caps and the decoded image size.
+   A saved ratio produces the same frame while a reload waits for the picture. */
 .link-preview--rich .lp-media {
-  width: 100%; aspect-ratio: var(--lp-image-ratio, 16 / 9); max-height: 32.5rem;
+  --lp-height-cap: 32.5rem;
+  width: min(100%, var(--lp-image-width, 100%), calc(var(--lp-height-cap) * var(--lp-image-ratio, 16 / 9)));
+  aspect-ratio: var(--lp-image-ratio, 16 / 9);
+  background: var(--bg-card);
 }
-.embed-size-medium .link-preview--rich .lp-media { max-height: 18.75rem; }
-.embed-size-small .link-preview--rich .lp-media { max-height: 10rem; }
+.embed-size-medium .link-preview--rich .lp-media { --lp-height-cap: 18.75rem; }
+.embed-size-small .link-preview--rich .lp-media { --lp-height-cap: 10rem; }
 .link-preview--rich .lp-media > .lp-image {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: scale-down;
+  background: transparent;
 }
 .lp-pending { box-sizing: border-box; pointer-events: none; visibility: hidden; }
 .lp-pending::before { content: ''; height: 1.25rem; }
@@ -1233,27 +1237,24 @@ img[data-lazy="loaded"] { animation: lazy-media-in 0.15s ease; }
   font-size: 0.6875rem;
 }
 
-/* Submenu wrapper for invite-to-channel */
-.user-ctx-submenu-wrapper {
-  position: relative;
+/* Habitat fork: both disclosures expand inside the menu so the viewport can bound it. */
+:is(#channel-ctx-menu, #dm-ctx-menu, #message-context-menu, #user-context-menu) {
+  box-sizing: border-box;
+  min-width: min(12.5rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  max-height: calc(100dvh - 1rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+#channel-ctx-menu .channel-functions-panel,
+.user-ctx-submenu {
+  position: static;
+  min-width: 0;
+  max-height: none;
 }
 .user-ctx-submenu {
   display: none;
-  position: absolute;
-  left: 100%;
-  top: 0;
-  min-width: 11.25rem;
-  max-height: 17.5rem;
-  overflow-y: auto;
-  background: var(--bg-secondary, #23263a);
-  border: 1px solid var(--border, rgba(255,255,255,0.12));
-  border-radius: 0.5rem;
-  padding: 0.25rem 0;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  z-index: 10002;
-}
-.user-ctx-submenu-wrapper:hover .user-ctx-submenu {
-  display: block;
+  padding-inline-start: .75rem;
 }
 .user-ctx-submenu button {
   display: block;

@@ -28,7 +28,7 @@ function storage() {
 
 // Drive the real switch, channel-list and history listeners. Only the other
 // UI modules and the transport are replaced.
-function client({ localStorage = storage(), search = '', user = { id: 7 }, touch = true, visibilityState = 'visible', addDialog = null } = {}) {
+function client({ localStorage = storage(), search = '', user = { id: 7 }, touch = true, layoutMark = 'data-habitat-layout', visibilityState = 'visible', addDialog = null } = {}) {
   const noop = () => {};
   const events = new Map(), elements = new Map(), timers = new Map();
   const sent = [], rendered = [];
@@ -44,7 +44,7 @@ function client({ localStorage = storage(), search = '', user = { id: 7 }, touch
   const sessionStorage = storage();
   const location = { search, pathname: '/app' };
   const context = vm.createContext({
-    document: { visibilityState, documentElement: { hasAttribute: key => key === 'data-habitat-layout' },
+    document: { visibilityState, documentElement: { hasAttribute: key => key === layoutMark },
       addEventListener: (event, fn) => events.set(event, fn),
       removeEventListener: event => events.delete(event),
       getElementById: el, querySelector: selector => selector === '[data-habitat-dialog]' ? addDialog : null, querySelectorAll: () => [] },
@@ -138,6 +138,17 @@ test('a saved DM follows the member’s current opening preference', async () =>
   const returning = client({ localStorage: c.localStorage });
   returning.list([room, dm]);
   assert.equal(returning.app.currentChannel, room.code);
+});
+
+test('the first channel list restores a DM during boot and honors an explicit window preference', () => {
+  for (const choice of [null, 'false', 'true']) {
+    const c = client({ layoutMark: 'data-habitat-boot' });
+    c.app._rememberConversation(dm);
+    if (choice !== null) c.localStorage.setItem('haven_dm_fullscreen_default', choice);
+    c.list([room, dm]);
+    assert.equal(c.app.currentChannel, choice === 'false' ? null : dm.code);
+    assert.equal(c.app._activeDMPip, choice === 'false' ? dm.code : undefined);
+  }
 });
 
 test('a hidden tab waits for visibility and respects a conversation opened in the meantime', () => {

@@ -64,15 +64,20 @@ test('a card folded by hand stays folded whatever the settings say', () => {
 
 test('bottom-coupled history reserves a single slot before metadata and keeps the image inside it', async () => {
   const css = fs.readFileSync(path.join(ROOT, 'public/css/style-profile-servers-modals.css'), 'utf8');
-  const rules = selector => css.split(selector + ' {').at(-1).split('}')[0];
-  assert.match(rules('.embed-size-small .link-preview--rich .lp-media'), /max-height: 10rem/);
-  assert.match(css, /\.link-preview--rich \.lp-media\s*\{\s*width: 100%; aspect-ratio: var\(--lp-image-ratio, 16 \/ 9\); max-height: 32\.5rem/);
-  assert.match(css, /\.embed-size-medium \.link-preview--rich \.lp-media \{ max-height: 18\.75rem/);
-  assert.match(rules('.link-preview--rich .lp-media > .lp-image'), /position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain/);
+  const rules = selector => css.split('\n' + selector + ' {').at(-1).split('}')[0];
+  assert.match(rules('.embed-size-small .link-preview--rich .lp-media'), /--lp-height-cap: 10rem/);
+  assert.match(rules('.embed-size-medium .link-preview--rich .lp-media'), /--lp-height-cap: 18.75rem/);
+  const frame = rules('.link-preview--rich .lp-media');
+  assert.match(frame, /width: min\(100%, var\(--lp-image-width/);
+  assert.match(frame, /calc\(var\(--lp-height-cap\) \* var\(--lp-image-ratio/);
+  assert.match(frame, /background: var\(--bg-card\)/);
+  assert.match(rules('.link-preview--rich .lp-media > .lp-image'), /object-fit: scale-down/);
+  const image = { addEventListener(name, listener) { this[name] = listener; } };
   const host = { isConnected: true, card: null, closest: () => ({ dataset: { msgId: 42 } }), querySelector() { return this.card; },
     querySelectorAll() { return this.card ? [this.card] : []; }, appendChild(card) { this.card = card; } };
   const dom = { ...globals.document, createElement: () => ({
     dataset: {}, style: { setProperty(k, v) { this[k] = v; } }, setAttribute(k, v) { this[k] = v; },
+    querySelector() { return this.innerHTML?.includes('class="lp-media"') ? image : null; },
     replaceWith(card) { assert.equal(host.card, this); host.card = card; }, remove() { host.card = null; }
   }) };
   const m = load('app-link-previews.js', { ...globals, document: dom });
@@ -88,11 +93,15 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   assert.equal(scrolls, 1);
   app._fetchLinkPreviews(container);
   assert.equal(requests, 1);
-  finish({ title: 'Picture', image: 'a.jpg', imageWidth: 800, imageHeight: 600 });
+  finish({ title: 'Picture', image: 'a.jpg' });
   await settle();
   assert.doesNotMatch(host.card.className, /lp-pending/);
   assert.match(host.card.innerHTML, /class="lp-image".*loading="lazy"/);
-  assert.equal(host.card.style['--lp-image-ratio'], '800 / 600');
+  assert.equal(host.card.style['--lp-image-ratio'], undefined, 'the metadata supplies no dimensions');
+  Object.assign(image, { naturalWidth: 80, naturalHeight: 120 });
+  image.load();
+  assert.equal(host.card.style['--lp-image-ratio'], String(80 / 120), 'decoded dimensions win');
+  assert.equal(host.card.style['--lp-image-width'], '80px');
   assert.equal(scrolls, 2);
   host.card = null;
   app._fetchLinkPreviews(container);
@@ -102,14 +111,15 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   assert.equal(host.card, null);
   assert.equal(scrolls, 3, 'a failed preview releases its space without scrolling the reader back');
   app._coupledToBottom = true;
-  app._restoredPreviewHeights = () => ({ '42/0/false': 20 });
+  app._restoredPreviewHeights = () => ({ '42/0/false': { height: 20, width: 80, imageHeight: 120 } });
   app._fetchLinkPreviews(container);
   assert.equal(host.card.style.height, '20rem', 'a reload reserves the entire measured card before metadata');
   app._coupledToBottom = false;
   finish({ title: 'Picture', image: 'a.jpg' });
   await settle();
   assert.equal(scrolls, 4, 'successful metadata also respects someone who has scrolled away');
-  assert.equal(host.card.style['--lp-image-ratio'], undefined, 'no dimensions uses the CSS fallback');
+  assert.equal(host.card.style['--lp-image-ratio'], String(80 / 120), 'reload reserves a portrait before its load event');
+  assert.equal(host.card.style['--lp-image-width'], '80px');
   app._coupledToBottom = true;
   for (const heights of [null, {}, { '42/1/false': 20 }, { '43/0/false': 20 }]) {
     host.card = null;
@@ -129,12 +139,12 @@ test('a restored feed reuses measured card heights only for the same conversatio
     sessionStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, data) => stored.set(key, data) },
     window: { addEventListener: (name, cb) => events.set(name, cb) } });
   const app = () => Object.assign(Object.create(methods), { currentChannel: 'room', channels: [{ id: 21, code: 'room' }], user: { id: 1 }, _embedSize: () => 'medium' });
-  const list = { clientWidth: 900, querySelectorAll: () => [{ offsetHeight: 320, dataset: { previewSlot: 0 },
+  const list = { clientWidth: 900, querySelectorAll: () => [{ offsetHeight: 320, _previewImageSize: { width: 80, imageHeight: 120 }, dataset: { previewSlot: 0 },
     closest: () => ({ dataset: { msgId: 42 } }), classList: { contains: () => false } }] };
   assert.equal(app()._restoredPreviewHeights(list), null);
   events.get('pagehide')();
   const restored = app();
-  assert.equal(restored._restoredPreviewHeights(list)['42/0/false'], 20);
+  assert.deepEqual({ ...restored._restoredPreviewHeights(list)['42/0/false'] }, { height: 20, width: 80, imageHeight: 120 });
   list.clientWidth = 375;
   assert.equal(restored._restoredPreviewHeights(list), null);
   list.clientWidth = 900;

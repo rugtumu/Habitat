@@ -70,7 +70,7 @@ test('the message toolbar hides reply, quote and thread while posting is blocked
   assert.match(toolbar, /data-action="quote" title="\$\{t\('msg_toolbar\.quote'\)\}"\$\{postBlocked \? ' hidden' : ''\}/);
   assert.match(toolbar, /data-action="thread" title="\$\{t\('msg_toolbar\.thread'\)\}"\$\{postBlocked \? ' hidden' : ''\}/);
   const menu = read('public/js/modules/app-message-tools.js');
-  assert.match(menu, /if \(!postBlocked\) items\.push\(`<button class="channel-ctx-item" data-action="reply">/);
-  assert.match(menu, /if \(!isDm && !postBlocked\) items\.push\(`<button class="channel-ctx-item" data-action="thread">/);
+  assert.match(menu, /if \(!postBlocked\) everyday\.push\(`<button class="channel-ctx-item" data-action="reply">/);
+  assert.match(menu, /if \(!isDm && !postBlocked\) organise\.push\(`<button class="channel-ctx-item" data-action="thread">/);
   assert.ok(JSON.parse(read('public/locales/en.json')).thread_runtime.read_only_no_replies);
 });
