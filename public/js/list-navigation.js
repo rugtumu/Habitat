@@ -2,8 +2,13 @@
 (() => {
   const controls = 'button, a[href], input, select, textarea, summary, [tabindex], [contenteditable="true"]';
   let reverseTab = false;
-  document.addEventListener('keydown', event => { reverseTab = event.key === 'Tab' && event.shiftKey; }, true);
-  document.addEventListener('pointerdown', () => { reverseTab = false; }, true);
+  // A click on a row's text gives focus to the list, the nearest thing that
+  // can take it. That is not someone entering the list by keyboard: treating
+  // it as one moved focus to another row, jumped history to the newest
+  // message and sent the next letters to that message instead of the composer.
+  let pointer = false;
+  document.addEventListener('keydown', event => { pointer = false; reverseTab = event.key === 'Tab' && event.shiftKey; }, true);
+  document.addEventListener('pointerdown', () => { pointer = true; reverseTab = false; }, true);
 
   function bind(list) {
     const messages = list.id === 'messages';
@@ -79,6 +84,7 @@
       else { release(); list.focus({ preventScroll: true }); }
     });
     list.addEventListener('focusin', event => {
+      if (pointer && event.target === list) return;
       const row = event.target.closest(selector);
       if (event.target === list || (messages && row && reverseTab && !list.contains(event.relatedTarget))) {
         select(remembered() || first());
@@ -139,7 +145,9 @@
         return;
       }
       const menu = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-      if (event.shiftKey && !menu && event.key !== 'Delete') return;
+      // Shift is left to the browser and to Haven: in particular Shift+Delete
+      // does not delete here. From the keyboard a deletion always asks first.
+      if (event.shiftKey && !menu) return;
       if (messages && window.getSelection()?.isCollapsed === false) return;
       const row = current;
       const k = event.key;
@@ -167,7 +175,7 @@
         const button = row.querySelector('.msg-toolbar button[data-action="' + action + '"]:not([hidden])');
         if (!button || button.disabled) return;
         if (!event.repeat) {
-          button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: event.shiftKey }));
+          button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         }
       } else return;
       event.preventDefault();

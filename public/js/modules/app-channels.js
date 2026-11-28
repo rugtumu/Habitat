@@ -726,7 +726,7 @@ _renderChannels() {
     const el = document.createElement('div');
     el.className = 'channel-item' + (isSub ? ' sub-channel-item' : '') + (ch.is_private ? ' private-channel' : '') + (ch.code === this.currentChannel ? ' active' : '');
     // Habitat fork: a list item can contain a separate options button.
-    el.role = 'listitem';
+    el.setAttribute('role', 'listitem');
     el.dataset.code = ch.code;
     if (isSub) el.dataset.parentId = ch.parent_channel_id;
 
@@ -956,8 +956,8 @@ _renderChannels() {
       catLabel.className = 'section-label category-label';
       catLabel.style.cssText = 'padding:10px 12px 4px;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;user-select:none;cursor:pointer;display:flex;align-items:center;gap:4px';
       catLabel.dataset.category = cat;
-      catLabel.role = 'listitem';
-      catLabel.ariaLabel = cat;
+      catLabel.setAttribute('role', 'listitem');
+      catLabel.setAttribute('aria-label', cat);
       const arrow = document.createElement('span');
       arrow.className = 'cat-collapse-arrow' + (catCollapsed ? ' collapsed' : '');
       arrow.textContent = '▾';
@@ -1028,8 +1028,8 @@ _renderChannels() {
           tagLabel.dataset.parentId = ch.id;
           tagLabel.dataset.parentCode = ch.code;
           tagLabel.dataset.tagName = tagName;
-          tagLabel.role = 'listitem';
-          tagLabel.ariaLabel = tagName;
+          tagLabel.setAttribute('role', 'listitem');
+          tagLabel.setAttribute('aria-label', tagName);
           if (cat) tagLabel.dataset.catSubGroup = cat;
           tagLabel.style.cssText = 'padding:4px 12px 2px 28px;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.35;user-select:none;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px';
           const tagArrow = document.createElement('span');
@@ -1234,7 +1234,7 @@ _renderChannels() {
 
     const renderDmItem = (ch) => {
       const el = document.createElement('div');
-      el.role = 'listitem';
+      el.setAttribute('role', 'listitem');
       el.className = 'channel-item dm-item' + (ch.code === this.currentChannel ? ' active' : '');
       el.dataset.code = ch.code;
       // Habitat fork: muted DM names follow the same state as channel names.
@@ -1319,8 +1319,8 @@ _renderChannels() {
         // Category header
         const header = document.createElement('div');
         header.className = 'dm-category-header';
-        header.role = 'listitem';
-        header.ariaLabel = tag;
+        header.setAttribute('role', 'listitem');
+        header.setAttribute('aria-label', tag);
         header.innerHTML = `<span class="dm-category-arrow${isCollapsed ? ' collapsed' : ''}">▾</span> <span class="dm-category-name">${this._escapeHtml(tag)}</span>`;
         header.style.cursor = 'pointer';
         header.addEventListener('click', () => {
@@ -1346,8 +1346,8 @@ _renderChannels() {
         const uncatCollapsed = uncatCats['__uncategorized__']?.collapsed || false;
         const header = document.createElement('div');
         header.className = 'dm-category-header';
-        header.role = 'listitem';
-        header.ariaLabel = t('channels.uncategorized');
+        header.setAttribute('role', 'listitem');
+        header.setAttribute('aria-label', t('channels.uncategorized'));
         header.style.opacity = '0.5';
         header.style.cursor = 'pointer';
         header.innerHTML = `<span class="dm-category-arrow${uncatCollapsed ? ' collapsed' : ''}">▾</span> <span class="dm-category-name">${t('channels.uncategorized')}</span>`;

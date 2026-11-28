@@ -80,7 +80,7 @@ test('the Settings picker changes all preview sizes without a visible per-card b
 
 test('an explicit server choice restores capability badges while mute, privacy and unread stay visible', () => {
   const node = () => ({ children: [], dataset: {}, style: {}, querySelector: () => null,
-    addEventListener() {}, appendChild(child) { this.children.push(child); } });
+    addEventListener() {}, setAttribute() {}, appendChild(child) { this.children.push(child); } });
   const list = node();
   const document = { createElement: node, getElementById: id => id === 'channel-list' ? list : null };
   const app = moduleMethods('app-channels.js', { document, t: k => k, setTimeout() {}, clearTimeout() {},

@@ -1,6 +1,11 @@
 // ── Auth Page Logic (with theme support + i18n) ───────────────────────────
 
 (async function () {
+  // Habitat fork: signing in must not depend on the form helper having loaded.
+  // Without it a button is still disabled while its request runs and an error
+  // falls back to the shared notice.
+  const Form = typeof HabitatForm !== 'undefined' ? HabitatForm
+    : { busy(button, on) { if (button) button.disabled = !!on; }, invalid: null, clear() {} };
   // Preserve invite param across login/register so vanity invite links work for new users
   const _urlParams = new URLSearchParams(window.location.search);
   let _pendingInvite = _urlParams.get('invite') || sessionStorage.getItem('haven_pending_invite') || '';
@@ -387,7 +392,9 @@
   function showError(msg, fieldId) {
     hideError();
     invalidField = fieldId && document.getElementById(fieldId);
-    if (invalidField) return HabitatForm.invalid(invalidField, msg);
+    // A message under a field nobody can see is a message nobody gets.
+    if (invalidField && Form.invalid && invalidField.getClientRects().length) return Form.invalid(invalidField, msg);
+    invalidField = null;
     errorEl.textContent = msg;
     errorEl.style.display = 'block';
   }
@@ -396,7 +403,7 @@
     errorEl.style.display = 'none';
     errorEl.style.color = '';
     if (invalidField) {
-      HabitatForm.clear(invalidField);
+      Form.clear(invalidField);
       invalidField = null;
     }
   }
@@ -516,7 +523,7 @@
     // Habitat fork: keep the pending request visible and prevent duplicate submissions.
     const submit = loginForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    HabitatForm.busy(submit, true);
+    Form.busy(submit, true);
     loginForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/login', {
@@ -557,7 +564,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      HabitatForm.busy(submit, false);
+      Form.busy(submit, false);
       loginForm.removeAttribute('aria-busy');
     }
   });
@@ -614,7 +621,7 @@
     // Habitat fork: the second sign-in step uses the same single-submit guard.
     const submit = totpForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    HabitatForm.busy(submit, true);
+    Form.busy(submit, true);
 
     try {
       const res = await fetch('/api/auth/totp/validate', {
@@ -644,7 +651,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      HabitatForm.busy(submit, false);
+      Form.busy(submit, false);
     }
   });
 
@@ -711,7 +718,7 @@
     // Habitat fork: keep recovery submissions single-flight until key derivation finishes.
     const submit = forcedChangeForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    HabitatForm.busy(submit, true);
+    Form.busy(submit, true);
     try {
       const body = useRecall ? { oldPassword: oldPw }
                              : { newPassword: newPw };
@@ -743,7 +750,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      HabitatForm.busy(submit, false);
+      Form.busy(submit, false);
     }
   });
 
@@ -1130,7 +1137,7 @@
     // Habitat fork: keep the pending request visible and prevent duplicate submissions.
     const submit = registerForm.querySelector('[type="submit"]');
     if (submit.disabled) return;
-    HabitatForm.busy(submit, true);
+    Form.busy(submit, true);
     registerForm.setAttribute('aria-busy', 'true');
     try {
       const res = await fetch('/api/auth/register', {
@@ -1177,7 +1184,7 @@
     } catch (err) {
       showError(t('auth.errors.connection_error'));
     } finally {
-      HabitatForm.busy(submit, false);
+      Form.busy(submit, false);
       registerForm.removeAttribute('aria-busy');
     }
   });

@@ -153,7 +153,7 @@ for (const [listId, attr] of [['channel-list', 'data-code'], ['dm-list', 'data-c
   });
 }
 
-test('message keys use the available toolbar action and preserve Shift for deletion', () => {
+test('message keys use the available toolbar action and never delete without asking', () => {
   const { doc, element } = navigation();
   const list = doc.getElementById('messages');
   const row = element('li');
@@ -177,7 +177,8 @@ test('message keys use the available toolbar action and preserve Shift for delet
   editable = false;
   assert.equal(key('e').defaultPrevented, false);
   assert.equal(key('e', { target: element('textarea') }).defaultPrevented, false);
-  assert.deepEqual(clicks, [['edit', false], ['reply', false], ['delete', false], ['delete', true]]);
+  // Shift+Delete is left alone: from the keyboard a deletion always asks first.
+  assert.deepEqual(clicks, [['edit', false], ['reply', false], ['delete', false]]);
 });
 
 test('message names include the author and time and follow the visible excerpt', () => {
@@ -197,4 +198,20 @@ test('message names include the author and time and follow the visible excerpt',
   assert.equal(label(), 'Ada, 08:15, hello …!');
   row.classList.add('message-burned');
   assert.equal(label(), 'Ada, 08:15, messages.burn_done');
+});
+
+test('a click on a row does not count as entering the list by keyboard', () => {
+  const source = read('public/js/list-navigation.js');
+  assert.match(source, /document\.addEventListener\('pointerdown', \(\) => \{ pointer = true;/);
+  assert.match(source, /document\.addEventListener\('keydown', event => \{ pointer = false;/);
+  const focusin = source.slice(source.indexOf("list.addEventListener('focusin'"), source.indexOf("list.addEventListener('focusout'"));
+  assert.ok(focusin.indexOf('if (pointer && event.target === list) return;') > 0);
+  assert.ok(focusin.indexOf('if (pointer && event.target === list) return;') < focusin.indexOf('select('));
+});
+
+test('signing in works without the form helper and never puts an error under a hidden field', () => {
+  const auth = read('public/js/auth.js');
+  assert.match(auth, /const Form = typeof HabitatForm !== 'undefined' \? HabitatForm/);
+  assert.doesNotMatch(auth, /HabitatForm\./);
+  assert.match(auth, /invalidField && Form\.invalid && invalidField\.getClientRects\(\)\.length/);
 });
