@@ -2429,7 +2429,9 @@ class HabitatLayout {
       if (!drag) return;
       drag = null;
       bar.removeAttribute('data-habitat-dragging');
-      apply(embed.getBoundingClientRect().height, true);
+      // A drag cut short because the player went away must not save the
+      // height of whatever replaced the video.
+      if (bar.getClientRects().length) apply(embed.getBoundingClientRect().height, true);
     };
     this._on(bar, 'pointerup', end);
     this._on(bar, 'pointercancel', end);
