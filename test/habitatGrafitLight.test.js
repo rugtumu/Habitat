@@ -125,3 +125,12 @@ test('inline author ink preserves hue and contrast for all twelve palette colour
     for (const bg of surfaces.slice(0, 7)) check(ink, color(bg), 4.5, input + ' on ' + bg);
   }
 });
+
+test('hover and badge fills work independently of :has support', () => {
+  const rules = [...stripCommentsAndImport(light).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const hover = rules.find(([_, selectors]) => selectors.includes('.donor-chip') && selectors.includes('.user-role-badge'));
+  assert.doesNotMatch(hover[1], /:has\(/);
+  assert.match(hover[2], /background: var\(--bg-hover\)/);
+  const permission = rules.find(([_, selectors]) => selectors.trim() === '.rac-perm-item:not(.checked, :has(:checked), .disabled):hover');
+  assert.match(permission[2], /background: var\(--bg-hover\)/);
+});

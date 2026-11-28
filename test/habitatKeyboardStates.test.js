@@ -17,6 +17,13 @@ test('Grafit shares the focus, disabled, pending and invalid states across surfa
   assert.ok(inset, 'clipped fields have a focused inset rule');
   for (const selector of ['#thread-input', '#search-input', '#settings-search', '#gif-search-input', '.emoji-search-input',
     '.reaction-full-search-input', '#theme-search', '.modal', '[role="dialog"]', 'textarea']) assert.ok(inset[1].includes(selector), selector);
+  assert.doesNotMatch(inset[1], /select|#sfp-date-input|type="(?:date|number|checkbox|radio)"/);
+  const controls = theme.match(/html\[data-haven-theme-api="1"\] :is\(#sfp-date-input, ([^{]+)\{([^}]+)\}/);
+  assert.ok(controls);
+  for (const selector of ['.modal', '[role="dialog"]', 'dialog', 'select', 'input', '[role="checkbox"]', '[role="switch"]',
+    '.plugin-toggle-slider', '.forum-state-switch']) assert.ok(controls[1].includes(selector), selector);
+  assert.match(controls[2], /outline-offset: -\.125rem !important;/);
+  assert.doesNotMatch(controls[2], /outline:/, 'the full shared accent outline supplies the ring');
   assert.match(inset[2], /outline: \.0625rem solid var\(--hb-field-focus\) !important;/);
   assert.match(inset[2], /outline-offset: -\.125rem !important;/);
   assert.match(theme, /\[data-haven-region="composer"\]:focus-within \{\s*outline: \.0625rem solid var\(--hb-field-focus\);\s*outline-offset: -\.0625rem;/);

@@ -955,11 +955,18 @@ _bindAdminControls() {
     const labelField = document.getElementById('invite-new-label');
     HabitatForm.busy(button, true);
     try {
-      // Habitat fork: a silent or refused invite keeps its fields for the member to check.
-      const { status, message } = await HabitatForm.socketRequest(this.socket, 'create-invite-code', payload, 'toast',
-        notice => notice?.type === 'success' && notice.message?.startsWith('Invite link created: '));
+      // Habitat fork: only creation's own toast or refusal should release the button early.
+      const { status, message } = await HabitatForm.socketRequest(this.socket, 'create-invite-code', payload, 'toast', {
+        accept: notice => notice?.type === 'success' && (slug ? notice.message === 'Invite link created: ' + slug
+          : notice.message?.startsWith('Invite link created: ')),
+        refuses: msg => /^(Custom code |That code is already |maxUses |Invite links are limited to )/.test(msg) || [
+          'Invalid channel selection', 'You already have 25 invite links. Delete one before making another.',
+          "You don't have permission to manage invite links",
+        ].includes(msg),
+      });
       if (status !== 'received') {
-        if (status === 'offline' && !this.socket?.connected) this._showToast(t('auth.errors.connection_error'), 'error');
+        if (status === 'unconfirmed') this._showToast('The invite may not have been created. Check the invite list before trying again.', 'info');
+        if (status === 'offline') this._showToast(t('auth.errors.connection_error'), 'error');
         if (status === 'refused') {
           if (/^(Custom code|That code is already)/i.test(message)) HabitatForm.invalid(slugField, message);
           if (/^(maxUses|Invite links are limited)/i.test(message)) HabitatForm.invalid(usesField, message);

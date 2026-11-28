@@ -927,14 +927,20 @@ _listenPresenceAndVoice() {
     setTimeout(() => this._joinVoice(), 500);
   });
 
+  // Habitat fork: automod sends the surface immediately before its explanatory error.
+  let automodSurface;
   this.socket.on('error-msg', (msg) => {
+    const surface = automodSurface;
+    automodSurface = undefined;
     // A refused channel-functions toggle arrives here and nowhere else, so
     // this is the only chance to put the row back where it was.
     this._revertPendingChannelToggle();
     this._restoreRefusedDraft(msg);
     /^You are in a timeout/.test(msg) && (this._forumRestoreDraft?.(), this._showTimeoutNotice(msg));
-    // Habitat fork: Edit Profile collects refusals, and Add already announces its own errors.
-    if (!this._habitatAddError?.(msg) && this._profileRequestPending !== true) this._showToast(msg, 'error');
+    // Habitat fork: Add and Edit Profile can both be waiting on the shared rate-limit warning.
+    const addHandled = this._habitatAddError?.(msg);
+    const profileHandled = typeof HabitatForm !== 'undefined' && HabitatForm.handleInlineError(this.socket, msg, surface);
+    if (!addHandled && !profileHandled) this._showToast(msg, 'error');
   });
 
   // Auto-mod refused what was just sent (a link or word the server does not
@@ -942,6 +948,7 @@ _listenPresenceAndVoice() {
   // The notice itself follows as an error-msg.
   this.socket.on('automod-refused', (data) => {
     const surface = data && data.surface;
+    automodSurface = surface;
     if (surface !== 'message' && surface !== 'dm') return;
     this._restoreRefusedDraft(null, true);
     this._forumRestoreDraft?.();

@@ -988,7 +988,7 @@ class HabitatLayout {
       // On a short stage (a player open underneath) it would sit on the name.
       alone.hidden = all.length !== 1 || !all[0].row || !!all[0].camera
         || !stage.hasAttribute('data-habitat-voice-room')
-        || stage.clientHeight < 34 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+        || stage.clientHeight < 30 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
       invite.hidden = document.getElementById('sidebar-invite-panel')?.style.display === 'none'
         || !document.getElementById('right-btn-invite-popout');
       let large = spread ? screens : focus ? [focus] : [];
@@ -1410,6 +1410,7 @@ class HabitatLayout {
       return button;
     };
     if (!app.user.isGuest && (app.user.isAdmin || app._hasPerm?.('use_voice'))) {
+      let expiry;
       add('call', window.t('calls.start'), '📞', async event => {
         if (!app.socket.connected) return app._showToast(window.t('voice.disconnected'), 'error');
         // One tap on a small square must not ring someone, or drop the call
@@ -1421,7 +1422,9 @@ class HabitatLayout {
         // The matching DM reply can ring only while this card is still open,
         // and only for this press: a refused request must not leave it armed.
         button.setAttribute('data-call-socket', app.socket.id);
-        setTimeout(() => button.removeAttribute('data-call-socket'), 10000);
+        // Retrying on the same card gets the full wait for its own DM reply.
+        clearTimeout(expiry);
+        expiry = setTimeout(() => button.removeAttribute('data-call-socket'), 10000);
         app.socket.emit('start-dm', { targetUserId: userId });
       });
     }
@@ -1570,7 +1573,7 @@ class HabitatLayout {
     }
     let before = new Map();  // per person: packets lost and received at the last reading
     let traffic = null;      // bytes sent and received, and when, at the last reading
-    const read = async () => {
+    const read = async interval => {
       const out = {
         peers: 0, live: 0, rtt: null, loss: null, jitter: null, relayed: 0, direct: 0, up: null, down: null, video: null,
         sfu: false, sfuLive: false, others: 0
@@ -1644,6 +1647,8 @@ class HabitatLayout {
         lost += Math.max(0, peerLost - was.lost);
         got += Math.max(0, peerGot - was.got);
       }
+      // A getStats reply can arrive after leave and rejoin. Its counters belong to the old call.
+      if (timer !== interval) return null;
       before = seen;
       const now = Date.now();
       if (traffic && now > traffic.at) {
@@ -1661,14 +1666,15 @@ class HabitatLayout {
     const ms = value => (value === null || !Number.isFinite(value) ? '–' : `${Math.round(value)} ms`);
     const rate = value => (value === null || !Number.isFinite(value) ? '–'
       : value >= 1e6 ? `${(value / 1e6).toFixed(1)} Mbps` : `${Math.round(value / 1000)} kbps`);
-    let drawing = false;
+    let drawing = null;
     const draw = async () => {
       const app = window.app;
-      if (!app?.voice?.inVoice || drawing) return;
-      drawing = true;
+      const interval = timer;
+      if (!app?.voice?.inVoice || !interval || drawing === interval) return;
+      drawing = interval;
       let call;
-      try { call = await read(); } finally { drawing = false; }
-      if (!timer) return;  // the call ended, or the layout left, while the reading was out
+      try { call = await read(interval); } finally { if (drawing === interval) drawing = null; }
+      if (!call || timer !== interval) return;
       const ping = parseInt(document.getElementById('status-ping')?.textContent, 10);
       const worst = Math.max(Number.isFinite(ping) ? ping : 0, call.rtt || 0);
       const loss = call.loss || 0;
@@ -2391,7 +2397,7 @@ class HabitatLayout {
     this._inlineRestores.push([panel, property, panel.style.getPropertyValue(property), panel.style.getPropertyPriority(property)]);
     const bar = this._make('div', {
       'data-habitat-music-resize': '', role: 'separator', 'aria-orientation': 'horizontal',
-      tabindex: '0', 'aria-label': this._text('musicResize'), title: this._text('musicResize')
+      tabindex: '0', 'aria-valuemin': '160', 'aria-label': this._text('musicResize'), title: this._text('musicResize')
     });
     panel.insertBefore(bar, panel.firstChild);
     // The player never takes more than its area can give the stage back.
@@ -2414,6 +2420,9 @@ class HabitatLayout {
       event.preventDefault();
     });
     this._on(bar, 'pointermove', event => {
+      // A drag whose release was never seen (the bar was hidden under the
+      // pointer) must not turn later hovering into resizing.
+      if (drag && !event.buttons) return end();
       if (drag) apply(drag.height + drag.y - event.clientY, false);
     });
     const end = () => {
@@ -2424,6 +2433,7 @@ class HabitatLayout {
     };
     this._on(bar, 'pointerup', end);
     this._on(bar, 'pointercancel', end);
+    this._on(bar, 'lostpointercapture', end);
     this._on(bar, 'keydown', event => {
       const step = event.key === 'ArrowUp' ? 2 : event.key === 'ArrowDown' ? -2 : 0;
       if (!step) return;
@@ -3161,14 +3171,15 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 /* A shared video fills the height the member gave the player; audio players
    keep their own small height and get no handle. */
 [data-habitat-music-resize] { display: none; }
-html[data-habitat-layout] #music-panel:has(#music-embed-container iframe[src*="youtu"]) > [data-habitat-music-resize] {
+html[data-habitat-layout] #music-panel:has(#music-embed-container iframe[src*="youtube-nocookie.com/embed/"]) > [data-habitat-music-resize] {
   display: block; flex: none; height: .5rem; cursor: ns-resize; touch-action: none; background: var(--border);
 }
+@media (pointer: coarse) { html[data-habitat-layout] #music-panel > [data-habitat-music-resize] { height: 1rem; } }
 html[data-habitat-layout] [data-habitat-music-resize]:is(:hover, :focus-visible, [data-habitat-dragging]) { background: var(--accent); }
-html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtu"]) {
+html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtube-nocookie.com/embed/"]) {
   height: var(--hb-music-height, min(22.5rem, 56.25vw)); max-height: 70vh;
 }
-html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtu"]) :is(.music-embed-wrapper, iframe) {
+html[data-habitat-layout] #music-embed-container:has(iframe[src*="youtube-nocookie.com/embed/"]) :is(.music-embed-wrapper, iframe) {
   width: 100%; height: 100%;
 }
 [data-habitat-alone] {

@@ -127,10 +127,11 @@
 .toast-action-btn, .music-search-picker-cancel, .music-pip-btn,
 .channel-roles-member:not(.selected):hover, .channel-roles-role-item:not(.active):hover, .channel-roles-badge,
 .cr-perm-toggle:hover, .rac-user-item:not(.active):hover, .rac-channel-item:not(.active):hover,
-.rac-perm-item:not(.checked, :has(:checked), .disabled):hover, .rac-channel-current-role, .rac-current-role, .role-sidebar-item:not(.active):hover,
+.rac-channel-current-role, .rac-current-role, .role-sidebar-item:not(.active):hover,
 .role-detail-form .toggle-row:hover, .organize-tag-header:not(.selected):hover, .organize-item:not(.selected):hover,
 .organize-has-subs:hover, .organize-item .organize-tag-badge, .perm-user-row:hover, .donors-close-btn:hover,
 .donor-chip { background: var(--bg-hover); }
+.rac-perm-item:not(.checked, :has(:checked), .disabled):hover { background: var(--bg-hover); }
 
 .thread-message:hover { background: color-mix(in srgb, var(--bg-hover) 55%, transparent); }
 @media (hover: none) and (pointer: coarse) {

@@ -813,6 +813,11 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   app._listenMessageChanges();
   app._bindEscapeShortcuts();
   const input = doc.getElementById('thread-input');
+  const notices = [];
+  app._showToast = (...args) => notices.push(args);
+  const composer = doc.createElement('textarea'), opener = doc.createElement('button');
+  composer.id = 'message-input';
+  doc.body.append(composer, opener);
   const open = id => app._openThread(id);
   const del = messageId => socket.emit('message-deleted', { messageId, channelCode: 'elsewhere' });
   open(1);
@@ -841,13 +846,34 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   open(1);
   assert.equal(input.value, '', 'sending a restored draft consumes it');
   del('2');
+  assert.equal(notices.length, 1, 'a cached unsent reply also gets a notice');
   open(2);
   assert.equal(input.value, '', 'deletion clears an inactive draft');
   input.value = 'about to be deleted';
+  app._threadOpener = opener;
+  composer.focus();
   del(2);
+  assert.equal(doc.activeElement, composer);
+  assert.equal(notices.length, 2);
+  assert.deepEqual(notices[1], [notices[0][0], 'info']);
+  assert.match(notices[1][0], /unsent.*parent message was deleted/i);
   assert.equal(app._activeThreadParent, null);
   open('2');
   assert.equal(input.value, '', 'closing a deleted parent does not recache it');
+
+  app._threadOpener = opener;
+  input.focus();
+  del(2);
+  assert.equal(doc.activeElement, opener);
+  assert.equal(notices.length, 2, 'no discarded reply means no notice');
+  const row = doc.createElement('li');
+  row.setAttribute('data-msg-id', '3');
+  doc.body.appendChild(row);
+  row.appendChild(opener);
+  opener.focus();
+  open(3);
+  del(3);
+  assert.equal(doc.activeElement, composer, 'the deleted parent cannot serve as the opener');
 
   for (let id = 10; id < 43; id++) {
     open(id);
@@ -862,12 +888,18 @@ test('a thread owns its reply across switches, closes, sends and parent deletion
   assert.equal(input.value, '42');
 });
 
-test('profile save skips known values, advances on silence and collects server refusals once', async () => {
+function profileEditor() {
   const doc = page();
   doc.body.innerHTML = '<div id="rename-modal"><input id="rename-input"><textarea id="edit-profile-bio"></textarea>' +
     '<input id="edit-profile-birthday"><input id="edit-profile-birthday-hidden"><input id="edit-profile-birthday-hide-year">' +
     '<div id="user-profile-groups-manager"></div><button id="save-rename-btn"></button></div>';
   const field = id => doc.getElementById(id);
+  for (const id of ['rename-input', 'edit-profile-bio', 'edit-profile-birthday']) {
+    field(id).after = el => field(id).parentElement.appendChild(el);
+  }
+  for (const id of ['current-user', 'admin-controls', 'admin-mod-panel']) {
+    const el = doc.createElement('div'); el.id = id; doc.body.appendChild(el);
+  }
   const timers = new Map();
   const context = { document: doc, t, setTimeout(fn, ms) { timers.set(fn, ms); return fn; }, clearTimeout(fn) { timers.delete(fn); } };
   const HabitatForm = vm.runInNewContext(read('public/js/form-state.js') + '\nHabitatForm', context);
@@ -881,7 +913,8 @@ test('profile save skips known values, advances on silence and collects server r
     _bioOpened: 'old bio', _pendingBannerColor: null, _pendingProfileTheme: { bottom: theme.bottom, top: theme.top },
     _showToast: (...args) => notices.push(args), _renderUserBarAvatar() {}, _commitBorderDraft() {},
     _commitBannerPicture() { sent.push('avatar settings'); }, _renderUserProfileGroupsList() {},
-    _revertPendingChannelToggle() {}, _restoreRefusedDraft() {},
+    _hasGlobalPerm: () => false, _hasAnyAdminSettingsAccess: () => false, _safeHexColor: c => c,
+    _cleanProfileTheme: v => v, _revertPendingChannelToggle() {}, _restoreRefusedDraft() {},
   });
   app._listenMessageChanges();
   app._listenPresenceAndVoice();
@@ -895,50 +928,147 @@ test('profile save skips known values, advances on silence and collects server r
   field('edit-profile-birthday-hide-year').checked = true;
   const groups = field('user-profile-groups-manager');
   groups.querySelectorAll = () => [{ dataset: { role: '5' } }];
+  const modal = field('rename-modal'), button = field('save-rename-btn');
+  modal.style.display = 'flex';
+  return { app, field, socket, notices, sent, timers, groups, modal, button };
+}
+
+test('profile save skips known values and waits for each changed field and group receipt', async () => {
+  const { app, field, socket, notices, sent, timers, groups, modal, button } = profileEditor();
   await app._saveRename();
   assert.deepEqual(sent.splice(0), ['avatar settings'], 'no socket writes for known values');
   assert.deepEqual(notices, []);
 
-  const modal = field('rename-modal'), button = field('save-rename-btn');
   modal.style.display = 'flex';
+  field('rename-input').value = 'Ada Lovelace';
   field('edit-profile-birthday-hidden').checked = true;
   field('edit-profile-bio').value = 'changed bio';
   app._pendingBannerColor = '#123456';
   app._pendingProfileTheme = null;
   groups.querySelectorAll = () => [];
-  socket.timeout = ms => ({ emitWithAck: async event => {
-    assert.equal(ms, 2000);
+  let ack;
+  socket.timeout = ms => ({ emitWithAck: event => {
+    assert.equal(ms, 10000);
     sent.push(event);
-    return { error: 'Group refused.' };
+    return new Promise(resolve => { ack = resolve; });
   } });
-  socket.on('set-bio', () => socket.emit('bio-updated', { bio: 'changed bio' }));
-  socket.on('set-banner-color', () => socket.emit('error-msg', 'A new server policy refused this.'));
-  socket.on('set-profile-theme', () => socket.emit('profile-theme-updated', { theme: null }));
-  app._cleanProfileTheme = value => value;
   const save = app._saveRename();
-  await new Promise(setImmediate);
+  for (const [event, receipt, data] of [
+    ['rename-user', 'renamed', { user: { displayName: 'Ada Lovelace' } }],
+    ['set-bio', 'bio-updated', { bio: 'changed bio' }],
+    ['set-birthday', 'birthday-updated', { birthdayHidden: true }],
+    ['set-banner-color', 'banner-color-updated', { color: '#123456' }],
+    ['set-profile-theme', 'profile-theme-updated', { theme: null }],
+  ]) {
+    assert.equal(sent.at(-1), event);
+    assert.deepEqual([...timers.values()], [8000]);
+    assert.equal(button.disabled, true);
+    socket.emit(receipt, data);
+    await new Promise(setImmediate);
+  }
+  assert.equal(sent.at(-1), 'update-groups');
   assert.equal(button.disabled, true);
-  assert.deepEqual(sent, ['set-bio', 'set-birthday']);
-  assert.deepEqual([...timers.values()], [2000]);
-  for (const expire of [...timers.keys()]) expire();
+  ack({ groups: [] });
   await save;
-  assert.deepEqual(sent, ['set-bio', 'set-birthday', 'set-banner-color', 'set-profile-theme', 'update-groups', 'avatar settings']);
+  assert.equal(sent.at(-1), 'avatar settings');
   assert.equal(modal.style.display, 'none');
   assert.equal(button.getAttribute('aria-busy'), null);
-  assert.deepEqual(notices, [['A new server policy refused this. Group refused.', 'info']]);
+  assert.deepEqual(notices, []);
   assert.equal(timers.size, 0);
   assert.equal(socket.listenerCount('disconnect'), 0);
-  assert.equal(socket.listenerCount('error-msg'), 1, 'only the ordinary socket handler remains');
+  assert.equal(socket.listenerCount('error-msg'), 1);
 });
 
-test('invite creation releases the button on silence or an unknown error and clears fields only on its receipt', async () => {
+test('server refusals preserve the name and bio and unrelated errors keep their ordinary notices', async () => {
+  const { app, field, socket, notices, modal, groups } = profileEditor();
+  const name = field('rename-input'), bio = field('edit-profile-bio');
+  name.value = 'New Name';
+  bio.value = 'a refused bio';
+  groups.querySelectorAll = () => [];
+  socket.timeout = () => ({ emitWithAck: async () => ({ error: 'Group refused.' }) });
+  const save = app._saveRename();
+  socket.emit('error-msg', 'Slow mode: wait 5s before sending another message');
+  socket.emit('automod-refused', { surface: 'message' });
+  socket.emit('error-msg', 'Chat verdict');
+  assert.equal(app._profileRenameExpected, name.value);
+  socket.emit('error-msg', 'That display name is already taken on this server');
+  socket.emit('error-msg', 'A second unrelated error');
+  await new Promise(setImmediate);
+  assert.equal(app._profileRenameExpected, null);
+  socket.emit('automod-refused', { surface: 'profile' });
+  socket.emit('error-msg', 'Profile verdict');
+  await save;
+  assert.equal(name.value, 'New Name');
+  assert.equal(bio.value, 'a refused bio');
+  assert.equal(modal.style.display, 'flex');
+  assert.equal(name.getAttribute('aria-invalid'), 'true');
+  assert.equal(bio.getAttribute('aria-invalid'), 'true');
+  assert.equal(field('rename-input-error').textContent, 'That display name is already taken on this server');
+  assert.equal(field('edit-profile-bio-error').textContent, 'Profile verdict');
+  assert.deepEqual(notices, ['Slow mode: wait 5s before sending another message', 'Chat verdict',
+    'A second unrelated error', 'Group refused.'].map(message => [message, 'error']));
+});
+
+test('untagged preview automod is a bio refusal and a shared flood warning is a general error', async () => {
+  const { app, field, socket, notices, modal } = profileEditor();
+  field('edit-profile-bio').value = 'changed bio';
+  const verdict = "Links to example.test aren't allowed here (blocked).";
+  let save = app._saveRename();
+  socket.emit('error-msg', verdict);
+  await save;
+  assert.equal(field('edit-profile-bio-error').textContent, verdict);
+  assert.equal(modal.style.display, 'flex');
+  assert.deepEqual(notices, []);
+  save = app._saveRename();
+  socket.emit('error-msg', 'Slow down: too many requests');
+  await save;
+  assert.deepEqual(notices, [['Slow down: too many requests', 'error']]);
+});
+
+test('an unanswered rename releases its marker and a later rename is announced', async () => {
+  const { app, field, socket, timers, notices, modal, button } = profileEditor();
+  field('rename-input').value = 'Later';
+  const save = app._saveRename();
+  socket.emit('renamed', { user: { displayName: 'Other' } });
+  assert.equal(app._profileRenameExpected, 'Later');
+  assert.equal(timers.size, 1, 'another rename cannot confirm this one');
+  for (const expire of [...timers.keys()]) expire();
+  await save;
+  assert.equal(modal.style.display, 'flex');
+  assert.equal(button.getAttribute('aria-busy'), null);
+  assert.equal(app._profileRenameExpected, null);
+  assert.match(notices.at(-1)[0], /did not confirm/);
+  socket.emit('renamed', { user: { displayName: 'Later' } });
+  assert.equal(notices.at(-1)[1], 'success');
+  assert.equal(app.user.displayName, 'Later');
+});
+
+test('a disconnected rename clears its marker and a missing group acknowledgement keeps the editor open', async () => {
+  const { app, field, socket, notices, modal, groups } = profileEditor();
+  field('rename-input').value = 'Later';
+  const save = app._saveRename();
+  socket.connected = false;
+  socket.emit('disconnect');
+  await save;
+  assert.equal(app._profileRenameExpected, null);
+  assert.deepEqual(notices.pop(), [t('auth.errors.connection_error'), 'error']);
+  socket.connected = true;
+  field('rename-input').value = 'Ada';
+  groups.querySelectorAll = () => [];
+  socket.timeout = () => ({ emitWithAck: async () => { throw new Error('timeout'); } });
+  await app._saveRename();
+  assert.equal(modal.style.display, 'flex');
+  assert.deepEqual(notices, [[t('toasts.role_server_no_response'), 'error']]);
+});
+
+test('invite creation stays busy across unrelated errors and releases on timeout, refusal, receipt or disconnect', async () => {
   const doc = page(), fields = new Map();
   doc.getElementById = id => {
     if (!fields.has(id)) fields.set(id, Object.assign(doc.createElement('input'), { id, value: '', validity: { valid: true } }));
     return fields.get(id);
   };
   let expire;
-  const timers = { setTimeout(fn, ms) { assert.equal(ms, 2000); expire = fn; }, clearTimeout() { expire = null; } };
+  const timers = { setTimeout(fn, ms) { assert.equal(ms, 8000); expire = fn; }, clearTimeout() { expire = null; } };
   const HabitatForm = vm.runInNewContext(read('public/js/form-state.js') + '\nHabitatForm', { document: doc, ...timers });
   const app = load(doc, ['admin-controls'], { HabitatForm });
   const socket = app.socket = new EventEmitter();
@@ -950,19 +1080,30 @@ test('invite creation releases the button on silence or an unknown error and cle
   const label = doc.getElementById('invite-new-label'), button = doc.getElementById('invite-create-btn');
   label.value = 'Team';
   const create = () => button.listeners.click[0]({ currentTarget: button });
+  let sends = 0;
+  socket.on('create-invite-code', () => sends++);
   let saving = create();
+  socket.emit('error-msg', 'Slow mode: wait 5s before sending another message');
+  await create();
+  assert.equal(sends, 1);
   assert.equal(button.disabled, true);
   expire();
   await saving;
   assert.equal(button.getAttribute('aria-busy'), null);
   assert.equal(label.value, 'Team');
+  assert.equal(notices.length, 1);
+  assert.match(notices[0][0], /invite may not have been created/i);
+  assert.equal(notices.pop()[1], 'info');
   saving = create();
-  socket.emit('error-msg', 'Unexpected server refusal');
+  socket.emit('error-msg', "You don't have permission to manage invite links");
   await saving;
   assert.equal(expire, null);
   assert.equal(label.value, 'Team');
+  doc.getElementById('invite-new-slug').value = 'abc';
   saving = create();
   socket.emit('toast', { type: 'success', message: 'Something else' });
+  socket.emit('toast', { type: 'success', message: 'Invite link created: other' });
+  await Promise.resolve();
   assert.equal(button.disabled, true);
   socket.emit('toast', { type: 'success', message: 'Invite link created: abc' });
   await saving;
@@ -976,4 +1117,24 @@ test('invite creation releases the button on silence or an unknown error and cle
   assert.deepEqual(notices, [[t('auth.errors.connection_error'), 'error']]);
   assert.equal(button.getAttribute('aria-busy'), null);
   assert.equal(label.value, 'Offline');
+});
+
+test('replacing the server mute menu repeatedly leaves one outside-click listener and Escape releases it', () => {
+  const doc = page();
+  const make = doc.createElement;
+  doc.createElement = tag => {
+    const el = make(tag);
+    el.getBoundingClientRect = () => ({ right: 80, bottom: 100 });
+    return el;
+  };
+  const app = load(doc, ['server-mute', 'ui'], { window: {}, location: { origin: 'https://example.test' } });
+  app._serverMuteMode = () => 'off';
+  app._bindEscapeShortcuts();
+  for (let i = 0; i < 4; i++) {
+    app._showServerMuteMenu({ clientX: 10, clientY: 10 }, { own: true });
+    assert.equal(doc.listeners.click.length, 1);
+  }
+  pressKey(doc, 'Escape');
+  assert.equal(doc.getElementById('server-mute-menu'), null);
+  assert.equal(doc.listeners.click.length, 0);
 });

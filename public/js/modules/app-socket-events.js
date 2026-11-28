@@ -551,9 +551,21 @@ _listenMessageChanges() {
   });
 
   this.socket.on('message-deleted', (data) => {
-    // Habitat fork: a deleted parent can no longer receive its open or cached reply.
-    if (String(this._activeThreadParent) === String(data.messageId)) this._closeThread({ discardDraft: true });
-    this._threadDrafts?.delete(String(data.messageId));
+    // Habitat fork: discard this parent's reply and leave focus alone outside its panel.
+    const parent = String(data.messageId);
+    let draft = this._threadDrafts?.get(parent);
+    if (String(this._activeThreadParent) === parent) {
+      draft = document.getElementById('thread-input')?.value;
+      const panel = document.getElementById('thread-panel');
+      const restoreFocus = !!panel?.contains(document.activeElement);
+      // The opener may be a button on the row that is about to disappear.
+      if (restoreFocus && this._threadOpener?.closest?.('[data-msg-id]')?.dataset.msgId === parent) {
+        this._threadOpener = document.getElementById('message-input');
+      }
+      this._closeThread({ discardDraft: true, restoreFocus });
+    }
+    this._threadDrafts?.delete(parent);
+    if (draft?.trim()) this._showToast('Your unsent thread reply was discarded because the parent message was deleted.', 'info');
     if (data.channelCode === this.currentChannel || data.channelCode === this._activeDMPip) {
       const msgEls = document.querySelectorAll(`[data-msg-id="${data.messageId}"]`);
       msgEls.forEach((msgEl) => {

@@ -32,5 +32,5 @@ test('a shared video can be resized and audio players keep their own height', ()
   assert.match(plugin, /_buildMusicResize\(\) \{/);
   assert.match(plugin, /this\._inlineRestores\.push\(\[panel, property,/);
   assert.match(plugin, /\[data-habitat-music-resize\] \{ display: none; \}/);
-  assert.match(plugin, /#music-embed-container:has\(iframe\[src\*="youtu"\]\) \{\s*height: var\(--hb-music-height, min\(22\.5rem, 56\.25vw\)\); max-height: 70vh;/);
+  assert.match(plugin, /#music-embed-container:has\(iframe\[src\*="youtube-nocookie\.com\/embed\/"\]\) \{\s*height: var\(--hb-music-height, min\(22\.5rem, 56\.25vw\)\); max-height: 70vh;/);
 });

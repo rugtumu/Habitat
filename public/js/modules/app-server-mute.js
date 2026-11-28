@@ -175,7 +175,8 @@ _applyServerMuteMarks() {
 // The menu on a server icon. Muting another server needs the desktop app;
 // in a browser only the server you are on can be muted from here.
 _showServerMuteMenu(e, { own = false, url = null } = {}) {
-  document.getElementById('server-mute-menu')?.remove();
+  // Habitat fork: another right-click replaces the menu without an outside click.
+  document.getElementById('server-mute-menu')?.dispatchEvent(new Event('close'));
   const desktop = window.havenDesktop?.serverMute;
   let origin = location.origin;
   if (!own) { try { origin = new URL(url).origin; } catch { return; } } // not a URL: no menu
@@ -204,7 +205,8 @@ _showServerMuteMenu(e, { own = false, url = null } = {}) {
   // Habitat fork: Escape must release the outside-click listener too.
   menu.addEventListener('close', close);
   const onDoc = (ev) => { if (!menu.contains(ev.target)) close(); };
-  setTimeout(() => document.addEventListener('click', onDoc, true), 0);
+  // Habitat fork: the opening event is contextmenu, so capture can start immediately.
+  document.addEventListener('click', onDoc, true);
   menu.addEventListener('click', (ev) => {
     const act = ev.target.closest('[data-act]')?.dataset.act;
     if (!act) return;

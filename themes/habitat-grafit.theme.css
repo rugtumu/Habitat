@@ -2228,6 +2228,9 @@ html[data-habitat-layout="compact"] body[data-haven-page="app"] #toast-container
 }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icon { font-size: var(--hb-text-lg); }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icon { font-size: var(--hb-text-sm); }
+/* On a camera the corner belongs to the picture's close button, so the menu
+   takes the same size and sits directly under it. */
+[data-habitat-call-stage] [data-habitat-on-camera] .voice-user-menu-btn { inset: 3.5625rem .5rem auto auto; width: 1.875rem; height: 1.875rem; }
 [data-habitat-call-stage] :is(.voice-user-item:hover, .voice-user-item:focus-within) .voice-user-menu-btn { opacity: 1; }
 /* The name plate on a picture: a dark plate, so it reads on any camera or
    screen. No blur behind it: a blur over video is drawn again with every frame. */
@@ -3206,10 +3209,18 @@ html[data-haven-theme-api="1"] :focus-visible,
 /* These fields sit against clipped surfaces and stay focused while the member types. */
 html[data-haven-theme-api="1"] :is(#quick-switcher-input, #thread-input, #search-input, #settings-search,
     #theme-search, #threads-list-search, #gif-search-input, .emoji-search-input, .reaction-full-search-input,
-    #sfp-filter-input, #sfp-date-input, #tag-popup-input,
+    #sfp-filter-input, #tag-popup-input,
     :where(.modal, [role="dialog"], dialog) :is(input:not([type]), input:is([type="text"], [type="search"],
-      [type="email"], [type="url"], [type="password"], [type="tel"], [type="number"], [type="date"]), textarea, select)):focus-visible {
+      [type="email"], [type="url"], [type="password"], [type="tel"]), textarea)):focus-visible {
   outline: .0625rem solid var(--hb-field-focus) !important;
+  outline-offset: -.125rem !important;
+}
+
+/* Dialog edges can clip the shared accent outline on selects, dates and switches. */
+html[data-haven-theme-api="1"] :is(#sfp-date-input, :where(.modal, [role="dialog"], dialog)
+    :is(select, input, [role="checkbox"], [role="radio"], [role="switch"])):focus-visible,
+:where(.modal, [role="dialog"], dialog) .plugin-toggle input:focus-visible + .plugin-toggle-slider,
+:where(.modal, [role="dialog"], dialog) .forum-state-switch input:focus-visible + span {
   outline-offset: -.125rem !important;
 }
 

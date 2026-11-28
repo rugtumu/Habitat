@@ -2200,3 +2200,51 @@ test('composer tools have distinct names and titles during layout ownership and 
   layout.stop();
   assert.equal(doc.getElementById('composer-plus-btn').getAttribute('title'), 'Plus');
 });
+
+test('retrying Call on an open card gives the second DM request its full wait', async t => {
+  const { doc } = buildApp();
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  window.t = key => key;
+  const requests = [];
+  Object.assign(window.app, {
+    user: { id: 2, isAdmin: true }, _showConfirmModal: async () => true,
+    socket: { id: 'tab', connected: true, emit: event => requests.push(event) },
+  });
+  const card = el(doc, 'div', {}, [el(doc, 'div', { class: 'profile-popup-actions' })]);
+  doc.body.appendChild(card);
+  new HabitatLayout()._profileActions(card, 5, false);
+  const button = card.querySelector('[data-habitat-profile-action="call"]');
+  button.isConnected = true;
+  const press = () => button.fire('click', { currentTarget: button });
+  press();
+  await Promise.resolve();
+  t.mock.timers.tick(8000);
+  press();
+  await Promise.resolve();
+  assert.deepEqual(requests, ['start-dm', 'start-dm']);
+  t.mock.timers.tick(2000);
+  assert.equal(button.getAttribute('data-call-socket'), 'tab');
+  t.mock.timers.tick(8000);
+  assert.equal(button.getAttribute('data-call-socket'), null);
+});
+
+test('a connection reading from a departed call cannot grade the next call', async () => {
+  const { voiceBar, call } = buildApp();
+  let finish;
+  const connection = { connectionState: 'disconnected', getStats: () => new Promise(resolve => { finish = resolve; }) };
+  window.app.voice = { inVoice: true, peers: new Map([[1, { connection }]]) };
+  const layout = new HabitatLayout();
+  layout.start();
+  try {
+    call(true);
+    call(false);
+    window.app.voice.peers.clear();
+    call(true);
+    await new Promise(setImmediate);
+    finish(new Map());
+    await new Promise(setImmediate);
+    assert.equal(voiceBar.getAttribute('data-habitat-signal'), 'good');
+  } finally {
+    layout.stop();
+  }
+});
