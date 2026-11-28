@@ -933,8 +933,8 @@ _listenPresenceAndVoice() {
     this._revertPendingChannelToggle();
     this._restoreRefusedDraft(msg);
     /^You are in a timeout/.test(msg) && (this._forumRestoreDraft?.(), this._showTimeoutNotice(msg));
-    // Habitat fork: a refusal already shown beside the open form needs only one announcement.
-    if (!this._habitatAddError?.(msg)) this._showToast(msg, 'error');
+    // Habitat fork: Edit Profile collects refusals, and Add already announces its own errors.
+    if (!this._habitatAddError?.(msg) && this._profileRequestPending !== true) this._showToast(msg, 'error');
   });
 
   // Auto-mod refused what was just sent (a link or word the server does not

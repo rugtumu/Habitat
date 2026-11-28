@@ -955,16 +955,18 @@ _bindAdminControls() {
     const labelField = document.getElementById('invite-new-label');
     HabitatForm.busy(button, true);
     try {
-      const created = await HabitatForm.socketRequest(this, 'create-invite-code', payload, 'toast', {
-        accept: notice => notice?.type === 'success' && notice.message?.startsWith('Invite link created: '),
-        refusal(message) {
-          if (/^(Custom code|That code is already)/i.test(message)) return slugField;
-          if (/^(maxUses|Invite links are limited)/i.test(message)) return usesField;
-          if (/^Invalid channel selection/i.test(message)) return document.getElementById('invite-new-channels');
-          return /permission to manage invite links|already have 25 invite links/i.test(message);
+      // Habitat fork: a silent or refused invite keeps its fields for the member to check.
+      const { status, message } = await HabitatForm.socketRequest(this.socket, 'create-invite-code', payload, 'toast',
+        notice => notice?.type === 'success' && notice.message?.startsWith('Invite link created: '));
+      if (status !== 'received') {
+        if (status === 'offline' && !this.socket?.connected) this._showToast(t('auth.errors.connection_error'), 'error');
+        if (status === 'refused') {
+          if (/^(Custom code|That code is already)/i.test(message)) HabitatForm.invalid(slugField, message);
+          if (/^(maxUses|Invite links are limited)/i.test(message)) HabitatForm.invalid(usesField, message);
+          if (/^Invalid channel selection/i.test(message)) HabitatForm.invalid(document.getElementById('invite-new-channels'), message);
         }
-      });
-      if (!created) return;
+        return;
+      }
       // Leave edits made during the round trip for the next invite.
       if (labelField.value.trim() === label) labelField.value = '';
       if (slugField.value.trim() === slug) slugField.value = '';

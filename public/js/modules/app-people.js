@@ -403,44 +403,51 @@ async _saveRename() {
   const stillOpen = () => session === this._profileEditSession && modal.style.display !== 'none';
   const changes = [];
   if (newName !== (this.user.displayName || this.user.username)) {
-    changes.push([input, 'rename-user', { username: newName }, 'renamed', /display name|that name|stacked accent|underscores/i]);
+    changes.push(['rename-user', { username: newName }, 'renamed', response => response?.user?.displayName === newName]);
   }
-  if (bio && bio.value !== this._bioOpened) {
-    changes.push([bio, 'set-bio', { bio: bio.value }, 'bio-updated', /bio/i]);
+  // Habitat fork: a refreshed session may already know the edited bio while the form is open.
+  if (bio && bio.value !== this._bioOpened && bio.value.trim() !== (this.user.bio || '')) {
+    changes.push(['set-bio', { bio: bio.value.trim() }, 'bio-updated']);
   }
   const birthday = this.user.birthday ? null : date.value || null;
   const hidden = document.getElementById('edit-profile-birthday-hidden').checked;
   const hideYear = document.getElementById('edit-profile-birthday-hide-year').checked;
   if (birthday || hidden !== (this.user.birthdayHidden === true) || hideYear !== (this.user.birthdayHideYear !== false)) {
-    changes.push([date, 'set-birthday', birthday ? { birthday, hidden, hideYear } : { hidden, hideYear }, 'birthday-updated', /birthday/i]);
+    changes.push(['set-birthday', birthday ? { birthday, hidden, hideYear } : { hidden, hideYear }, 'birthday-updated']);
   }
   if (this._pendingBannerColor !== (this.user.bannerColor || null)) {
-    changes.push([document.getElementById('banner-color-input'), 'set-banner-color', { color: this._pendingBannerColor },
-      'banner-color-updated', /banner color/i]);
+    changes.push(['set-banner-color', { color: this._pendingBannerColor }, 'banner-color-updated']);
   }
-  const theme = this._pendingProfileTheme || null;
-  if (JSON.stringify(theme) !== JSON.stringify(this.user.profileTheme || null)) {
-    changes.push([document.getElementById('profile-theme-top'), 'set-profile-theme', theme || { top: null, bottom: null },
-      'profile-theme-updated', /profile theme/i]);
+  const theme = this._pendingProfileTheme;
+  if (theme?.top !== this.user.profileTheme?.top || theme?.bottom !== this.user.profileTheme?.bottom) {
+    changes.push(['set-profile-theme', theme || { top: null, bottom: null }, 'profile-theme-updated']);
   }
 
-  // Habitat fork: profile writes have separate receipts. Send one at a time so a moderation refusal belongs to its field.
+  // Habitat fork: a missing receipt says nothing about later changes. Collect explicit refusals for one notice.
+  const refusals = new Set();
+  const refused = message => refusals.add(typeof message === 'string' && message || t('badges.save_failed'));
   HabitatForm.busy(button, true);
   try {
-    for (const [field, event, data, receipt, refused] of changes) {
-      const ok = await HabitatForm.socketRequest(this, event, data, receipt, {
-        accept: response => event !== 'rename-user' || response?.user?.displayName === newName,
-        refusal: (message, moderated) => (moderated || refused.test(message)) && field,
-        profileText: field === input || field === bio,
-        active: stillOpen
-      });
-      if (!ok || !stillOpen()) return;
-      if (field === bio) this._bioOpened = data.bio;
+    for (const [event, data, receipt, accept] of changes) {
+      this._profileRequestPending = true;
+      if (event === 'rename-user') this._profileRenameExpected = newName;
+      const { status, message } = await HabitatForm.socketRequest(this.socket, event, data, receipt, accept);
+      this._profileRequestPending = false;
+      if (event === 'rename-user' && (status === 'offline' || status === 'refused')) this._profileRenameExpected = null;
+      if (status === 'refused') refused(message);
+      if (!stillOpen()) return;
+      if (status === 'received' && event === 'set-bio') this._bioOpened = data.bio;
+      if (status === 'offline') {
+        if (!this.socket?.connected) this._showToast(t('auth.errors.connection_error'), 'error');
+        return;
+      }
     }
-    if (await this._GroupManagerSaveGroups() === false || !stillOpen()) return;
-    if (await this._commitAvatarSettings() !== false && stillOpen()) modal.style.display = 'none';
+    if (await this._GroupManagerSaveGroups(refused) === false || !stillOpen()) return;
+    if (await this._commitAvatarSettings(refused) !== false && stillOpen()) modal.style.display = 'none';
   } finally {
+    this._profileRequestPending = false;
     HabitatForm.busy(button, false);
+    if (refusals.size) this._showToast([...refusals].join(' '), 'info');
   }
 },
 
@@ -634,7 +641,7 @@ _showGroupManager() {
   );
 },
 
-async _GroupManagerSaveGroups() {
+async _GroupManagerSaveGroups(reportRefusal) {
   // Only send a selection while the group manager is open. Save Profile calls
   // this unconditionally, and with the manager closed there are no checkboxes
   // in the DOM, so an empty list would go out and the server would read it as
@@ -642,22 +649,30 @@ async _GroupManagerSaveGroups() {
   const manager = document.getElementById('user-profile-groups-manager');
   if (!manager || manager.style.display === 'none') return;
   const selectedGroupIds = Array.from(manager.querySelectorAll('.user-group-checkbox:checked')).map(el => parseInt(el.dataset.role, 10)).filter(Number.isInteger);
-  // Habitat fork: profile Save stays pending while an open group's selection is being saved.
+  // Habitat fork: compare membership as a set. Opening the group picker alone changes nothing.
+  const known = new Set((this.user.roles || []).filter(role => role.level === 0).map(role => Number(role.id)));
+  if (known.size === selectedGroupIds.length && selectedGroupIds.every(id => known.has(id))) {
+    if (!reportRefusal) this._renderUserProfileGroupsList();
+    return;
+  }
   let res;
   try {
-    res = await this.socket.timeout(10000).emitWithAck('update-groups', { groupIds: selectedGroupIds });
+    res = await this.socket.timeout(reportRefusal ? 2000 : 10000).emitWithAck('update-groups', { groupIds: selectedGroupIds });
   } catch {
+    // Habitat fork: a missing group receipt must also let the profile save reach the avatar.
+    if (reportRefusal && this.socket.connected) return;
     this._showToast(t('toasts.role_server_no_response'), 'error');
     return false;
   }
   if (res.error) {
+    if (reportRefusal) { reportRefusal(res.error); return; }
     this._showToast(res.error, 'error');
     return false;
   }
   if (Array.isArray(res.groups)) {
     this.user.roles = [...(this.user.roles || []).filter(r => r.level !== 0), ...res.groups];
   }
-  this._showToast(t('modals.edit_profile.groups_saved'), 'success');
+  if (!reportRefusal) this._showToast(t('modals.edit_profile.groups_saved'), 'success');
   this._renderUserProfileGroupsList();
 },
 

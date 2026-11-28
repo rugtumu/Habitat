@@ -13,6 +13,13 @@ test('Grafit shares the focus, disabled, pending and invalid states across surfa
   const theme = read('themes/habitat-grafit.theme.css');
   const forms = read('public/css/style-forms.css');
   assert.match(theme, /html\[data-haven-theme-api="1"\] :focus-visible[^{]*\{\s*outline: \.125rem solid var\(--accent\) !important;\s*outline-offset: \.125rem/);
+  const inset = theme.match(/html\[data-haven-theme-api="1"\] :is\((#quick-switcher-input,[^{]+)\):focus-visible \{([^}]+)\}/);
+  assert.ok(inset, 'clipped fields have a focused inset rule');
+  for (const selector of ['#thread-input', '#search-input', '#settings-search', '#gif-search-input', '.emoji-search-input',
+    '.reaction-full-search-input', '#theme-search', '.modal', '[role="dialog"]', 'textarea']) assert.ok(inset[1].includes(selector), selector);
+  assert.match(inset[2], /outline: \.0625rem solid var\(--hb-field-focus\) !important;/);
+  assert.match(inset[2], /outline-offset: -\.125rem !important;/);
+  assert.match(theme, /\[data-haven-region="composer"\]:focus-within \{\s*outline: \.0625rem solid var\(--hb-field-focus\);\s*outline-offset: -\.0625rem;/);
   for (const css of [theme, layout]) assert.doesNotMatch(css, /\boutline:\s*(?:0|none)\s*(?:!important\s*)?[;}]/);
   assert.match(theme, /:is\(:disabled, \[aria-disabled="true"\], \.disabled\) \{\s*opacity: var\(--hb-disabled-opacity\) !important;\s*cursor: default/);
   assert.match(theme, /\[aria-invalid="true"\] \{\s*border-color: var\(--hb-invalid-ring\)/);
@@ -205,8 +212,8 @@ test('a click on a row does not count as entering the list by keyboard', () => {
   assert.match(source, /document\.addEventListener\('pointerdown', \(\) => \{ pointer = true;/);
   assert.match(source, /document\.addEventListener\('keydown', event => \{ pointer = false;/);
   const focusin = source.slice(source.indexOf("list.addEventListener('focusin'"), source.indexOf("list.addEventListener('focusout'"));
-  assert.ok(focusin.indexOf('if (pointer && event.target === list) return;') > 0);
-  assert.ok(focusin.indexOf('if (pointer && event.target === list) return;') < focusin.indexOf('select('));
+  assert.ok(focusin.indexOf('if (pointer) return;') > 0);
+  assert.ok(focusin.indexOf('if (pointer) return;') < focusin.indexOf('select('));
 });
 
 test('signing in works without the form helper and never puts an error under a hidden field', () => {

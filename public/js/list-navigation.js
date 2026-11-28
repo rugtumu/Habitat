@@ -78,13 +78,16 @@
     const observer = new MutationObserver(() => {
       // Appending history or refreshing a badge costs a connectivity check. Look up a key only on replacement.
       if (current?.isConnected) return;
+      if (pointer) return release();
       if (document.activeElement !== document.body && document.activeElement !== list) return release();
       const next = remembered() || first();
       if (next) select(next, true, true);
       else { release(); list.focus({ preventScroll: true }); }
     });
     list.addEventListener('focusin', event => {
-      if (pointer && event.target === list) return;
+      // A click on the list, a row or a button inside one never adopts a row:
+      // the next letter belongs to the composer, not to that message.
+      if (pointer) return;
       const row = event.target.closest(selector);
       if (event.target === list || (messages && row && reverseTab && !list.contains(event.relatedTarget))) {
         select(remembered() || first());

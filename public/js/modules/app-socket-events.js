@@ -415,8 +415,8 @@ _listenMessageChanges() {
   });
 
   this.socket.on('bio-updated', (data) => {
+    // Habitat fork: Edit Profile closes quietly after sending its changes.
     this.user.bio = data.bio || '';
-    this._showToast(t('toasts.bio_updated'), 'success');
   });
 
   this.socket.on('profile-theme-updated', (data) => {
@@ -430,15 +430,12 @@ _listenMessageChanges() {
   });
 
   this.socket.on('birthday-updated', (data) => {
-    const wasHidden = this.user.birthdayHidden === true;
+    // Habitat fork: even a late receipt updates the cache without adding a save notification.
     this.user.birthday = data.birthday || null;
     this.user.birthdaySetAt = data.birthdaySetAt || null;
     this.user.birthdayHideYear = data.birthdayHideYear !== false;
     this.user.birthdayHidden = data.birthdayHidden === true;
     localStorage.setItem('haven_user', JSON.stringify(this.user));
-    const toast = this.user.birthdayHidden === wasHidden ? 'toasts.birthday_updated'
-      : this.user.birthdayHidden ? 'toasts.birthday_hidden' : 'toasts.birthday_shown';
-    this._showToast(t(toast), 'success');
   });
 
   // ── Username rename ──────────────────────────────
@@ -452,7 +449,9 @@ _listenMessageChanges() {
     const loginEl = document.getElementById('login-name');
     if (loginEl) loginEl.textContent = `@${data.user.username}`;
     this._renderUserBarAvatar();
-    this._showToast(t('toasts.display_name_changed', { name: data.user.displayName || data.user.username }), 'success');
+    // Habitat fork: slash commands and moderator renames still announce the new name.
+    if (this._profileRenameExpected === data.user.displayName) this._profileRenameExpected = null;
+    else this._showToast(t('toasts.display_name_changed', { name: data.user.displayName || data.user.username }), 'success');
     // Refresh admin UI in case admin status changed
     this.user.permissions = data.user.permissions || this.user.permissions || [];
     this.user.globalPermissions = data.user.globalPermissions || this.user.globalPermissions || [];
@@ -552,6 +551,9 @@ _listenMessageChanges() {
   });
 
   this.socket.on('message-deleted', (data) => {
+    // Habitat fork: a deleted parent can no longer receive its open or cached reply.
+    if (String(this._activeThreadParent) === String(data.messageId)) this._closeThread({ discardDraft: true });
+    this._threadDrafts?.delete(String(data.messageId));
     if (data.channelCode === this.currentChannel || data.channelCode === this._activeDMPip) {
       const msgEls = document.querySelectorAll(`[data-msg-id="${data.messageId}"]`);
       msgEls.forEach((msgEl) => {

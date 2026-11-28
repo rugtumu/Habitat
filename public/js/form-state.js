@@ -44,39 +44,24 @@ const HabitatForm = (() => {
     }
   }
 
-  // Older socket handlers use named receipts and a shared error channel instead of acknowledgement callbacks.
-  function socketRequest(app, event, data, receipt, { accept, refusal, active = () => true, profileText = false }) {
-    const socket = app.socket;
+  // Habitat fork: these handlers have no request IDs and can stay silent even on a connected socket.
+  function socketRequest(socket, event, data, receipt, accept = () => true) {
+    if (!socket?.connected) return Promise.resolve({ status: 'offline' });
     return new Promise(resolve => {
-      let profileRefused = false;
-      const done = ok => {
+      const done = (status, message) => {
         clearTimeout(timer);
-        socket?.off(receipt, received);
-        socket?.off('error-msg', failed);
-        socket?.off('disconnect', unavailable);
-        if (profileText) socket?.off('automod-refused', moderated);
-        resolve(ok);
+        socket.off(receipt, received);
+        socket.off('error-msg', failed);
+        socket.off('disconnect', disconnected);
+        resolve({ status, message });
       };
-      const received = response => { if (accept(response)) done(true); };
-      const moderated = notice => { profileRefused = notice?.surface === 'profile'; };
-      const failed = message => {
-        if (typeof message !== 'string') return;
-        const field = refusal(message, profileRefused);
-        if (!field) return;
-        // A true result denotes an action-wide refusal already announced by the socket toast.
-        if (field !== true && active()) invalid(field, message);
-        done(false);
-      };
-      const unavailable = () => {
-        if (active()) app._showToast(t('auth.errors.connection_error'), 'error');
-        done(false);
-      };
-      const timer = setTimeout(unavailable, 15000);
-      if (!socket?.connected) return unavailable();
+      const received = response => { if (accept(response)) done('received'); };
+      const failed = message => done('refused', message);
+      const disconnected = () => done('offline');
+      const timer = setTimeout(() => done(socket.connected ? 'unconfirmed' : 'offline'), 2000);
       socket.on(receipt, received);
       socket.on('error-msg', failed);
-      socket.on('disconnect', unavailable);
-      if (profileText) socket.on('automod-refused', moderated);
+      socket.on('disconnect', disconnected);
       socket.emit(event, data);
     });
   }

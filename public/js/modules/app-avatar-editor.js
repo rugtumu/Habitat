@@ -1089,7 +1089,8 @@ _setupAvatarUpload() {
       e.preventDefault();
       this._pendingAvatarFile = null;
       this._pendingAvatarPreviewUrl = null;
-      this._pendingAvatarRemoved = true;
+      // Habitat fork: clearing a staged picture needs a server removal only if a saved picture exists.
+      this._pendingAvatarRemoved = !!this.user.avatar;
       this._refreshBannerColorPreview();
       const preview = document.getElementById('avatar-upload-preview');
       if (preview) {
@@ -1145,7 +1146,8 @@ _setupAvatarUpload() {
       e.preventDefault();
       this._pendingBorderFile = null;
       this._pendingBorderPreviewUrl = null;
-      this._pendingBorderRemoved = true;
+      // Habitat fork: clearing a staged picture needs a server removal only if a saved picture exists.
+      this._pendingBorderRemoved = !!this.user.border;
       // Removing the image invalidates its fit.
       this._borderOps = [];
       this._borderDraft = null;
@@ -1253,7 +1255,8 @@ _markAvatarUnsaved() {
 },
 
 // Commit pending avatar + shape to the server via HTTP (not socket!)
-async _commitAvatarSettings() {
+// Habitat fork: Edit Profile collects refusals in one notice. The separate avatar button gives its own feedback.
+async _commitAvatarSettings(reportRefusal) {
   const status = document.getElementById('avatar-save-status');
   if (status) { status.textContent = t('media_runtime.avatar.saving'); status.style.color = 'var(--text-secondary)'; }
 
@@ -1424,13 +1427,15 @@ async _commitAvatarSettings() {
 
     if (status) { status.textContent = t('media_runtime.avatar.saved'); status.style.color = 'var(--success, #6f6)'; }
     this._renderUserBarAvatar();
-    this._showToast(t('media_runtime.avatar.saved_toast'), 'success');
+    if (!reportRefusal) this._showToast(t('media_runtime.avatar.saved_toast'), 'success');
     setTimeout(() => { if (status) status.textContent = ''; }, 3000);
 
   } catch (err) {
     console.error('[Avatar] Save failed:', err);
     if (status) { status.textContent = '❌ ' + err.message; status.style.color = 'var(--danger, red)'; }
-    this._showToast(t('media_runtime.avatar.save_failed', { error: err.message }), 'error');
+    const message = t('media_runtime.avatar.save_failed', { error: err.message });
+    if (reportRefusal) reportRefusal(message);
+    else this._showToast(message, 'error');
     // Habitat fork: leave Edit Profile open so the member can retry the failed save.
     return false;
   }

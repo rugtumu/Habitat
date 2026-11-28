@@ -255,10 +255,29 @@ _toggleThread(parentId) {
   else this._openThread(parentId);
 },
 
+// Habitat fork: only closed threads need a cached draft. While open, the input owns it,
+// so sending or erasing the text also drops the draft. Keep the 32 most recently left.
+_switchThreadDraft(parentId, discard = false) {
+  const previous = this._activeThreadParent;
+  this._activeThreadParent = parentId;
+  const input = document.getElementById('thread-input');
+  if (!input || (parentId != null && String(previous) === String(parentId))) return;
+  const drafts = this._threadDrafts ||= new Map();
+  const next = drafts.get(String(parentId)) || '';
+  drafts.delete(String(parentId));
+  if (previous != null && input.value && !discard) {
+    drafts.set(String(previous), input.value);
+    if (drafts.size > 32) drafts.delete(drafts.keys().next().value);
+  }
+  input.value = next;
+},
+
 _openThread(parentId) {
   // Replies picked in another thread do not carry over (app-unthread.js).
   if (this._moveSourceThread && Number(this._moveSourceThread) !== Number(parentId)) this._exitMoveSelectionMode?.();
-  this._activeThreadParent = parentId;
+  // Habitat fork: a direct switch also leaves the previous reply target behind.
+  if (this._activeThreadParent != null && String(this._activeThreadParent) !== String(parentId)) this._clearThreadReply();
+  this._switchThreadDraft(parentId);
   // Clear any pending thread mentions for this thread/channel
   this._clearThreadMentionsForParent(this.currentChannel, parentId);
   // Opening it is reading it: the "N new" marker goes (app-thread-unread.js).
@@ -357,17 +376,13 @@ _applyThreadClosed(closed) {
   if (text) text.textContent = readOnly ? t('thread_runtime.read_only_no_replies') : closed ? t(canReply ? 'forum.closed_you_can_reply' : 'forum.closed_no_replies') : '';
 },
 
-_closeThread({ restoreFocus = true } = {}) {
+_closeThread({ restoreFocus = true, discardDraft = false } = {}) {
   // Replies picked in it went with the panel (app-unthread.js).
   if (this._moveSourceThread) this._exitMoveSelectionMode?.();
   clearTimeout(this._threadLoadTimer);
-  this._activeThreadParent = null;
+  // Habitat fork: keep the text on navigation, but discard it with a deleted parent.
+  this._switchThreadDraft(null, discardDraft);
   this._clearThreadReply();
-  // Habitat fork: the field is shared by every thread. A draft left in it
-  // would show up in the next thread and, now that a typed reply keeps a
-  // thread open, stop Escape from closing that one.
-  const draft = document.getElementById('thread-input');
-  if (draft) draft.value = '';
   // A reaction picker opened on a reply has nothing left to react to.
   this._closeReactionPickers?.();
   const panel = document.getElementById('thread-panel');

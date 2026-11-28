@@ -838,7 +838,7 @@ _uploadWithProgress(url, formData) {
     const picker = document.getElementById('upload-btn');
     const settle = () => {
       this._activeUploads.delete(xhr);
-      if (!this._activeUploads.size) HabitatForm.busy(picker, false);
+      if (!this._activeUploads.size && typeof HabitatForm !== 'undefined') HabitatForm.busy(picker, false);
       this._uploadProcessing.delete(uploadId);
       if (bar && this._activeUploads.size === 0) bar.style.display = 'none';
     };
@@ -898,7 +898,8 @@ _uploadWithProgress(url, formData) {
     });
 
     this._activeUploads.add(xhr);
-    HabitatForm.busy(picker, true);
+    // Habitat fork: an upload still goes out when the form helper failed to load.
+    if (typeof HabitatForm !== 'undefined') HabitatForm.busy(picker, true);
     try { xhr.send(formData); } catch (error) { settle(); reject(error); }
   });
 },
