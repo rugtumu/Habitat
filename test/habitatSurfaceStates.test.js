@@ -317,7 +317,7 @@ test('a stalled encrypted image ends loading and retries its encrypted fetch', a
   context.location = { href: 'https://example.test' };
   app._decryptE2EImages(root);
   assert.ok(img.classList.contains('e2e-img-loading'));
-  expire(120000);
+  expire(30000);
   await tick();
   assert.ok(!img.classList.contains('e2e-img-loading'));
   expectFailure(root, 'file_failed').dispatch('click');

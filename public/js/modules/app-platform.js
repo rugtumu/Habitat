@@ -1840,10 +1840,13 @@ _decryptE2EFiles(root) {
       row.classList.remove('e2e-file-failed');
       row.classList.add('e2e-file-loading');
       try {
-        // Habitat fork: a stalled encrypted attachment must release the download control.
-        const deadline = HabitatSurface.deadline(120000);
+        // Habitat fork: the deadline covers the wait for the server's answer
+        // only. Once the file starts arriving it may take as long as the
+        // member's line needs: a limit on the whole download failed every
+        // large attachment on a slow connection, and again on each retry.
+        const deadline = HabitatSurface.deadline(30000);
         const buf = await fetch(url, { signal: deadline.signal })
-          .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+          .then(r => { deadline.clear(); if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
           .finally(deadline.clear);
         const plain = await this._e2eDecryptBytes(partner, new Uint8Array(buf));
         const blob = new Blob([plain], { type: mime });
@@ -2019,10 +2022,11 @@ _e2eImageBlob(img, partner = null) {
   const mime = (img && img.dataset && img.dataset.e2eMime) || 'image/png';
   if (!partner) partner = this._e2ePartnerForNode(img);
   if (!partner || !url || !url.startsWith('/uploads/')) return Promise.reject(new Error('not decryptable here'));
-  // Habitat fork: bound the encrypted download through its last byte.
-  const deadline = HabitatSurface.deadline(120000);
+  // Habitat fork: bound the wait for the server's answer, not the download
+  // itself, which takes as long as the member's line needs.
+  const deadline = HabitatSurface.deadline(30000);
   return fetch(url, { signal: deadline.signal })
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(r => { deadline.clear(); if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
     .finally(deadline.clear)
     .then(buf => this._e2eDecryptBytes(partner, new Uint8Array(buf)))
     .then(plain => new Blob([plain], { type: mime }));
