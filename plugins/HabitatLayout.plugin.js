@@ -1382,10 +1382,18 @@ class HabitatLayout {
       return button;
     };
     if (!app.user.isGuest && (app.user.isAdmin || app._hasPerm?.('use_voice'))) {
-      add('call', window.t('calls.start'), '📞', event => {
+      add('call', window.t('calls.start'), '📞', async event => {
         if (!app.socket.connected) return app._showToast(window.t('voice.disconnected'), 'error');
-        // The matching DM reply can ring only while this card is still open.
-        event.currentTarget.setAttribute('data-call-socket', app.socket.id);
+        // One tap on a small square must not ring someone, or drop the call
+        // the member is already in: ask first.
+        const button = event.currentTarget;
+        if (!await app._showConfirmModal(this._text('callAsk'), app.voice?.inVoice ? this._text('callLeaves') : '',
+          { confirmLabel: window.t('calls.start') })) return;
+        if (!button.isConnected || !app.socket.connected) return;
+        // The matching DM reply can ring only while this card is still open,
+        // and only for this press: a refused request must not leave it armed.
+        button.setAttribute('data-call-socket', app.socket.id);
+        setTimeout(() => button.removeAttribute('data-call-socket'), 10000);
         app.socket.emit('start-dm', { targetUserId: userId });
       });
     }
@@ -2458,6 +2466,7 @@ HabitatLayout.TEXT = Object.freeze({
     showGrid: 'Return to grid', closeCameras: 'Close cameras', closeStreams: 'Close streams',
     callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
+    callAsk: 'Start a call with this person?', callLeaves: 'You will leave the call you are in.',
     roomEmpty: 'No one is here yet. Be the first in.', roomOne: '1 person is here', roomMany: '{n} people are here',
     channelStart: 'This is the beginning of this channel.', dmStart: 'This is the beginning of your conversation.',
     volume: 'User volume', mute: 'Mute', unmute: 'Unmute', connection: 'Connection details',
@@ -2495,6 +2504,7 @@ HabitatLayout.TEXT = Object.freeze({
     showGrid: 'Izgaraya dön', closeCameras: 'Kameraları kapat', closeStreams: 'Yayınları kapat',
     callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
+    callAsk: 'Bu kişiyi aramak istiyor musun?', callLeaves: 'İçinde olduğun çağrıdan çıkacaksın.',
     roomEmpty: 'Henüz kimse yok. İlk sen katıl.', roomOne: '1 kişi burada', roomMany: '{n} kişi burada',
     channelStart: 'Bu kanalın başlangıcındasın.', dmStart: 'Bu sohbetin başlangıcındasın.',
     volume: 'Ses düzeyi', mute: 'Sustur', unmute: 'Sesini aç', connection: 'Bağlantı ayrıntıları',

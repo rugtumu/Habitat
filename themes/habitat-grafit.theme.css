@@ -713,12 +713,17 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  flex: none; width: 2.5rem; min-height: 2.5rem; margin: 0; padding: 0;
-  font-size: 0; white-space: nowrap;
+  flex: none; min-width: 2.5rem; min-height: 2.5rem; margin: 0; padding: 0 .5rem;
+  font-size: var(--hb-text-sm); white-space: nowrap;
+}
+/* Only a button that carries a drawn mark gives up its words: with another
+   icon style the same button holds text, and hiding that left a blank square. */
+[data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn:not(.profile-dm-btn):has(> .haven-glyph) {
+  width: 2.5rem; padding: 0; font-size: 0;
 }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn[hidden] { display: none; }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn.profile-dm-btn {
-  flex: 1 1 auto; width: auto; padding: 0 .75rem; font-size: var(--hb-text-sm);
+  flex: 1 1 auto; padding: 0 .75rem;
 }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-action-btn:not(.profile-dm-btn) > .haven-glyph,
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) [data-habitat-profile-action="call"] {

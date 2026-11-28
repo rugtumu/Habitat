@@ -45,7 +45,9 @@ _updateComposerVisibility(channel) {
   if (unavailable) {
     const reason = _isReadOnly ? 'channel_functions.read_only' : _textOff ? 'channel.errors.text_disabled' : '';
     const timeout = document.getElementById('timeout-notice');
-    const timedOut = timeout?.style.display === 'flex';
+    // Habitat fork: a timeout silences channels, not direct messages. The
+    // server keeps DMs open so a muted member can still reach a moderator.
+    const timedOut = timeout?.style.display === 'flex' && !channel?.is_dm;
     unavailable.placeholder = reason ? t(reason) : '';
     if (timedOut) unavailable.placeholder = timeout.textContent;
     unavailable.setAttribute('aria-label', unavailable.placeholder);

@@ -425,3 +425,26 @@ test('only the open profile and requesting connection can turn a DM reply into a
   await Promise.resolve();
   assert.deepEqual(calls, ['dm-9']);
 });
+
+test('a timeout does not block direct messages and an early unmute lifts the block', () => {
+  const channels = read('public/js/modules/app-channels.js');
+  assert.match(channels, /const timedOut = timeout\?\.style\.display === 'flex' && !channel\?\.is_dm;/);
+  const events = read('public/js/modules/app-socket-events.js');
+  const unmuted = events.slice(events.indexOf("this.socket.on('unmuted'"), events.indexOf("this.socket.on('ban-list'"));
+  assert.match(unmuted, /clearTimeout\(this\._timeoutNoticeTimer\)/);
+  assert.match(unmuted, /bar\.style\.display = 'none'/);
+  assert.match(unmuted, /_updateComposerVisibility/);
+});
+
+test('a link preview is not sized from the lazy loader\'s blank image', () => {
+  const previews = read('public/js/modules/app-link-previews.js');
+  const decoded = previews.slice(previews.indexOf('const decoded = () => {'), previews.indexOf("image.addEventListener('load', decoded)"));
+  assert.ok(decoded.indexOf('this._lazyBlank?.()') > 0 && decoded.indexOf('this._lazyBlank?.()') < decoded.indexOf('sizeImage('));
+});
+
+test('calling from a profile card asks first and does not stay armed', () => {
+  const plugin = read('plugins/HabitatLayout.plugin.js');
+  const call = plugin.slice(plugin.indexOf("add('call'"), plugin.indexOf("const noteLabel"));
+  assert.ok(call.indexOf('_showConfirmModal') > 0 && call.indexOf('_showConfirmModal') < call.indexOf("emit('start-dm'"));
+  assert.match(call, /removeAttribute\('data-call-socket'\)/);
+});

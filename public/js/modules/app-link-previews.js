@@ -429,6 +429,10 @@ _fetchLinkPreviews(containerEl) {
             Number(data.imageHeight ?? data.image_height ?? data.thumbnail_height));
           sizeImage(snapshot?.width, snapshot?.imageHeight);
           const decoded = () => {
+            // Habitat fork: the lazy loader first swaps in a 1x1 blank, whose
+            // load would size the frame to one pixel until the picture came.
+            const blank = this._lazyBlank?.();
+            if (blank && image.getAttribute('src') === blank) return;
             sizeImage(image.naturalWidth, image.naturalHeight);
             if (this._coupledToBottom && card.isConnected) this._scrollToBottom(true);
           };

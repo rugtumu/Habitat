@@ -876,6 +876,12 @@ _listenAdminAndPrefs() {
 
   this.socket.on('unmuted', () => {
     this._showToast(t('toasts.unmuted'), 'success');
+    // Habitat fork: the timeout notice now blocks the composer, so lifting
+    // the timeout early has to lift the notice with it.
+    clearTimeout(this._timeoutNoticeTimer);
+    const bar = document.getElementById('timeout-notice');
+    if (bar) bar.style.display = 'none';
+    this._updateComposerVisibility?.(this.channels?.find(ch => ch.code === this.currentChannel));
   });
 
   this.socket.on('ban-list', (data) => {
