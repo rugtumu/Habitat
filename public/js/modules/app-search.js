@@ -449,11 +449,12 @@ _sfpOpenPicker(type) {
   const fbox = document.getElementById('sfp-filter-input');
   const dwrap = document.getElementById('sfp-date-wrap');
   const list = document.getElementById('sfp-list');
+  // Habitat fork: a new picker starts without rows from the previous filter.
+  if (list) list.replaceChildren();
   if (isDate) {
     // Date filters take a YYYY-MM-DD value from a native date input, not a list.
     if (fbox) fbox.style.display = 'none';
     if (dwrap) dwrap.style.display = 'flex';
-    if (list) list.innerHTML = '';
     const di = document.getElementById('sfp-date-input');
     if (di) { di.value = ''; di.focus(); }
   } else {
@@ -571,17 +572,13 @@ _sfpRenderTagList(term) {
   if (!list) return;
   clearTimeout(this._sfpTagTimer);
   const q = (term || '').trim();
-  // Habitat fork: a tag query belongs to the current filter and its own loading row.
-  const pending = HabitatSurface.line('thread_list.loading');
-  list.replaceChildren(pending);
+  // Habitat fork: a tag reply belongs to the filter and query that requested it.
+  const accept = HabitatSurface.tagQuery(list);
   this._sfpTagTimer = setTimeout(() => {
     if (this._sfpActive !== 'tag') return;   // picker changed while waiting
     this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
-      if (this._sfpActive !== 'tag' || pending.parentElement !== list) return;
-      if (err || !res || res.error) {
-        list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._sfpRenderTagList(q)));
-        return;
-      }
+      if (this._sfpActive !== 'tag') return;
+      if (!accept(err, res, () => this._sfpRenderTagList(q))) return;
       const tags = (res && res.tags) || [];
       if (!tags.length) {
         // No tag starts with what they typed. Offer to run the search anyway.
@@ -630,17 +627,32 @@ _searchRenderPanel() {
   this._searchEnsureVisible();
 
   this._searchSetLoading(!!st.pending);
+  // Habitat fork: the first wait sits under the header. Later waits sit below the existing rows.
+  list.hidden = !!st.pending && !st.results.length;
+  list.querySelector('.search-request-error')?.remove();
+  const showFailure = () => {
+    if (!st.failure) return;
+    const line = HabitatSurface.line(st.failure, () => this._requestSearch(st, st.requestPage));
+    line.classList.add('search-request-error');
+    list.appendChild(line);
+  };
   if (st.pending || st.failure) {
-    list.replaceChildren();
-    if (st.failure) list.appendChild(HabitatSurface.line(st.failure, () => this._requestSearch(st, st.requestPage)));
-    count.textContent = t('header.results');
-    if (pager) pager.style.display = 'none';
-    if (banner) banner.style.display = 'none';
-    return;
+    if (!st.results.length) {
+      list._shownResults = null;
+      list.replaceChildren();
+      count.textContent = t('header.results');
+      if (pager) pager.style.display = 'none';
+      if (banner) banner.style.display = 'none';
+    }
+    if (!st.results.length || list._shownResults === st.results) {
+      showFailure();
+      return;
+    }
   }
 
   // Stale banner (invalidated by a channels-list change).
   if (st.stale) {
+    list._shownResults = null;
     if (banner) banner.style.display = 'flex';
     list.innerHTML = '';
     count.textContent = '';
@@ -740,6 +752,8 @@ _searchRenderPanel() {
     });
   });
   this._setupVideos(list);
+  list._shownResults = results;
+  showFailure();
 
   // Pager: only when more than one page.
   if (pager) {

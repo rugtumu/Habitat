@@ -268,12 +268,16 @@ async _searchGifs(query) {
 },
 
 async _gifResults(url) {
-  const response = await fetch(url, {
-    headers: { Authorization: 'Bearer ' + this.token }, signal: AbortSignal.timeout(10000),
-  });
-  const data = await response.json();
-  if (data.error !== 'gif_not_configured' && (!response.ok || data.error || !Array.isArray(data.results))) throw new Error('GIF lookup failed');
-  return data;
+  // Habitat fork: release the timer after the GIF response has been read.
+  const deadline = HabitatSurface.deadline(10000);
+  try {
+    const response = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + this.token }, signal: deadline.signal,
+    });
+    const data = await response.json();
+    if (data.error !== 'gif_not_configured' && (!response.ok || data.error || !Array.isArray(data.results))) throw new Error('GIF lookup failed');
+    return data;
+  } finally { deadline.clear(); }
 },
 
 _showGifSetupGuide(grid) {

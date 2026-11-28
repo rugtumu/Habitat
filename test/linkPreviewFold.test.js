@@ -15,7 +15,7 @@ const globals = {
   window: { location: { origin: 'https://haven.test' } },
   CSS: { escape: s => s },
   t: k => k, HabitatSurface: { line: key => ({ textContent: key }) },
-  Promise,
+  Promise, setTimeout, clearTimeout,
 };
 const methods = load('app-link-previews.js', globals);
 const view = (over = {}) => Object.assign(Object.create(methods), {
@@ -112,8 +112,7 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   app._coupledToBottom = false;
   finish(null);
   await settle();
-  assert.equal(host.card.line.textContent, 'surface.preview_empty');
-  host.card = null;
+  assert.equal(host.card, null, 'empty metadata releases the reserved card');
   assert.equal(scrolls, 3, 'a failed preview releases its space without scrolling the reader back');
   app._coupledToBottom = true;
   app._restoredPreviewHeights = () => ({ '42/0/false': { height: 20, width: 80, imageHeight: 120 } });
@@ -130,8 +129,8 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
     host.card = null;
     app._restoredPreviewHeights = () => heights;
     app._fetchLinkPreviews(container);
-    assert.equal(host.card.role, 'status');
-    assert.equal(host.card.style.height, undefined, 'an unmeasured link reserves just the status line');
+    assert.equal(host.card.style.display, 'none', 'an unmeasured link adds no height or visible loading line');
+    assert.equal(host.card.role, undefined);
     finish({ title: 'Article' });
     await settle();
     assert.match(host.card.innerHTML, /Article/);

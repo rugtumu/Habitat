@@ -125,8 +125,11 @@ _bindSearchAndPins() {
       const key = this._searchContextKey();
       if (key === '__public__') { this._searchNextToken(); clearTimeout(this._searchTimer); }
       this._searchSetLoading(false);
+      // Habitat fork: clear the results while keeping the visible input open for the header toggle.
       this._searchClearContext(key);
+      this._searchSetState(key, { open: true });
       document.getElementById('search-panel').style.display = 'none';
+      this._searchRestoreSidebar();
     }
   });
   document.getElementById('search-input').addEventListener('keydown', (e) => {

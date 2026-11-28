@@ -1334,11 +1334,17 @@ _setupHeldUploadNotes() {
   document.addEventListener('error', (e) => {
     // Habitat fork: a source inside a video may receive the error instead of the player.
     const el = e.target.tagName === 'SOURCE' ? e.target.parentElement : e.target;
-    if ((el instanceof HTMLImageElement || el instanceof HTMLVideoElement) &&
-        el.matches('.chat-image, .file-video, .media-grid-video, .lp-image, .lp-video, .link-preview-gallery-img')) {
+    if (!(el instanceof HTMLImageElement || el instanceof HTMLVideoElement)) return;
+    // Habitat fork: a missing third-party picture leaves the preview text readable.
+    if (el.matches('.lp-image, .lp-video, .link-preview-gallery-img, .lp-avatar')) {
+      const frame = el.closest('.lp-media') || el;
+      frame.style.display = 'none';
+      el.addEventListener(el instanceof HTMLVideoElement ? 'loadedmetadata' : 'load', () => {
+        frame.style.removeProperty('display');
+        el.style.removeProperty('display');
+      }, { once: true });
+    } else if (el.matches('.chat-image, .file-video, .media-grid-video')) {
       this._showMediaFailure(el);
-    }
-    if ((el instanceof HTMLImageElement || el instanceof HTMLVideoElement) && el.matches('.chat-image, .file-video, .media-grid-video')) {
       this._showHeldUploadNote(el);
     }
   }, true);
@@ -1396,8 +1402,10 @@ async _showHeldUploadNote(el) {
   try { rel = decodeURIComponent(url.pathname.slice('/uploads/'.length)); } catch { return; }
   if (!this._heldUploadStates) this._heldUploadStates = new Map();
   if (!this._heldUploadStates.has(rel)) {
-    this._heldUploadStates.set(rel, fetch(`/api/upload-status?path=${encodeURIComponent(rel)}`, { headers: { Authorization: `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000) })
-      .then(r => (r.ok ? r.json() : null)).then(d => d?.state || null).catch(() => null));
+    // Habitat fork: release the held-upload check after reading its state.
+    const deadline = HabitatSurface.deadline(10000);
+    this._heldUploadStates.set(rel, fetch(`/api/upload-status?path=${encodeURIComponent(rel)}`, { headers: { Authorization: `Bearer ${this.token}` }, signal: deadline.signal })
+      .then(r => (r.ok ? r.json() : null)).finally(deadline.clear).then(d => d?.state || null).catch(() => null));
   }
   const tile = el.closest('.media-grid-tile');
   const piece = tile || el.closest('.file-attachment') || el;

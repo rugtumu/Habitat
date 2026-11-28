@@ -1014,24 +1014,38 @@ test('profile receipts can finish during avatar upload and the avatar event wait
   assert.equal(modal.style.display, 'none');
 });
 
-test('silent birthday no-ops refresh both privacy flags and a first date once', async () => {
-  for (const birthday of ['', '2000-11-28']) {
-    const { app, field, timers, sent, notices, modal } = profileEditor();
-    field('edit-profile-birthday').value = birthday;
-    field('edit-profile-birthday-hidden').checked = true;
-    field('edit-profile-birthday-hide-year').checked = false;
-    const save = app._saveRename();
-    for (const expire of [...timers.keys()]) expire();
-    await save;
-    assert.equal(app.user.birthday || '', birthday);
-    assert.equal(app.user.birthdayHidden, true);
-    assert.equal(app.user.birthdayHideYear, false);
-    assert.equal(modal.style.display, 'none');
-    modal.style.display = 'flex';
-    await app._saveRename();
-    assert.equal(sent.filter(event => event === 'set-birthday').length, 1);
-    assert.deepEqual(notices, []);
-  }
+test('a first birthday without a receipt stays editable and out of the saved user', async () => {
+  const writes = [];
+  const { app, field, timers, notices, modal } = profileEditor({
+    localStorage: { setItem: (...args) => writes.push(args) },
+  });
+  field('edit-profile-birthday').value = '2000-11-28';
+  const save = app._saveRename();
+  for (const expire of [...timers.keys()]) expire();
+  await save;
+  assert.equal(app.user.birthday, undefined);
+  assert.equal(field('edit-profile-birthday').value, '2000-11-28');
+  assert.equal(modal.style.display, 'flex');
+  assert.deepEqual(notices, [[t('surface.profile_unconfirmed'), 'error']]);
+  assert.ok(!writes.some(([key]) => key === 'haven_user'));
+});
+
+test('silent privacy toggles on a known birthday finish once', async () => {
+  const { app, field, timers, sent, notices, modal } = profileEditor();
+  app.user.birthday = '2000-11-28';
+  field('edit-profile-birthday-hidden').checked = true;
+  field('edit-profile-birthday-hide-year').checked = false;
+  const save = app._saveRename();
+  for (const expire of [...timers.keys()]) expire();
+  await save;
+  assert.equal(app.user.birthday, '2000-11-28');
+  assert.equal(app.user.birthdayHidden, true);
+  assert.equal(app.user.birthdayHideYear, false);
+  assert.equal(modal.style.display, 'none');
+  modal.style.display = 'flex';
+  await app._saveRename();
+  assert.equal(sent.filter(event => event === 'set-birthday').length, 1);
+  assert.deepEqual(notices, []);
 });
 
 test('one deadline settles five silent fields while a refused birthday stays an error', async () => {
@@ -1241,4 +1255,53 @@ test('replacing the server mute menu repeatedly leaves one outside-click listene
   pressKey(doc, 'Escape');
   assert.equal(doc.getElementById('server-mute-menu'), null);
   assert.equal(doc.listeners.click.length, 0);
+});
+
+test('clearing an open search invalidates its request and one header click closes the input', () => {
+  const doc = page();
+  doc.body.innerHTML = '<div id="search-container"><input id="search-input"></div><div id="search-panel"></div>' +
+    ['search-toggle-btn', 'search-close-btn', 'pinned-toggle-btn', 'pinned-close'].map(id => '<button id="' + id + '"></button>').join('');
+  const app = load(doc, ['search', 'ui']);
+  app._bindSearchAndPins();
+  const field = doc.getElementById('search-input');
+  const toggle = doc.getElementById('search-toggle-btn');
+  toggle.click();
+  app._searchSetState('__public__', { query: 'previous', pending: true, results: [{ id: 12 }] });
+  const token = app._searchNextToken();
+  field.value = '';
+  field.dispatch('input');
+  assert.ok(app._searchSeq > token);
+  assert.equal(app._searchGetState('__public__').results.length, 0);
+  assert.equal(doc.getElementById('search-container').style.display, 'flex');
+  toggle.click();
+  assert.equal(doc.getElementById('search-container').style.display, 'none');
+  assert.equal(doc.activeElement, toggle);
+});
+
+test('pagination and throttling leave the same result and its controls above the status', () => {
+  const doc = page();
+  const html = read('public/app.html');
+  doc.body.innerHTML = html.slice(html.indexOf('<div id="search-panel"'), html.indexOf('</div>', html.indexOf('id="search-page-next"')) + 6) + '</div>';
+  const HabitatSurface = vm.runInNewContext(read('public/js/surface-state.js') + '\nHabitatSurface', { document: doc, t });
+  const app = load(doc, ['search'], { HabitatSurface });
+  const ids = id => doc.getElementById(id);
+  const result = id => ({ id, username: 'Ada', content: 'photo' });
+  Object.assign(app, { _searchState: {}, socket: { emit() {} }, _getNickname: (_, name) => name,
+    _getUserColor: () => '', _timeAttr: () => '', _formatTime: () => '', _formatContent: s => s,
+    _searchHighlightTextNodes() {}, _searchDeferEmbeds() {}, _setupVideos() {} });
+  app._searchReceiveResults('__public__', { page: 1, total: 45, query: 'photo', results: [result(12)] });
+  const list = ids('search-panel-list'), row = list.firstChild, loading = ids('search-panel-loading');
+  assert.equal(row.dataset.msgId, '12');
+  app._searchGoToPage(1);
+  assert.equal(list.firstChild, row);
+  assert.equal(loading.style.display, 'flex');
+  assert.ok(list.parentElement.children.indexOf(list) < list.parentElement.children.indexOf(loading));
+  app._searchOnThrottled();
+  assert.equal(list.firstChild, row);
+  assert.match(list.children[1].textContent, /searching too quickly/i);
+  list.children[1].querySelector('button').click();
+  assert.deepEqual(list.children, [row]);
+  app._searchReceiveResults('__public__', { page: 2, total: 45, query: 'photo', results: [result(50)] });
+  assert.equal(list.firstChild.dataset.msgId, '50');
+  assert.equal(loading.style.display, 'none');
 });

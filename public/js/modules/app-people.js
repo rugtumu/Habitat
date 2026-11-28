@@ -471,9 +471,8 @@ async _saveRename() {
       }
       const { status, message } = result;
       if (status === 'refused') refused(message, result.general ? null : field);
-      if (status === 'unconfirmed' && event === 'set-birthday') {
-        // Habitat fork: SQLite silently accepts a birthday already saved by another tab.
-        if (data.birthday) this.user.birthday = data.birthday;
+      if (status === 'unconfirmed' && event === 'set-birthday' && !data.birthday && this.user.birthday) {
+        // Habitat fork: only privacy toggles on an existing birthday may finish silently.
         this.user.birthdayHidden = data.hidden;
         this.user.birthdayHideYear = data.hideYear;
         localStorage.setItem('haven_user', JSON.stringify(this.user));

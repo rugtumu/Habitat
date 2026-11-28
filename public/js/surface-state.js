@@ -36,5 +36,33 @@ const HabitatSurface = (() => {
     if (socket?.connected === false) fail();
     else setTimeout(fail, 10000);
   }
-  return { line, wait };
+  // Habitat fork: keep the deadline through the response body, including on older WebViews.
+  function deadline(ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return { signal: controller.signal, clear: () => clearTimeout(timer) };
+  }
+  // Habitat fork: each tag picker keeps its last answer while the next query is outstanding.
+  function tagQuery(list) {
+    const request = {};
+    list._tagRequest = request;
+    if (!list.firstChild || list.querySelector('[role="alert"]')) {
+      const loading = line('thread_list.loading');
+      loading.dataset.surface = 'loading';
+      list.replaceChildren(loading);
+    }
+    return (err, response, retry) => {
+      if (list._tagRequest !== request) return false;
+      if (!err && response && !response.error) return true;
+      if (response?.error === 'rate_limited') {
+        if (list.firstChild?.dataset?.surface === 'loading') {
+          list.replaceChildren(line('header.search_rate_limited', retry));
+        }
+      } else {
+        list.replaceChildren(line('surface.tags_failed', retry));
+      }
+      return false;
+    };
+  }
+  return { line, wait, deadline, tagQuery };
 })();

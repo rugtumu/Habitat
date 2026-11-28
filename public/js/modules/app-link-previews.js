@@ -309,31 +309,55 @@ _fetchLinkPreviews(containerEl) {
     }
 
     if (!host || host.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
-    // Habitat fork: reserve a measured card on restore and a single status line on first visit.
+    // Habitat fork: only a previously measured card takes up space before metadata arrives.
     const folded = this._embedFolded(url, slot);
     const pending = document.createElement('div');
     pending.className = 'link-preview link-preview--rich lp-pending surface-state';
     if (folded) pending.className += ' lp-collapsed';
     pending.dataset.url = url;
     pending.dataset.previewSlot = slot;
-    pending.setAttribute('role', 'status');
-    pending.textContent = t('surface.preview_loading');
     const snapshot = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
     const height = snapshot?.height ?? snapshot;
-    if (Number.isFinite(height) && height > 0) pending.style.height = height + 'rem';
+    if (Number.isFinite(height) && height > 0) {
+      pending.style.height = height + 'rem';
+      pending.setAttribute('role', 'status');
+      pending.textContent = t('surface.preview_loading');
+      reserved = true;
+    } else {
+      pending.style.display = 'none';
+    }
     pending._previewImageSize = snapshot?.width ? { width: snapshot.width, imageHeight: snapshot.imageHeight } : null;
     host.appendChild(pending);
-    reserved = true;
     const status = (key, retry) => {
+      pending.style.display = '';
       pending.style.height = '';
       pending.className = 'link-preview';
       pending.removeAttribute('role');
       pending.replaceChildren(HabitatSurface.line(key, retry));
       if (this._coupledToBottom && host.isConnected) this._scrollToBottom(true);
     };
-    const load = () => this._linkPreviewData(url)
-      .then(data => {
-        if (!data || (!data.title && !data.description && !data.text)) { status('surface.preview_empty'); return; }
+    // Habitat fork: show Retry after the route's lookup budget, but still accept its late reply.
+    let current;
+    const load = () => {
+      const request = this._linkPreviewData(url);
+      current = request;
+      const fail = () => {
+        if (current !== request) return;
+        status('surface.preview_failed', () => {
+          if (this._linkPreviewInflight?.get(url) === request) this._linkPreviewInflight.delete(url);
+          status('surface.preview_loading');
+          load();
+        });
+      };
+      const timer = setTimeout(fail, 45000);
+      request.then(data => {
+        if (current !== request) return;
+        if (!data || (!data.title && !data.description && !data.text)) {
+          const visible = pending.style.display !== 'none';
+          pending.remove();
+          if (visible && this._coupledToBottom && host.isConnected) this._scrollToBottom(true);
+          return;
+        }
         const msgContent = link.closest('.message-content, .thread-msg-content');
         if (!msgContent || msgContent !== host) { pending.remove(); return; }
 
@@ -441,11 +465,8 @@ _fetchLinkPreviews(containerEl) {
         // Scroll if coupled to bottom. Uses the tracked flag rather than
         // a point-in-time scrollHeight check that content-visibility can skew.
         if (wasAtBottom && msgContent.isConnected) this._scrollToBottom(true);
-      })
-      .catch(() => status('surface.preview_failed', () => {
-        status('surface.preview_loading');
-        load();
-      }));
+      }, fail).finally(() => clearTimeout(timer));
+    };
     load();
   });
   if (reserved && this._coupledToBottom) this._scrollToBottom(true);
@@ -469,7 +490,7 @@ _linkPreviewData(url) {
   // and retries 429s with backoff so every preview eventually resolves.
   const p = this._scheduleLinkPreview(url)
     .then(data => {
-      if (data) this._linkPreviewCache.set(url, { data, ts: Date.now() });
+      if (data && this._linkPreviewInflight.get(url) === p) this._linkPreviewCache.set(url, { data, ts: Date.now() });
       // Light cap so the cache can't grow unbounded over a long session.
       if (this._linkPreviewCache.size > 500) {
         const firstKey = this._linkPreviewCache.keys().next().value;
@@ -477,7 +498,9 @@ _linkPreviewData(url) {
       }
       return data;
     })
-    .finally(() => { this._linkPreviewInflight.delete(url); });
+    .finally(() => {
+      if (this._linkPreviewInflight.get(url) === p) this._linkPreviewInflight.delete(url);
+    });
   this._linkPreviewInflight.set(url, p);
   return p;
 },
@@ -503,37 +526,36 @@ _pumpLinkPreviewQueue() {
   }
 },
 
-_runLinkPreviewTask(task) {
-  const MAX_ATTEMPTS = 4;
+async _runLinkPreviewTask(task) {
+  const MAX_RETRIES = 4;
   this._lpActive++;
-  const done = (data, error) => {
-    this._lpActive--;
-    if (error) task.reject(error); else task.resolve(data);
-    this._pumpLinkPreviewQueue();
-  };
-  fetch(`/api/link-preview?url=${encodeURIComponent(task.url)}`, {
-    headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000),
-  })
-    .then(r => {
-      // Rate limited: free the slot and re-queue after a backoff so the rest
-      // of the batch can proceed. Honour Retry-After when the server sends it,
-      // otherwise exponential backoff, both with jitter to avoid a thundering
-      // herd when several messages retry at once.
-      if (r.status === 429 && task.attempt < MAX_ATTEMPTS) {
-        const ra = parseFloat(r.headers.get('retry-after'));
-        const waitMs = (Number.isFinite(ra) && ra > 0
-          ? ra * 1000
-          : Math.min(1200 * Math.pow(2, task.attempt), 8000)) + Math.random() * 400;
-        task.attempt++;
-        this._lpActive--;
-        setTimeout(() => { this._lpQueue.push(task); this._pumpLinkPreviewQueue(); }, waitMs);
-        this._pumpLinkPreviewQueue();
-        return;
-      }
-      if (r.ok) return r.json().then(data => done(data));
+  let deadline;
+  try {
+    // Habitat fork: the card can accept a late result while a hung transport still has a finite lifetime.
+    deadline = HabitatSurface.deadline(120000);
+    const r = await fetch(`/api/link-preview?url=${encodeURIComponent(task.url)}`, {
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: deadline.signal,
+    });
+    if (r.status === 429 && task.attempt < MAX_RETRIES) {
+      const ra = parseFloat(r.headers.get('retry-after'));
+      const waitMs = (Number.isFinite(ra) && ra > 0
+        ? ra * 1000
+        : Math.min(1200 * Math.pow(2, task.attempt), 8000)) + Math.random() * 400;
+      task.attempt++;
+      setTimeout(() => { this._lpQueue.push(task); this._pumpLinkPreviewQueue(); }, waitMs);
+    } else if (r.status >= 500) {
       throw new Error('Preview lookup failed');
-    })
-    .catch(error => done(null, error));
+    } else {
+      task.resolve(r.ok ? await r.json() : null);
+    }
+  } catch (error) {
+    if (error.name === 'SyntaxError') task.resolve(null);
+    else task.reject(error);
+  } finally {
+    deadline?.clear();
+    this._lpActive--;
+    this._pumpLinkPreviewQueue();
+  }
 },
 
 // ── Shared embed chrome (size toggle + per-message collapse) ──────────

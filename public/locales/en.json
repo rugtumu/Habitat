@@ -1,10 +1,11 @@
 {
-  "_comment_surface": "Habitat fork: status lines for the profile editor and everyday surfaces.",
+  "_comment_surface": "Habitat fork: status lines for the profile editor and everyday surfaces, including unconfirmed media changes.",
   "surface": {
     "profile_unconfirmed": "The server did not confirm all profile changes. Check them before saving again.",
     "invite_unconfirmed": "The invite may not have been created. Check the invite list before trying again.",
     "thread_discarded": "Your unsent thread reply was discarded because the parent message was deleted.",
     "pins_failed": "Pinned messages couldn’t load.",
+    "media_unconfirmed": "The server did not confirm the change. Check the refreshed media list before trying again.",
     "media_failed": "Files and media couldn’t load.",
     "threads_failed": "The thread list couldn’t load.",
     "members_failed": "The member list couldn’t load.",
@@ -18,7 +19,6 @@
     "switch_empty": "Your channels and direct conversations appear here.",
     "invites_failed": "Invite links couldn’t load.",
     "preview_loading": "Loading link preview…",
-    "preview_empty": "No preview is available for this link.",
     "preview_failed": "The link preview couldn’t load.",
     "file_failed": "Couldn’t load {{name}}.",
     "image": "Image",

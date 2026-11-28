@@ -212,14 +212,21 @@ _bindMediaGallery() {
       if (url && url.startsWith('/uploads/')) attachmentsByMessage[message_id].push(url);
     }
     delBtn.disabled = true;
-    this.socket.timeout(10000).emit('delete-channel-media', {
-      code: this.currentChannel,
+    // Habitat fork: a lost receipt can follow a successful write. Refresh the affected gallery.
+    const code = this.currentChannel;
+    this.socket.timeout(30000).emit('delete-channel-media', {
+      code,
       messageIds,
       attachmentsByMessage,
     }, (err, res) => {
       delBtn.disabled = false;
-      if (err || !res || res.error) {
-        this._showToast(res?.error || t('media_gallery.delete_failed'), 'error');
+      if (err || !res) {
+        this._showToast(t('surface.media_unconfirmed'), 'info');
+        if (this.currentChannel === code) this._requestChannelList('get-channel-media');
+        return;
+      }
+      if (res.error) {
+        this._showToast(res.error, 'error');
         return;
       }
       if (this._showToast) this._showToast(res.skipped
@@ -723,14 +730,10 @@ _mediaTagFilterSearch(query) {
   if (!input || !this.socket) return;
   const q = query;
   const list = document.getElementById('mtf-list');
-  const pending = HabitatSurface.line('thread_list.loading');
-  list.replaceChildren(pending);
+  const accept = HabitatSurface.tagQuery(list);
   this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
-    if (pending.parentElement !== list || !input.isConnected || input.value !== q) return;
-    if (err || !res || res.error) {
-      list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._mediaTagFilterSearch(q)));
-      return;
-    }
+    if (!input.isConnected || input.value !== q) return;
+    if (!accept(err, res, () => this._mediaTagFilterSearch(q))) return;
     this._mediaTagFilterRenderList((res && res.tags) || []);
   });
 },
@@ -873,14 +876,10 @@ _mediaTagManageSearch(query) {
   if (!input || !this.socket || !this._mediaTagManage) return;
   const q = query;
   const list = document.getElementById('mtm-list');
-  const pending = HabitatSurface.line('thread_list.loading');
-  list.replaceChildren(pending);
+  const accept = HabitatSurface.tagQuery(list);
   this.socket.timeout(10000).emit('search-upload-tags', { query: q, code: this.currentChannel }, (err, res) => {
-    if (pending.parentElement !== list || !input.isConnected || input.value !== q) return;
-    if (err || !res || res.error) {
-      list.replaceChildren(HabitatSurface.line('surface.tags_failed', () => this._mediaTagManageSearch(q)));
-      return;
-    }
+    if (!input.isConnected || input.value !== q) return;
+    if (!accept(err, res, () => this._mediaTagManageSearch(q))) return;
     this._mediaTagManageRenderList(q, (res && res.tags) || []);
   });
 },
@@ -954,9 +953,16 @@ _mediaTagManageApply() {
   const tags = st.tags.slice();
 
   const doEmit = () => {
-    this.socket.timeout(10000).emit('bulk-tag-messages', { code: this.currentChannel, items, mode, tags }, (err, res) => {
-      if (err || !res || res.error) {
-        this._showToast?.(res && res.error ? res.error : t('media_gallery.tags_update_failed'), 'error');
+    // Habitat fork: a lost receipt can follow a successful write. Refresh the affected gallery.
+    const code = this.currentChannel;
+    this.socket.timeout(30000).emit('bulk-tag-messages', { code, items, mode, tags }, (err, res) => {
+      if (err || !res) {
+        this._showToast(t('surface.media_unconfirmed'), 'info');
+        if (this.currentChannel === code) this._requestChannelList('get-channel-media');
+        return;
+      }
+      if (res.error) {
+        this._showToast?.(res.error, 'error');
         return;
       }
       // Optimistically reflect each file's new set in the gallery data so

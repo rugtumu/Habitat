@@ -346,9 +346,11 @@ _pickerCatalogState(name, state) {
 
 async _loadStandardEmojis() {
   this._pickerCatalogState('StandardEmojis', 'loading');
+  // Habitat fork: keep slow response bodies within the catalog deadline.
+  const deadline = HabitatSurface.deadline(10000);
   try {
     const res = await fetch('/api/standard-emojis', {
-      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: deadline.signal
     });
     if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
@@ -370,13 +372,16 @@ async _loadStandardEmojis() {
     }
     this._pickerCatalogState('StandardEmojis', 'ready');
   } catch { this._pickerCatalogState('StandardEmojis', 'failed'); }
+  finally { deadline.clear(); }
 },
 
 async _loadCustomEmojis() {
   this._pickerCatalogState('CustomEmojis', 'loading');
+  // Habitat fork: keep slow response bodies within the catalog deadline.
+  const deadline = HabitatSurface.deadline(10000);
   try {
     const res = await fetch('/api/emojis', {
-      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: deadline.signal
     });
     if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
@@ -384,6 +389,7 @@ async _loadCustomEmojis() {
     this._renderEmojiList(this.customEmojis);
     this._pickerCatalogState('CustomEmojis', 'ready');
   } catch { this._pickerCatalogState('CustomEmojis', 'failed'); }
+  finally { deadline.clear(); }
 },
 
 _renderEmojiList(emojis) {
@@ -430,9 +436,11 @@ _renderEmojiList(emojis) {
 
 async _loadStickers() {
   this._pickerCatalogState('Stickers', 'loading');
+  // Habitat fork: keep slow response bodies within the catalog deadline.
+  const deadline = HabitatSurface.deadline(10000);
   try {
     const res = await fetch('/api/stickers', {
-      headers: { 'Authorization': `Bearer ${this.token}` }, signal: AbortSignal.timeout(10000)
+      headers: { 'Authorization': `Bearer ${this.token}` }, signal: deadline.signal
     });
     if (!res.ok) throw new Error('Catalog unavailable');
     const data = await res.json();
@@ -440,6 +448,7 @@ async _loadStickers() {
     this._renderStickerList(this.stickers);
     this._pickerCatalogState('Stickers', 'ready');
   } catch { this._pickerCatalogState('Stickers', 'failed'); }
+  finally { deadline.clear(); }
 },
 
 _renderStickerList(stickers) {

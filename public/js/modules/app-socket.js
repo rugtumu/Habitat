@@ -412,9 +412,11 @@ _listenSession() {
     this._dmSnapshotState?.();
     this._channelsWatchdog = setTimeout(async () => {
       if (this._channelsListGotResponse) return;
+      // Habitat fork: end the validation deadline as soon as its status is known.
+      const deadline = HabitatSurface.deadline(10000);
       try {
         const resp = await fetch('/api/auth/validate', {
-          signal: AbortSignal.timeout(10000),
+          signal: deadline.signal,
           headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('haven_token') || '') }
         });
         if (resp.status === 401 || resp.status === 404) {
@@ -430,7 +432,7 @@ _listenSession() {
       } catch {
         // Network failure: leave it alone, the user can refresh manually.
         return;
-      }
+      } finally { deadline.clear(); }
       // Token is valid but channels never came. Retry once before giving up.
       if (!this._channelsListGotResponse && this.socket?.connected) {
         console.warn('[#5391] channels-list missing after 10s, retrying get-channels');

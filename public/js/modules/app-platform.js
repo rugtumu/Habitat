@@ -1841,9 +1841,10 @@ _decryptE2EFiles(root) {
       row.classList.add('e2e-file-loading');
       try {
         // Habitat fork: a stalled encrypted attachment must release the download control.
-        const resp = await fetch(url, { signal: AbortSignal.timeout(120000) });
-        if (!resp.ok) throw new Error(resp.status);
-        const buf = await resp.arrayBuffer();
+        const deadline = HabitatSurface.deadline(120000);
+        const buf = await fetch(url, { signal: deadline.signal })
+          .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+          .finally(deadline.clear);
         const plain = await this._e2eDecryptBytes(partner, new Uint8Array(buf));
         const blob = new Blob([plain], { type: mime });
         const objectUrl = URL.createObjectURL(blob);
@@ -2018,8 +2019,11 @@ _e2eImageBlob(img, partner = null) {
   const mime = (img && img.dataset && img.dataset.e2eMime) || 'image/png';
   if (!partner) partner = this._e2ePartnerForNode(img);
   if (!partner || !url || !url.startsWith('/uploads/')) return Promise.reject(new Error('not decryptable here'));
-  return fetch(url, { signal: AbortSignal.timeout(120000) })
+  // Habitat fork: bound the encrypted download through its last byte.
+  const deadline = HabitatSurface.deadline(120000);
+  return fetch(url, { signal: deadline.signal })
     .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .finally(deadline.clear)
     .then(buf => this._e2eDecryptBytes(partner, new Uint8Array(buf)))
     .then(plain => new Blob([plain], { type: mime }));
 },

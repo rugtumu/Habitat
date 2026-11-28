@@ -26,8 +26,10 @@ _loadEmojiKeywords() {
     this.emojiKeywords = out;
   };
   // Habitat fork: optional keywords must settle so searches can use bundled names offline.
-  this._emojiKeywordsLoading = fetch(KEYWORDS_URL, { signal: AbortSignal.timeout(10000) })
+  const deadline = HabitatSurface.deadline(10000);
+  this._emojiKeywordsLoading = fetch(KEYWORDS_URL, { signal: deadline.signal })
     .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .finally(deadline.clear)
     .then(merge)
     .catch(err => {
       console.warn('[Emoji] keyword list unavailable, searching by name only', err);

@@ -1465,8 +1465,8 @@ _navigateUnreadChannel(direction) {
  */
 // Habitat fork: the inbox uses the channels handshake, including when its empty pane is relocated.
 _dmSnapshotState(pane = document.querySelector('[data-habitat-dm-empty]')) {
-  if (this.channels?.some(channel => channel.is_dm)) return;
-  if (this._channelsListGotResponse) {
+  // Habitat fork: replace the pending line even while conversations hide the pane.
+  if (this._channelsListGotResponse || this.channels?.some(channel => channel.is_dm)) {
     if (pane) pane.replaceChildren(HabitatSurface.line('surface.dm_empty'));
     return;
   }

@@ -767,10 +767,11 @@
             <span data-i18n="header.search_stale">A channel or role you have has changed, please refresh the search to continue.</span>
             <button id="search-rerun-btn" class="btn-secondary small" data-i18n="header.search_refresh">Refresh search</button>
           </div>
+          <!-- Habitat fork: announce a pending page below the results already on screen. -->
+          <div id="search-panel-list" class="search-panel-list"></div>
           <div id="search-panel-loading" role="status" class="surface-state search-panel-loading" style="display:none">
             <span data-i18n="header.searching">Searching...</span>
           </div>
-          <div id="search-panel-list" class="search-panel-list"></div>
           <div id="search-panel-pager" class="search-panel-pager" style="display:none">
             <button id="search-page-prev" class="icon-btn small" data-i18n-title="header.search_previous" title="Previous page">‹</button>
             <span class="search-page-label">

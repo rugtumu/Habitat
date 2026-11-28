@@ -162,7 +162,8 @@ _setupAuditLog() {
       if (current !== generation) return;
       status.remove();
       if (err || !resp || resp.error) {
-        listEl.appendChild(HabitatSurface.line('modals.audit_log.load_failed', () => load(append)));
+        // Habitat fork: show the server's refusal as text alongside the retry.
+        listEl.appendChild(HabitatSurface.line(resp?.error || 'modals.audit_log.load_failed', () => load(append)));
         loadMoreBtn.style.display = 'none';
         return;
       }
@@ -182,7 +183,8 @@ _setupAuditLog() {
     let beforeId = 0;
     for (let page = 0; page < 500; page++) {
       const resp = await this.socket.timeout(10000).emitWithAck('get-audit-log', { limit: 200, ...filters(), beforeId });
-      if (!resp || resp.error) throw new Error(resp && resp.error ? resp.error : 'load failed');
+      if (!resp) throw new Error('Missing audit log response');
+      if (resp.error) throw Object.assign(new Error(resp.error), { serverReason: resp.error });
       const rows = resp.rows || [];
       all.push(...rows);
       if (!resp.hasMore || !rows.length) break;
@@ -224,7 +226,7 @@ _setupAuditLog() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Audit log export failed:', err);
-      this._showToast?.(t('modals.audit_log.load_failed'), 'error');
+      this._showToast?.(err.serverReason || t('modals.audit_log.load_failed'), 'error');
     } finally {
       exportBtn.disabled = false;
       exportBtn.textContent = label;

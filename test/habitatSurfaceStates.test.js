@@ -27,11 +27,7 @@ function surface(modules, ids) {
   const context = vm.createContext({
     document, t: k => k, console, Event, URL, CSS: { escape: s => s },
     setTimeout: schedule, clearTimeout: fn => timers.delete(fn),
-    AbortSignal: { timeout(ms) {
-      const ctl = new AbortController();
-      schedule(() => ctl.abort(), ms);
-      return ctl.signal;
-    } },
+    AbortController, // This WebView has no AbortSignal.timeout.
     fetch(url, { signal }) {
       requests.push(url);
       return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
@@ -44,14 +40,14 @@ function surface(modules, ids) {
     Object.assign(app, vm.runInContext('(() => {\n' + source.replace('export default', 'return') + '\n})()', context));
   }
   function expire(deadline = 10000) {
-    assert.ok(timers.size);
+    assert.ok([...timers.values()].includes(deadline), `no timer for ${deadline} ms`);
     for (const [fn, ms] of [...timers]) {
-      assert.equal(ms, deadline);
+      if (ms !== deadline) continue;
       timers.delete(fn);
       fn();
     }
   }
-  return { app, nodes, document, requests, context, expire };
+  return { app, nodes, document, requests, context, expire, timers };
 }
 
 function expectFailure(host, key) {
@@ -91,8 +87,10 @@ for (const query of ['some words', 'mentions:me']) {
     app._searchState = {};
     app._searchRun(query, 3);
     assert.equal(nodes['search-panel-list'].getAttribute('aria-busy'), 'true');
+    assert.equal(nodes['search-panel-list'].hidden, true);
     expire();
     assert.equal(nodes['search-panel-list'].getAttribute('aria-busy'), 'false');
+    assert.equal(nodes['search-panel-list'].hidden, false);
     assert.equal(nodes['search-panel-loading'].style.display, 'none');
     expectFailure(nodes['search-panel-list'], 'search_failed').dispatch('click');
     assert.equal(requests.at(-1)[1].query, query);
@@ -169,24 +167,95 @@ for (const catalog of ['StandardEmojis', 'CustomEmojis', 'Stickers']) {
   });
 }
 
-test('link preview deadline frees the fetch slot and makes the card retryable', async () => {
-  const { app, document, context, expire, requests } = surface('link-previews', 'messages');
+function preview() {
+  const fixture = surface('link-previews', 'messages');
+  const { app, document, context } = fixture;
   document.body.className = 'embed-size-medium';
   context.window = { location: { origin: 'https://example.test' } };
-  app._embedFolded = () => false;
+  Object.assign(app, {
+    _embedFolded: () => false, _escapeHtml: s => s, _embedHeaderHtml: () => '',
+    _wireEmbedControls() {}, _applyEmbedSpoiler() {},
+  });
   const host = document.createElement('div');
   const link = { href: 'https://other.test/news', dataset: {}, closest: () => host };
-  const container = { querySelectorAll: () => [link] };
-  app._fetchLinkPreviews(container);
-  assert.equal(host.firstChild.getAttribute('role'), 'status');
-  expire();
+  const open = () => {
+    app._fetchLinkPreviews({ querySelectorAll: () => [link] });
+    const pending = host.firstChild;
+    pending.replaceWith = card => host.replaceChildren(card);
+    assert.equal(pending.style.display, 'none');
+  };
+  return { ...fixture, host, open };
+}
+
+test('a preview arriving after the visible deadline replaces Retry without another fetch', async () => {
+  const { app, context, host, open, expire, timers } = preview();
+  let resolve;
+  context.fetch = () => new Promise(r => { resolve = r; });
+  open();
+  expire(45000);
+  expectFailure(host, 'preview_failed');
+  resolve({ ok: true, json: async () => ({ title: 'Late article' }) });
   await tick();
-  expectFailure(host, 'preview_failed').dispatch('click');
-  assert.equal(requests.length, 2);
-  expire();
-  await tick();
+  assert.match(host.firstChild.innerHTML, /Late article/);
   assert.equal(app._lpActive, 0);
   assert.equal(app._linkPreviewInflight.size, 0);
+  assert.equal(timers.size, 0);
+});
+
+test('a preview retry starts a fresh lookup and a stalled transport releases its slot', async () => {
+  const { app, open, host, expire, requests, timers } = preview();
+  open();
+  expire(45000);
+  expectFailure(host, 'preview_failed').dispatch('click');
+  assert.equal(requests.length, 2);
+  expire(120000);
+  await tick();
+  expectFailure(host, 'preview_failed');
+  assert.equal(app._lpActive, 0);
+  assert.equal(app._linkPreviewInflight.size, 0);
+  assert.equal(timers.size, 0);
+});
+
+for (const status of [200, 400, 401, 403, 404, 429, 500, 503]) {
+  test('preview response ' + status + ' releases its slot and leaves the appropriate UI', async () => {
+    const { app, context, open, host, timers } = preview();
+    let count = 0;
+    context.fetch = async () => {
+      count++;
+      return { status, ok: status === 200, headers: { get: () => '3' }, json: async () => ({ title: null }) };
+    };
+    open();
+    await tick();
+    if (status === 429) {
+      for (let retry = 0; retry < 4; retry++) {
+        assert.equal(app._lpActive, 0);
+        const [run] = [...timers].find(([, ms]) => ms >= 3000 && ms < 3400);
+        timers.delete(run);
+        run();
+        await tick();
+      }
+    }
+    assert.equal(count, status === 429 ? 5 : 1);
+    if (status >= 500) expectFailure(host, 'preview_failed');
+    else assert.equal(host.firstChild, null);
+    assert.equal(app._lpActive, 0);
+    assert.equal(timers.size, 0);
+  });
+}
+
+test('the preview queue drains after synchronous setup errors and network failures', async () => {
+  const { app, context, timers } = preview();
+  let requests = 0;
+  context.fetch = () => {
+    if (++requests === 4) throw new TypeError('setup failed');
+    return Promise.reject(new TypeError('network error'));
+  };
+  const results = await Promise.allSettled(Array.from({ length: 9 }, (_, i) => app._linkPreviewData('url' + i)));
+  assert.equal(requests, 9);
+  assert.ok(results.every(r => r.status === 'rejected'));
+  assert.equal(app._lpActive, 0);
+  assert.equal(app._linkPreviewInflight.size, 0);
+  assert.equal(timers.size, 0);
 });
 
 test('empty states use the shared muted type and spacing in both palettes', () => {
@@ -259,7 +328,8 @@ test('slash GIF search replaces loading with a retry on a failed fetch', async (
   const { app, context, nodes, document, expire } = surface('gif-picker', 'composer');
   nodes.composer.classList.add('message-input-area');
   document.body.insertBefore = el => document.body.appendChild(el);
-  context.setTimeout = (fn, ms) => { if (ms !== 100) throw new Error('unexpected timer'); };
+  const schedule = context.setTimeout;
+  context.setTimeout = (fn, ms) => ms === 100 ? undefined : schedule(fn, ms);
   app._showGifSlashResults('cat');
   expire();
   await tick();
@@ -340,4 +410,139 @@ test('optional emoji keywords fall back to bundled words after a stalled downloa
   expire();
   await run;
   assert.equal(app.emojiKeywords['👌'], 'okay');
+});
+
+for (const [kind, prefix] of [['Filter', 'mtf'], ['Manage', 'mtm'], ['Search', 'sfp']]) {
+  test(kind + ' tag picker keeps its shown choices while typing and when throttled', () => {
+    const { app, document, nodes, expire } = surface('search media-gallery', prefix + '-list ' + prefix + '-input');
+    const list = nodes[prefix + '-list'];
+    const input = nodes[prefix + '-input'];
+    const acks = [];
+    app.socket.timeout = () => ({ emit(event, opts, cb) { acks.push(cb); } });
+    app._sfpActive = 'tag';
+    app._mediaTagManage = { tags: [] };
+    function query(q) {
+      input.value = q;
+      if (kind === 'Search') {
+        app._sfpRenderTagList(q);
+        expire(250);
+      } else app['_mediaTag' + kind + 'Search'](q);
+    }
+    query('');
+    assert.equal(list.firstChild.textContent, 'thread_list.loading');
+    acks.shift()(null, { error: 'rate_limited', tags: [] });
+    expectFailure(list, 'search_rate_limited');
+    const row = document.createElement('button');
+    row.textContent = 'photos';
+    list.replaceChildren(row);
+    query('p');
+    query('ph');
+    assert.deepEqual(list.children, [row]);
+    acks[1](null, { error: 'rate_limited', tags: [] });
+    acks[0](new Error('old response'));
+    assert.deepEqual(list.children, [row]);
+  });
+}
+
+for (const event of ['delete-channel-media', 'bulk-tag-messages']) {
+  test(event + ' waits 30 seconds, reports an unknown outcome and refreshes only the list', async () => {
+    const { app, nodes, requests } = surface('media-gallery', 'media-gallery-delete media-gallery-body');
+    const writes = [], notices = [];
+    let ack;
+    app.socket.timeout = ms => ({ emit(name, data, cb) { writes.push([name, ms]); ack = cb; } });
+    app._mediaGallerySelected = new Map([['file', { message_id: 9, url: '/uploads/p.jpg' }]]);
+    app._mediaTagManage = { mode: 'append', tags: ['photos'] };
+    app._confirm = async () => true;
+    app._showToast = (...args) => notices.push(args);
+    if (event === 'delete-channel-media') {
+      app._bindMediaGallery();
+      nodes['media-gallery-delete'].dispatch('click');
+      await tick();
+    } else app._mediaTagManageApply();
+    ack(new Error('timeout'));
+    assert.deepEqual(writes, [[event, 30000]]);
+    assert.deepEqual(notices, [['surface.media_unconfirmed', 'info']]);
+    assert.deepEqual(requests.map(([name, data]) => [name, data.code]), [['get-channel-media', 'room']]);
+    assert.equal(nodes['media-gallery-delete'].disabled, false);
+  });
+}
+
+test('audit list and export show the server refusal', async () => {
+  const { app, nodes } = surface('moderation',
+    'audit-log-modal audit-log-list audit-log-filter-action audit-log-filter-actor audit-log-export-btn open-audit-log-btn audit-log-load-more');
+  const refusal = { error: 'Permission denied' };
+  app.socket.timeout = () => ({ emit(event, opts, cb) { cb(null, refusal); }, emitWithAck: async () => refusal });
+  const notices = [];
+  app._showToast = message => notices.push(message);
+  app._setupAuditLog();
+  nodes['open-audit-log-btn'].dispatch('click');
+  expectFailure(nodes['audit-log-list'], 'Permission denied');
+  nodes['audit-log-export-btn'].dispatch('click');
+  await tick();
+  assert.deepEqual(notices, ['Permission denied']);
+});
+
+test('a populated DM snapshot retires the hidden empty pane deadline even after the last DM leaves', () => {
+  const { app, document, nodes, expire } = surface('channels socket-channels', 'dm-list inbox-empty');
+  const pane = nodes['inbox-empty'];
+  pane.setAttribute('data-habitat-dm-empty', '');
+  app._dmSnapshotState(pane);
+  assert.equal(pane.firstChild.textContent, 'thread_list.loading');
+  app.channels = [{ code: 'dm', is_dm: 1 }];
+  app._channelsListGotResponse = true;
+  const dm = document.createElement('button');
+  nodes['dm-list'].replaceChildren(dm);
+  app._dmSnapshotState();
+  assert.equal(nodes['dm-list'].firstChild, dm);
+  app._renderChannels = () => {};
+  app._removeChannelLocally('dm');
+  expire();
+  assert.equal(pane.firstChild.textContent, 'surface.dm_empty');
+  assert.equal(pane.querySelector('button'), null);
+});
+
+test('preview images and video sources hide quietly while posted media gets the failure control', () => {
+  const { app, context, document } = surface('message-content', 'messages');
+  class Image {}
+  class Video {}
+  Object.assign(context, { HTMLImageElement: Image, HTMLVideoElement: Video });
+  const failures = [];
+  app._showMediaFailure = el => failures.push(el);
+  app._showHeldUploadNote = () => {};
+  app._setupHeldUploadNotes();
+  const error = document.listeners.error[0];
+  for (const cls of ['lp-image', 'lp-video', 'link-preview-gallery-img', 'lp-avatar', 'chat-image', 'file-video']) {
+    const video = cls.endsWith('video');
+    const el = Object.assign(video ? new Video() : new Image(), {
+      style: { removeProperty(k) { delete this[k]; } },
+      matches: selector => selector.split(', ').includes('.' + cls),
+      closest: () => null, addEventListener(type, cb) { this[type] = cb; },
+    });
+    error({ target: video ? { tagName: 'SOURCE', parentElement: el } : el });
+    if (['chat-image', 'file-video'].includes(cls)) assert.equal(failures.at(-1), el);
+    else {
+      assert.equal(failures.length, 0);
+      assert.equal(el.style.display, 'none');
+      el[video ? 'loadedmetadata' : 'load']();
+      assert.equal(el.style.display, undefined);
+    }
+  }
+});
+
+test('the portable deadline covers a pending response body and clears after an ordinary success', async () => {
+  const { app, context, timers, expire } = surface('gif-picker', 'gif-grid');
+  context.fetch = async () => ({ ok: true, json: async () => ({ results: [] }) });
+  assert.deepEqual((await app._gifResults('/gifs')).results, []);
+  assert.equal(timers.size, 0);
+  let bodyStarted = false;
+  context.fetch = async (url, { signal }) => ({ ok: true, json() {
+    bodyStarted = true;
+    return new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('aborted body'))));
+  } });
+  const result = app._gifResults('/gifs');
+  await tick();
+  assert.equal(bodyStarted, true);
+  expire();
+  await assert.rejects(result, /aborted body/);
+  assert.equal(timers.size, 0);
 });
