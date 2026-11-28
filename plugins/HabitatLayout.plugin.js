@@ -12,10 +12,8 @@
 // the same elements in the server, account and rail menus.
 //
 // It has two shapes. 'desktop' (901px and wider) is the whole arrangement.
-// 'compact' (tablet and phone) is the same sidebar inside Haven's own
-// drawer, which is where the join and create forms hurt most: on a phone
-// they left room for one channel. The call controls stay in the members
-// drawer there, where the phone layout expects them.
+// In compact the Members panel is a drawer. Navigation and the server rail
+// stay on screen on tablets. At phone width navigation becomes a drawer too.
 function plainEscape(event) {
   return event.key === 'Escape' && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey;
 }
@@ -182,6 +180,7 @@ class HabitatLayout {
       this._buildChannelTools();
       this._buildMemberPreview();
       this._buildConversationIntro();
+      if (mode === 'compact') this._watchToastClearance();
       this._buildCallStage(mode);
       this._buildVoicePeople();
       this._buildConnectionInfo();
@@ -195,6 +194,31 @@ class HabitatLayout {
       this._restoreDesktop();
       throw error;
     }
+  }
+
+  _watchToastClearance() {
+    const toast = document.getElementById('toast-container');
+    if (!toast || typeof ResizeObserver !== 'function') return;
+    const composer = this._region('composer');
+    const controls = this._region('voice-controls');
+    const workspace = this._region('workspace');
+    if (!workspace) return;
+    const property = '--hb-toast-clearance';
+    this._inlineRestores.push([toast, property, toast.style.getPropertyValue(property), toast.style.getPropertyPriority(property)]);
+    const sync = () => {
+      const input = composer?.getBoundingClientRect();
+      const bar = controls?.hasAttribute('data-habitat-call-bar') && controls.getBoundingClientRect();
+      // The workspace ends above the status bar and shrinks with the PWA keyboard.
+      const edge = input?.height ? input.top : workspace.getBoundingClientRect().bottom;
+      const clearance = window.innerHeight - edge + (bar?.height || 0);
+      toast.style.setProperty(property, Math.max(0, clearance) + 'px');
+    };
+    this._toastSize = new ResizeObserver(sync);
+    for (const box of [workspace, composer, controls]) {
+      if (box) this._toastSize.observe(box, { box: 'border-box' });
+    }
+    this._syncToastClearance = sync;
+    this._on(window, 'resize', sync);
   }
 
   // Switch the list without switching conversations or marking anything read.
@@ -1112,6 +1136,7 @@ class HabitatLayout {
         }
         docked = [];
       }
+      this._syncToastClearance?.();
     };
     const setOpen = (open) => {
       if (open === roster.hasAttribute('data-habitat-stage')) return;
@@ -1786,12 +1811,13 @@ class HabitatLayout {
     const button = this._make('button', {
       type: 'button', 'data-habitat-servers-button': '', 'aria-label': this._text('serverActions')
     });
-    this._make('span', { class: 'server-icon-text' }, button).textContent = '+';
+    const mark = this._make('span', { class: 'server-icon-text', 'aria-hidden': 'true' }, button);
     const place = () => {
       // Tablet widths still use the vertical rail. Phones have server bubbles
       // in the navigation drawer and the exact same three actions follow them.
       const bubbles = mode === 'compact' && this._phone.matches && document.getElementById('mobile-servers-row');
       button.setAttribute('class', bubbles ? 'mobile-srv-add-btn' : 'server-icon add-server');
+      mark.textContent = bubbles ? '⋯' : '+';
       (bubbles || rail).appendChild(button);
       menu.hidden = true;
       button.setAttribute('aria-expanded', 'false');
@@ -2247,6 +2273,8 @@ class HabitatLayout {
     this._mode = null;
     this._indicatorObserver?.disconnect();
     this._mediaObserver?.disconnect();
+    this._toastSize?.disconnect();
+    this._toastSize = this._syncToastClearance = null;
     this._closeStage?.();
     this._closeStage = null;
     this._openConnection = this._closeCallConnection = null;
@@ -3163,8 +3191,19 @@ html[data-habitat-layout] #message-area > [data-habitat-intro="voice"][data-habi
 html[data-habitat-layout] body:has([data-habitat-intro="voice"]:not([hidden]) > [data-habitat-join-room]:not([hidden])) .channel-header #voice-join-btn {
   position: absolute; visibility: hidden; pointer-events: none;
 }
-@media (min-width: 901px) {
-  html[data-habitat-layout-desktop] #voice-join-mobile { display: none; }
+/* Let header popovers paint above the conversation even when details is closed. */
+@media (max-width: 480px) {
+  html[data-habitat-layout] .channel-header { overflow: visible; }
+}
+html[data-habitat-layout] .channel-header:has(#e2e-dropdown[style*="display: block"]) {
+  overflow: visible; z-index: 65;
+}
+@media (min-width: 769px) {
+  /* Above the phone breakpoint Haven supplies the join action in the header. */
+  html[data-habitat-layout] #voice-join-mobile { display: none; }
+}
+@media (min-width: 769px) and (max-width: 900px) {
+  html[data-habitat-layout="compact"] #mobile-right-close { display: flex; }
 }
 /* A voice room has nothing to search, and on a phone its name needs the
    room, so the search button is only brought back for text channels. */
@@ -3173,12 +3212,13 @@ html[data-habitat-layout] body:has([data-habitat-intro="voice"]:not([hidden]) > 
   html[data-habitat-layout] .main.has-banner:not(.banner-mode-shaded):not(.banner-mode-minimal):not(.banner-mode-transparent) > #server-banner-display {
     max-height: 3.25rem;
   }
+  html[data-habitat-layout="compact"] #mobile-server-dropdown { display: none; }
   html[data-habitat-layout] #header-actions-box[style*="display: flex"] { display: flex !important; padding: 0; gap: 0; }
   html[data-habitat-layout] .channel-header:not(:has(#channel-header-name[data-habitat-voice-title])) #header-actions-box #search-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #pinned-toggle-btn,
   html[data-habitat-layout] [data-habitat-channel-menu] #copy-code-btn[style*="inline-flex"] { display: inline-flex !important; }
   [data-habitat-channel-tools] summary, html[data-habitat-layout] #search-toggle-btn {
-    width: 2.5rem; min-height: 2.5rem; justify-content: center; align-items: center;
+    width: 2.5rem; height: 2.5rem; justify-content: center; align-items: center;
   }
   [data-habitat-channel-menu] { max-height: 65dvh; overflow: auto; }
 }

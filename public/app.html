@@ -455,7 +455,8 @@
               </svg>
             </button>
             <!-- Dynamic indicators (music, streams) inject here via JS -->
-            <button id="voice-join-btn" class="btn-voice" style="display:none"><span data-i18n="voice.join">🎤 Join Voice</span></button>
+            <!-- Habitat fork: the accessible name follows the translated join or call label. -->
+            <button id="voice-join-btn" class="btn-voice" aria-labelledby="voice-join-label" style="display:none"><span id="voice-join-label" data-i18n="voice.join">🎤 Join Voice</span></button>
             <div id="voice-active-indicator" class="voice-active-indicator" style="display:none">
               <span class="voice-indicator-icon">🎤</span>
               <span class="voice-indicator-text" data-i18n="header.voice_active">Voice Active</span>

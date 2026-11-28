@@ -7,14 +7,14 @@ export default {
 _initChannelContextMenu() {
   this._ctxMenuChannel = null;
   this._ctxMenuEl = document.getElementById('channel-ctx-menu');
-  // Delegate clicks on "..." buttons inside the channel list
+  // Habitat fork: handle options before the row opens the channel and marks it read.
   document.getElementById('channel-list')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.channel-more-btn');
     if (!btn) return;
     e.stopPropagation();
     const code = btn.closest('.channel-item')?.dataset.code;
     if (code) this._openChannelCtxMenu(code, btn);
-  });
+  }, true);
 },
 
 _openChannelCtxMenu(code, btnEl) {

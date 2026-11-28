@@ -52,20 +52,24 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   buttons, records where each came from, and must restore the page exactly.
   Nothing may be hidden unless it stays reachable somewhere else.
 - It has two shapes: `desktop` (901px and wider) and `compact` (below).
-  Check both, and 375px wide, after any change.
+  At 769–900px the rail and navigation stay on screen and Members opens in a
+  drawer. At 768px and below navigation also becomes a drawer. Check 375px,
+  800px and 1440px after layout changes.
 - Messages on the desktop rail switches the sidebar to Haven's DM list. In
   compact it sits beside Find a conversation in the navigation sidebar. A
   second press or the server icon returns to channels. Guests see channels.
-  The + at the end of the rail (in the server bubbles on phones) opens Add,
-  Manage and Sync. The server name and chevron open server actions. The
+  The + at the end of the rail opens Add, Manage and Sync. On phones the
+  same actions use ⋯ beside the drawer’s server bubbles. The drawer is the
+  phone’s server switcher. The server name and chevron open server actions. The
   avatar and name in the account bar open Edit profile and Log out. Status
   and Settings have their own buttons there.
 - The right sidebar is Members only, in both shapes. Invite Users lives in the
   server menu when Haven allows it. The voice roster stays available on the
   stage and each room lists its participants on the left. In compact the
-  roster's home holds the drawer close button, and the way into a text
+  roster's home holds the drawer close button. On phones the way into a text
   channel's call (`#voice-join-mobile`) follows pins, files and threads in
-  the channel menu. Topic editing lives there too, above code and move actions.
+  the channel menu. Tablets use the header call button. Topic editing lives
+  in the channel menu above code and move actions.
 - The connected voice bar, header title and voice indicator trigger a check
   of the live call's channel. Joining the displayed voice room hides its
   introduction and gives the open stage the full conversation area.
@@ -123,7 +127,7 @@ and one `serverListSync` test fail without any change of ours; they pass or are
 irrelevant on Linux and alone.
 
 Unit tests do not prove the interface. Open the app and look: screenshots at
-1440px and 375px, and read values back from the page rather than assuming.
+1440px, 800px and 375px, and read values back from the page rather than assuming.
 
 ## The live server
 

@@ -56,6 +56,10 @@ _setMentionBadge(badge, code) {
   const count = this._mentionCountFor(code);
   if (count) badge.dataset.mentions = count >= UNSEEN_CAP ? '99+' : String(count);
   else delete badge.dataset.mentions;
+  // Habitat fork: give both the plain unread dot and its mention count a spoken label.
+  badge.setAttribute('role', 'img');
+  const unread = t('messages.new_messages') + ' · ' + badge.textContent;
+  badge.setAttribute('aria-label', count ? unread + ', ' + t('app.actions.mentions') + ' · ' + count : unread);
 },
 _mentionsMerge(channels) {
   const upTo = this._mentionsSeenUpTo();

@@ -13,6 +13,16 @@ _setupMobile() {
   const overlay = document.getElementById('mobile-overlay');
   const appBody = document.getElementById('app-body');
 
+  // Habitat fork: rotating a phone can leave a backdrop over a sidebar that is now permanent.
+  const leftDrawer = window.matchMedia('(max-width: 768px)');
+  const rightDrawer = window.matchMedia('(max-width: 900px)');
+  const closeUnavailableDrawer = () => {
+    if ((!leftDrawer.matches && appBody.classList.contains('mobile-sidebar-open')) ||
+        (!rightDrawer.matches && appBody.classList.contains('mobile-right-open'))) this._closeMobilePanels();
+  };
+  leftDrawer.addEventListener('change', closeUnavailableDrawer);
+  rightDrawer.addEventListener('change', closeUnavailableDrawer);
+
   // Hamburger: toggle left sidebar
   menuBtn.addEventListener('click', () => {
     const isOpen = appBody.classList.toggle('mobile-sidebar-open');
@@ -62,12 +72,13 @@ _setupMobile() {
     // Only process horizontal swipes (not scrolling)
     if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dy) > Math.abs(dx)) return;
 
-    if (dx > 0 && touchStartX < 40) {
+    // Habitat fork: only open a drawer where Haven actually lays one out.
+    if (dx > 0 && touchStartX < 40 && leftDrawer.matches) {
       // Swipe right from left edge → open left sidebar
       appBody.classList.add('mobile-sidebar-open');
       appBody.classList.remove('mobile-right-open');
       overlay.classList.add('active');
-    } else if (dx < 0 && touchStartX > window.innerWidth - 40) {
+    } else if (dx < 0 && touchStartX > window.innerWidth - 40 && rightDrawer.matches) {
       // Swipe left from right edge → open right sidebar
       appBody.classList.add('mobile-right-open');
       appBody.classList.remove('mobile-sidebar-open');

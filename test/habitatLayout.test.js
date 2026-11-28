@@ -1982,3 +1982,61 @@ test('channel actions put reading tools first and gate topic editing and rotatio
   layout.stop();
   assert.equal(snapshot(doc.body), before);
 });
+
+test('the server actions mark changes when the same compact control moves between rail and drawer', () => {
+  const { doc, phoneMedia, rail } = buildApp({ desktop: false });
+  const plugin = new HabitatLayout();
+  plugin.start();
+  const button = doc.querySelector('[data-habitat-servers-button]');
+  for (const phone of [false, true, false]) {
+    phoneMedia.set(phone);
+    assert.equal(button.parentNode, phone ? doc.getElementById('mobile-servers-row') : rail);
+    assert.equal(button.children[0].textContent, phone ? '⋯' : '+');
+    assert.ok(button.getAttribute('aria-label'));
+  }
+  plugin.stop();
+});
+
+test('toast clearance follows multiline input, a docked call bar and the keyboard, and restores on stop', t => {
+  const { doc, voiceControls } = buildApp({ desktop: false, phone: true });
+  const events = new FakeTarget();
+  window.addEventListener = events.addEventListener.bind(events);
+  window.removeEventListener = events.removeEventListener.bind(events);
+  const composer = region(doc, 'composer');
+  const workspace = region(doc, 'workspace', [composer]);
+  const toast = el(doc, 'div', { id: 'toast-container' });
+  doc.body.appendChild(workspace);
+  doc.body.appendChild(toast);
+  const property = '--hb-toast-clearance';
+  toast.style.setProperty(property, '1rem');
+  workspace.getBoundingClientRect = () => ({ bottom: 880 });
+  let input = { top: 820, height: 60 };
+  composer.getBoundingClientRect = () => input;
+  let resize;
+  const observed = new Set();
+  globalThis.ResizeObserver = class {
+    constructor(callback) { resize = callback; }
+    observe(box) { observed.add(box); }
+    disconnect() { observed.clear(); }
+  };
+  t.after(() => { delete globalThis.ResizeObserver; });
+  const plugin = new HabitatLayout();
+  plugin.start();
+  assert.deepEqual(observed, new Set([workspace, composer, voiceControls]));
+  const check = expected => {
+    resize();
+    assert.equal(toast.style.getPropertyValue(property), expected + 'px');
+  };
+  check(80);
+  input = { top: 610, height: 120 };
+  check(290);
+  voiceControls.setAttribute('data-habitat-call-bar', '');
+  check(330);
+  input = { top: 0, height: 0 };
+  check(60);
+  voiceControls.removeAttribute('data-habitat-call-bar');
+  check(20);
+  plugin.stop();
+  assert.equal(observed.size, 0);
+  assert.equal(toast.style.getPropertyValue(property), '1rem');
+});

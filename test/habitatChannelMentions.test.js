@@ -101,3 +101,14 @@ test('rotations retain local and newly seeded IDs and cap the visible count at 9
   assert.equal(row.children[0].dataset.mentions, '99+');
   assert.equal(row.children[0].textContent, '99+');
 });
+
+test('the spoken channel badge follows the transition from mentions to ordinary unreads', () => {
+  const { app, row } = setup();
+  const badge = row.children[0];
+  assert.equal(badge.getAttribute('role'), 'img');
+  assert.equal(badge.getAttribute('aria-label'), 'messages.new_messages · 12, app.actions.mentions · 2');
+  app._mentionsSeenInChannel('room');
+  app.unreadCounts.room = 4;
+  app._updateBadge('room');
+  assert.equal(badge.getAttribute('aria-label'), 'messages.new_messages · 4');
+});
