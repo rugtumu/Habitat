@@ -390,7 +390,8 @@ async switchChannel(code) {
     iAmInVoice: !!(this.voice && this.voice.inVoice && this.voice.currentChannel === code)
   });
   this._clearReply();
-  this._closeThread();
+  // Habitat fork: leave focus to the device check below even if the composer opened the thread.
+  this._closeThread({ restoreFocus: false });
 
   // Auto-focus the message input for quick typing.
   // Skip on touch devices: focusing an input opens the on-screen keyboard, which

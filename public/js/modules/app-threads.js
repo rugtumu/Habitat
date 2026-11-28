@@ -357,7 +357,7 @@ _applyThreadClosed(closed) {
   if (text) text.textContent = readOnly ? t('thread_runtime.read_only_no_replies') : closed ? t(canReply ? 'forum.closed_you_can_reply' : 'forum.closed_no_replies') : '';
 },
 
-_closeThread() {
+_closeThread({ restoreFocus = true } = {}) {
   // Replies picked in it went with the panel (app-unthread.js).
   if (this._moveSourceThread) this._exitMoveSelectionMode?.();
   clearTimeout(this._threadLoadTimer);
@@ -376,10 +376,9 @@ _closeThread() {
   if (threadMsgs) threadMsgs.innerHTML = '';
   this._forumApplyThreadChrome?.(null);
   this._forumBlogClose?.();
-  if (this._threadOpener) {
-    this._focusSurfaceOpener?.(this._threadOpener, document.getElementById('message-input'));
-    this._threadOpener = null;
-  }
+  // Habitat fork: a channel change manages its own focus, including the touch keyboard guard.
+  if (restoreFocus) this._focusSurfaceOpener?.(this._threadOpener);
+  this._threadOpener = null;
 },
 
 _sendThreadMessage() {

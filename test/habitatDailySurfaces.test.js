@@ -25,6 +25,13 @@ function page() {
     const el = create(tag);
     Object.defineProperty(el, 'innerHTML', { set(html) { el.replaceChildren(...parseHtml(html).map(build)); } });
     el.getClientRects = () => el.hidden || el.style.display === 'none' ? [] : [{}];
+    el.click = () => el.dispatch('click');
+    el.closest = selector => {
+      for (let node = el; node; node = node.parentElement) {
+        if (selector.split(',').some(part => node._matches(part.trim()))) return node;
+      }
+      return null;
+    };
     el.scrollIntoView = options => { el.scrolled = options.block; };
     el.style.setProperty = (key, value) => { el.style[key] = value; };
     el.dispatchEvent = ev => el.dispatch(ev.type);
@@ -449,35 +456,209 @@ test('calling from a profile card asks first and does not stay armed', () => {
   assert.match(call, /removeAttribute\('data-call-socket'\)/);
 });
 
-test('a destructive confirm starts on Cancel, resolves once, and returns focus to its opener', async () => {
+// Run the document capture listener before the focused control. Buttons receive
+// their native Enter click only if the keydown has not already been handled.
+function pressKey(doc, key) {
+  const target = doc.activeElement;
+  const event = { key, target, preventDefault() { this.defaultPrevented = true; },
+    stopImmediatePropagation() { this.stopped = true; } };
+  for (const handler of doc.listeners.keydown || []) {
+    handler(event);
+    if (event.stopped) return;
+  }
+  const result = target.dispatch('keydown', { key });
+  if (key === 'Enter' && !result.defaultPrevented && target.tagName === 'button') target.click();
+}
+
+test('the prompt selects its default after opening, accepts typed text and cancels on Escape', async () => {
   const doc = page();
-  doc.body.innerHTML = '<button id="opener">Unpin</button>';
-  const opener = doc.getElementById('opener');
+  const app = load(doc, ['ui', 'utilities'], { setTimeout });
+  doc.body.innerHTML = '<button id="rename">Rename</button>';
+  const opener = doc.getElementById('rename');
   opener.focus();
-  const app = load(doc, ['ui', 'utilities']);
-  const result = app._showConfirmModal('Remove pin?', '', { danger: true });
-  const cancel = doc.getElementById('confirm-modal-cancel');
-  assert.equal(doc.activeElement, cancel);
-  assert.ok(doc.getElementById('confirm-modal-ok').classList.contains('btn-danger-fill'));
-  cancel.dispatch('click');
-  assert.equal(await result, false);
-  assert.equal(doc.activeElement, opener);
+  app._bindEscapeShortcuts();
+  for (const key of ['Enter', 'Escape']) {
+    const answer = app._showPromptModal('Name', '', 'Old name');
+    const input = doc.getElementById('prompt-modal-input');
+    let selected;
+    input.select = () => { selected = input.value; };
+    assert.equal(doc.activeElement, opener);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(doc.activeElement, input);
+    assert.equal(selected, 'Old name');
+    input.value = 'New name';
+    pressKey(doc, key);
+    assert.equal(await answer, key === 'Enter' ? 'New name' : null);
+    assert.equal(doc.activeElement, opener);
+  }
 });
 
-test('Escape closes a floating thread with a draft and leaves its reply text intact', () => {
+test('only a destructive confirm defaults to Cancel and opening Enter cannot answer a dialog', async () => {
   const doc = page();
-  doc.body.innerHTML = '<button id="opener">Thread</button><div id="thread-panel" class="pip"><textarea id="thread-input"></textarea></div>';
+  const app = load(doc, ['ui', 'utilities'], { setTimeout });
+  doc.body.innerHTML = '<input id="opener">';
+  const opener = doc.getElementById('opener');
+  const dialogs = [
+    [() => app._confirm('Pin?'), 'Confirm', true],
+    [() => app._confirm('Unpin?', { danger: true }), 'Cancel', false],
+    [() => app._alert('Hello'), 'OK', 'ok'],
+    [() => app._askChoice('Choose', '', [{ id: 'remove', danger: true, label: 'Remove' }, { id: 'cancel', label: 'Cancel' }]),
+      'Cancel', 'cancel'],
+  ];
+  for (const [open, label, expected] of dialogs) {
+    opener.focus();
+    const answer = open();
+    const modal = doc.querySelector('.modal');
+    assert.equal(doc.activeElement, opener);
+    if (expected === 'ok') {
+      assert.equal(modal.querySelector('h3'), null);
+      assert.ok(modal.getAttribute('aria-label'));
+    } else {
+      assert.ok(modal.querySelector('h3'));
+    }
+    if (expected === false) assert.ok(modal.querySelector('.btn-danger-fill'));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(doc.activeElement.textContent, label);
+    pressKey(doc, 'Enter');
+    assert.equal(await answer, expected);
+    assert.equal(doc.activeElement, opener);
+  }
+});
+
+test('Escape preserves a thread draft and closes an empty floating thread only from inside', () => {
+  const doc = page();
+  doc.body.innerHTML = '<button id="opener">Thread</button><textarea id="message-input"></textarea>' +
+    '<div id="thread-panel"><textarea id="thread-input"></textarea></div>';
   const app = load(doc, ['ui', 'threads']);
   const opener = doc.getElementById('opener');
   const input = doc.getElementById('thread-input');
-  Object.assign(app, { _threadOpener: opener, _clearThreadReply() {} });
+  const panel = doc.getElementById('thread-panel');
+  const composer = doc.getElementById('message-input');
+  let clears = 0;
+  Object.assign(app, { _threadOpener: opener, _clearThreadReply() { clears++; } });
   input.value = 'unfinished reply';
-  input.focus();
   app._bindEscapeShortcuts();
-  doc.listeners.keydown[0]({ key: 'Escape', target: input, preventDefault() {}, stopImmediatePropagation() {} });
-  assert.equal(doc.getElementById('thread-panel').style.display, 'none');
-  assert.equal(input.value, 'unfinished reply');
+  for (const pip of [false, true]) {
+    panel.classList.toggle('pip', pip);
+    input.focus();
+    pressKey(doc, 'Escape');
+    assert.notEqual(panel.style.display, 'none');
+    assert.equal(doc.activeElement, input);
+    assert.equal(input.value, 'unfinished reply');
+    assert.equal(clears, 0);
+  }
+  input.value = '';
+  composer.focus();
+  pressKey(doc, 'Escape');
+  assert.notEqual(panel.style.display, 'none');
+  assert.equal(doc.activeElement, composer);
+  input.focus();
+  pressKey(doc, 'Escape');
+  assert.equal(panel.style.display, 'none');
+  assert.equal(clears, 1);
   assert.equal(doc.activeElement, opener);
+});
+
+test('lightbox, thread and static modal restore a visible opener and leave unrelated focus alone', () => {
+  const doc = page();
+  doc.body.innerHTML = '<textarea id="message-input"></textarea><button id="in-thread">Picture</button>' +
+    '<div id="image-lightbox"></div><div id="thread-panel"></div><div class="modal-overlay" id="media-gallery-modal"></div>';
+  let notify;
+  class MutationObserver {
+    constructor(callback) { notify = callback; }
+    observe() {}
+  }
+  const app = load(doc, ['ui', 'media', 'threads'], { MutationObserver });
+  app._hideImageContextMenu = app._clearThreadReply = () => {};
+  app._setupModalExpand();
+  const opener = doc.getElementById('in-thread'), overlay = doc.getElementById('media-gallery-modal');
+  for (const close of [
+    () => { app._lightboxOpener = doc.activeElement; doc.body.focus(); app._closeLightbox(); },
+    () => { app._threadOpener = doc.activeElement; doc.body.focus(); app._closeThread(); },
+    () => {
+      overlay.style.display = 'flex'; notify([{ target: overlay }]);
+      overlay.style.display = 'none'; doc.body.focus(); notify([{ target: overlay }]);
+    },
+  ]) {
+    opener.hidden = false;
+    opener.focus();
+    close();
+    assert.equal(doc.activeElement, opener);
+    opener.hidden = true;
+    close();
+    assert.equal(doc.activeElement, doc.body);
+    close();
+    assert.equal(doc.activeElement, doc.body);
+  }
+});
+
+test('dismissal returns focus only for open pins, and a message edit gets Escape first', () => {
+  const doc = page();
+  doc.body.innerHTML = '<button id="pinned-toggle-btn"></button><button id="pinned-close"></button>' +
+    '<div id="pinned-panel"></div><div id="pins-pip-panel"></div><button id="pins-pip-close"></button>' +
+    '<button id="search-toggle-btn"></button><button id="search-close-btn"></button><input id="search-input">' +
+    '<div class="message"><div class="message-content">Before</div></div>';
+  const app = load(doc, ['ui', 'message-tools', 'message-content'], { AbortController });
+  app._searchInit = app._hideMentionDropdown = app._hideEmojiDropdown = () => {};
+  app._handleMarkdownShortcuts = app._composerListKey = () => false;
+  app._bindSearchAndPins();
+  app._bindEscapeShortcuts();
+  const panel = doc.getElementById('pins-pip-panel'), dock = doc.getElementById('pinned-panel');
+  const close = doc.getElementById('pins-pip-close'), toggle = doc.getElementById('pinned-toggle-btn');
+  doc.body.focus();
+  panel.style.display = 'none';
+  close.click();
+  assert.equal(doc.activeElement, doc.body);
+  panel.style.display = 'flex';
+  app._closePinsPiP(); // Channel switch and pop-in use this path.
+  assert.equal(panel.style.display, 'none');
+  assert.equal(doc.activeElement, doc.body);
+  panel.style.display = 'flex';
+  close.click();
+  assert.equal(doc.activeElement, toggle);
+  for (const pins of [panel, dock]) {
+    panel.style.display = dock.style.display = 'none';
+    pins.style.display = 'flex';
+    const message = doc.querySelector('.message');
+    app._startEditMessage(message, 7);
+    assert.ok(message.classList.contains('editing'));
+    pressKey(doc, 'Escape');
+    assert.ok(!message.classList.contains('editing'));
+    assert.equal(pins.style.display, 'flex');
+    doc.body.focus();
+    pressKey(doc, 'Escape');
+    assert.equal(pins.style.display, 'none');
+    assert.equal(doc.activeElement, toggle);
+  }
+  const menu = doc.createElement('details'), summary = doc.createElement('summary');
+  doc.body.appendChild(menu);
+  menu.append(summary, toggle);
+  panel.style.display = 'flex';
+  close.click();
+  assert.equal(doc.activeElement, summary);
+});
+
+test('clicking an emoji category then pressing ArrowRight and Enter inserts the highlighted emoji once', () => {
+  const doc = page();
+  doc.body.innerHTML = '<div id="emoji-picker"></div><textarea id="message-input"></textarea>';
+  const app = load(doc, ['emoji-picker'], { window: { innerWidth: 1000 } });
+  app._skinTone = 'default';
+  app.emojiCategories = { Smileys: ['😀'], Animals: ['🐶', '🐱'] };
+  const picker = doc.getElementById('emoji-picker'), input = doc.getElementById('message-input');
+  input.selectionStart = input.selectionEnd = 0;
+  app._toggleEmojiPicker();
+  const grid = picker.querySelector('.emoji-grid');
+  const all = picker.querySelectorAll.bind(picker);
+  picker.querySelectorAll = selector => selector === '.emoji-grid .emoji-item' ? grid.querySelectorAll('.emoji-item') : all(selector);
+  const tab = picker.querySelectorAll('.emoji-tab').at(-1);
+  tab.focus();
+  tab.click();
+  for (const key of ['ArrowRight', 'Enter']) {
+    const event = picker.dispatch('keydown', { key, target: doc.activeElement });
+    assert.ok(event.defaultPrevented);
+  }
+  assert.equal(input.value, '🐱');
+  assert.equal(picker.style.display, 'none');
 });
 
 test('the alternate sign-in controls still open the linked-server form and admin recovery', () => {

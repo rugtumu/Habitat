@@ -143,7 +143,7 @@ _bindSearchAndPins() {
   });
   document.getElementById('pinned-close').addEventListener('click', () => {
     document.getElementById('pinned-panel').style.display = 'none';
-    this._focusSurfaceOpener(document.getElementById('pinned-toggle-btn'));
+    this._focusPinsToggle();
   });
 
   // Open pinned messages in fullscreen (maximized PiP)
@@ -165,7 +165,8 @@ _bindSearchAndPins() {
 
   // Pins PiP: close button
   const pinsPipClose = document.getElementById('pins-pip-close');
-  if (pinsPipClose) pinsPipClose.addEventListener('click', () => this._closePinsPiP?.());
+  // Habitat fork: only a deliberate dismissal returns to the header pin control.
+  if (pinsPipClose) pinsPipClose.addEventListener('click', () => this._closePinsPiP?.({ restoreFocus: true }));
 
   // Pins PiP: fullscreen toggle button
   const pinsPipFullscreen = document.getElementById('pins-pip-fullscreen');
@@ -207,13 +208,11 @@ _bindSearchAndPins() {
   }
 },
 
-// Habitat fork: a header action may have returned to its collapsed channel menu.
-_focusSurfaceOpener(opener, fallback) {
-  for (const el of [opener, opener?.closest?.('details')?.querySelector('summary'), fallback]) {
-    if (el && el !== document.body && el.getClientRects().length) {
-      el.focus({ preventScroll: true });
-      if (document.activeElement === el) return;
-    }
+// Habitat fork: dismissing a surface may restore its opener, including a tabindex="-1"
+// row. The browser ignores focus on inert or non-focusable elements.
+_focusSurfaceOpener(opener) {
+  if (opener && opener !== document.body && !opener.disabled && opener.getClientRects().length) {
+    opener.focus({ preventScroll: true });
   }
 },
 
@@ -264,10 +263,13 @@ _bindEscapeShortcuts() {
     ['#emoji-picker', el => { this._toggleEmojiPicker(); this._focusSurfaceOpener(el._opener); }],
     ['#gif-picker', el => { this._closeGifPicker(); this._focusSurfaceOpener(el._opener); }],
     ['.reaction-full-picker, .quick-emoji-editor', el => { remove(el); this._focusSurfaceOpener(el._opener); }],
-    ['.reaction-picker', el => { this._closeReactionPickers(); this._focusSurfaceOpener(el._opener, document.getElementById('message-input')); }],
+    ['.reaction-picker', el => { this._closeReactionPickers(); this._focusSurfaceOpener(el._opener); }],
     ['#theme-popup', el => { el.style.display = 'none'; }],
     ['#search-filter-popover', el => { el.style.display = 'none'; document.getElementById('search-input')?.focus(); }],
-    ['#pins-pip-panel', () => this._closePinsPiP()],
+  ];
+  // Habitat fork: an edit field handles Escape before either pins panel or the search behind it.
+  const panels = [
+    ['#pins-pip-panel', () => this._closePinsPiP({ restoreFocus: true })],
     ['#pinned-panel', () => document.getElementById('pinned-close')?.click()],
     ['#search-container, #search-panel', () => this._searchClose()],
   ];
@@ -329,14 +331,16 @@ _bindEscapeShortcuts() {
     }
     // The other bundled layouts also restore their own popovers and DM drawer.
     if (top('#channel-actions-menu, html.dms-open, html[data-fc-pop]')) return;
-    if (dismiss(trailing, e)) return;
+    if (dismiss(trailing, e) || field?.closest?.('.edit-textarea') || dismiss(panels, e)) return;
 
     // Drafts and pop-outs keep the main channel in place while their input owns Escape.
     if (top('.edit-textarea, #voice-record-bar, .lp-size-menu') ||
         e.target?.closest?.('[data-habitat-focus], .fullscreen-call-toolbar')) return;
     const thread = top('#thread-panel');
     if (thread) {
-      // Habitat fork: closing the pop-out preserves the reply text in the shared thread input.
+      // Habitat fork: keep drafts with their thread. A floating thread owns Escape only inside its panel.
+      if (document.getElementById('thread-input')?.value.trim() ||
+          (thread.classList.contains('pip') && !thread.contains(field))) return;
       consume(e);
       this._closeThread();
     } else if (this.currentChannel && top('#message-area') && !top('#dm-pip-panel, #pins-pip-panel')) {

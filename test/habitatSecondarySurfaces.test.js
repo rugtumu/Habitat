@@ -90,3 +90,32 @@ test('generic dialogs use the shared header, body, footer and danger styles', ()
   hasRule('.modal-overlay > .modal > .modal-actions', ['justify-content: flex-end', 'gap: .5rem']);
   hasRule('.modal-overlay > .modal .btn-danger-fill', ['background: var(--danger)']);
 });
+
+test('core search and GIF buttons retain their row and tile sizing without a file theme', () => {
+  const search = read('public/css/style-tags-uploads-search.css');
+  const emoji = read('public/css/style-emoji-reactions-threads.css');
+  for (const [source, selector, expected] of [
+    [search, '.sfp-item', ['background: transparent', 'width: 100%', 'border: 0', 'font: inherit', 'text-align: start']],
+    [emoji, '.gif-pick', ['display: block', 'width: 100%', 'border: 0', 'padding: 0', 'background: transparent']],
+  ]) {
+    const body = source.split(selector + ' {')[1].split('}')[0];
+    for (const declaration of expected) assert.ok(body.includes(declaration), selector + ' ' + declaration);
+  }
+  assert.match(search, /@media \(min-width: 901px\) \{\s*\.channel-header:has\(> #search-container\[style\*="flex"\]\) #channel-header-name \{ display: none;/);
+});
+
+test('the Grafit padding rule respects modal bodies with their own full-bleed headers', () => {
+  const rule = rules.find(([selector, body]) => selector.startsWith('.modal-overlay > .modal:not(') && body.includes('padding: 1.5rem'));
+  for (const name of ['modal-settings', 'modal-activities', 'modal-wizard', 'media-gallery-modal']) {
+    assert.ok(rule[0].includes('.' + name), name);
+  }
+});
+
+test('the disclosure and empty thread labels use English fallbacks from the catalog', () => {
+  const login = read('public/index.html');
+  const en = JSON.parse(read('public/locales/en.json'));
+  assert.match(login, /<summary data-i18n="auth.login.other_ways">Other ways to sign in<\/summary>/);
+  assert.match(app, /class="thread-empty" data-i18n="thread_runtime.no_replies">No replies yet\.<\/span>/);
+  assert.equal(en.auth.login.other_ways, 'Other ways to sign in');
+  assert.equal(en.thread_runtime.no_replies, 'No replies yet.');
+});

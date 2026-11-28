@@ -350,6 +350,8 @@ _toggleEmojiPicker(anchorEl) {
         // Move the keyboard highlight to this category's first emoji, so
         // arrowing/Enter continues from where the user just jumped to.
         highlightFirstEmoji(section);
+        // Habitat fork: arrows and Enter now belong to the grid that this tab selected.
+        grid.focus({ preventScroll: true });
       }
       setActiveTab(cat);
     });
@@ -361,6 +363,7 @@ _toggleEmojiPicker(anchorEl) {
   // Grid
   const grid = document.createElement('div');
   grid.className = 'emoji-grid';
+  grid.tabIndex = -1;
   picker.appendChild(grid);
 
   const self = this;

@@ -335,7 +335,8 @@ _closeLightbox() {
     try { URL.revokeObjectURL(this._lightboxBlobUrl); } catch { /* already gone */ }
     this._lightboxBlobUrl = null;
   }
-  this._focusSurfaceOpener?.(this._lightboxOpener, document.getElementById('message-input'));
+  // Habitat fork: a tapped image may have no focusable opener.
+  this._focusSurfaceOpener?.(this._lightboxOpener);
   this._lightboxOpener = this._lightboxSource = null;
   this._lightboxIndex = -1;
   this._lightboxScope = null;
@@ -436,15 +437,15 @@ _setupModalExpand() {
       if (overlay.style.display !== 'none') {
         if (openers.has(overlay)) continue;
         const focused = document.activeElement;
-        const channelButton = { 'media-gallery-modal': 'gallery-toggle-btn', 'threads-list-modal': 'threads-toggle-btn' }[overlay.id];
-        openers.set(overlay, channelButton ? document.getElementById(channelButton) : (overlay.contains(focused) ? overlay._entryFocus : focused));
+        // Habitat fork: the same static dialog can be opened from different surfaces.
+        openers.set(overlay, overlay.contains(focused) ? overlay._entryFocus : focused);
         if (overlay.contains(focused)) continue;
         const safe = [...overlay.querySelectorAll('[data-i18n="modals.common.cancel"], [data-i18n-aria-label="modals.common.close"], .modal-controls button:last-child, .settings-close-btn')]
           .find(button => !button.disabled && button.getClientRects().length);
         safe?.focus({ preventScroll: true });
       } else if (openers.has(overlay)) {
         if (document.activeElement === document.body || overlay.contains(document.activeElement)) {
-          this._focusSurfaceOpener?.(openers.get(overlay), document.getElementById('message-input'));
+          this._focusSurfaceOpener?.(openers.get(overlay));
         }
         openers.delete(overlay);
         overlay._entryFocus = null;

@@ -108,11 +108,20 @@ _openPinsPiP(pins) {
 },
 
 /** Close the pinned messages PiP. */
-_closePinsPiP() {
+_closePinsPiP({ restoreFocus = false } = {}) {
   this._pinsPipChannelCode = null;
   const panel = document.getElementById('pins-pip-panel');
-  if (panel) panel.style.display = 'none';
-  this._focusSurfaceOpener?.(document.getElementById('pinned-toggle-btn'));
+  // Habitat fork: a channel switch or pop-in closes the panel without moving focus.
+  if (!panel || panel.style.display === 'none') return;
+  panel.style.display = 'none';
+  if (restoreFocus) this._focusPinsToggle();
+},
+
+// Habitat fork: when Pins lives inside the collapsed channel menu, its visible control is the summary.
+_focusPinsToggle() {
+  const toggle = document.getElementById('pinned-toggle-btn');
+  const menu = toggle?.closest('details');
+  this._focusSurfaceOpener?.(menu && !menu.open ? menu.querySelector('summary') : toggle);
 },
 
 /** Render the pin list inside the PiP overlay.

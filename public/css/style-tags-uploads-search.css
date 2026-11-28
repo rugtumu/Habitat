@@ -1197,6 +1197,12 @@
 }
 
 /* ── Search filter picker popover (phase 3) ── */
+/* Habitat fork: desktop search needs the title's space while the field is open. */
+@media (min-width: 901px) {
+  .channel-header:has(> #search-container[style*="flex"]) #channel-header-name { display: none; }
+  .channel-header:has(> #search-container[style*="flex"]) > .channel-info { flex: none; min-width: 0; }
+}
+
 .search-container { position: relative; }
 
 /* Habitat fork: the Habitat header is one fixed row that clips what spills
@@ -1331,6 +1337,9 @@ html[data-habitat-layout] .channel-header:has(#search-filter-popover[style*="fle
   color: var(--text-primary);
 }
 
+/* Habitat fork: both pin lists and empty search results keep their inset with the base theme. */
+:where(.pinned-list, #search-panel-list) > .muted-text[role="status"] { padding: .75rem; }
+
 .sfp-list {
   flex: 1 1 auto;
   min-height: 0;
@@ -1339,6 +1348,12 @@ html[data-habitat-layout] .channel-header:has(#search-filter-popover[style*="fle
 
 .sfp-item {
   display: flex;
+  /* Habitat fork: a filter suggestion fills its row in every theme. */
+  width: 100%;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: start;
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;

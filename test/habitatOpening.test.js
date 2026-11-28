@@ -122,6 +122,21 @@ test('switching channels preserves the dialog opener’s focus after a server re
   assert.equal(composerFocus, 1);
 });
 
+test('switching channels on touch leaves the keyboard closed even if the composer opened a thread', async () => {
+  const c = client({ touch: true });
+  c.list([room]);
+  const composer = c.el('message-input');
+  let closed = false;
+  composer.focus = () => assert.fail('channel switch focused the composer');
+  c.app._closeThread = ({ restoreFocus = true } = {}) => {
+    closed = true;
+    if (restoreFocus) composer.focus();
+  };
+  await c.app.switchChannel(room.code);
+  c.tick(50);
+  assert.ok(closed);
+});
+
 test('a saved DM follows the member’s current opening preference', async () => {
   const c = client();
   c.list([room, dm]);

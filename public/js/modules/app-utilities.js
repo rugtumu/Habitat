@@ -1448,10 +1448,11 @@ _questionDialog(title, message, resolve, cancelValue) {
   overlay.className = 'modal-overlay';
   overlay.style.display = 'flex';
   overlay.style.zIndex = '100002';
+  // Habitat fork: an untitled alert still needs an accessible dialog name.
   const heading = this._escapeHtml(title || t('modals.common.confirm'));
   overlay.innerHTML = `
     <div class="modal modal-confirm" data-modal-controls-injected="1" role="dialog" aria-modal="true" aria-label="${heading}">
-      <h3>${heading}</h3>
+      ${title ? `<h3>${heading}</h3>` : ''}
       <div class="modal-controls">
         <button type="button" class="modal-expand-btn" aria-label="${this._escapeHtml(t('modals.common.close'))}">×</button>
       </div>
@@ -1493,11 +1494,14 @@ _showPromptModal(title, message, defaultValue = '', { password = false, maxLengt
     const cancel = row.querySelector('#prompt-modal-cancel');
     cancel.addEventListener('click', () => close(null));
     row.querySelector('#prompt-modal-ok').addEventListener('click', () => close(input.value));
-    if (defaultValue) input.addEventListener('focus', () => input.select(), { once: true });
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); close(input.value); }
     });
-    cancel.focus();
+    // Habitat fork: the opening keystroke must finish before the field receives input.
+    setTimeout(() => {
+      input.focus();
+      if (input.value) input.select();
+    }, 0);
   });
 },
 
@@ -1509,8 +1513,10 @@ _showConfirmModal(title, message, { confirmLabel, cancelLabel, danger = false } 
       <button class="btn-sm ${danger ? 'btn-danger-fill' : 'btn-accent'}" id="confirm-modal-ok">${this._escapeHtml(confirmLabel || t(danger ? 'msg_toolbar.delete' : 'modals.common.confirm'))}</button>`;
     const cancel = row.querySelector('#confirm-modal-cancel');
     cancel.addEventListener('click', () => close(false));
-    row.querySelector('#confirm-modal-ok').addEventListener('click', () => close(true));
-    cancel.focus();
+    const ok = row.querySelector('#confirm-modal-ok');
+    ok.addEventListener('click', () => close(true));
+    // Habitat fork: the next Enter activates the primary action unless it is destructive.
+    setTimeout(() => (danger ? cancel : ok).focus(), 0);
   });
 },
 
@@ -1537,7 +1543,8 @@ _askChoice(title, message, buttons) {
       row.appendChild(el);
       if (b.id === 'cancel' || (!safest && !b.danger && (!b.accent || buttons.length === 1))) safest = el;
     }
-    (safest || closeButton).focus();
+    // Habitat fork: the key that opened a choice or alert cannot also answer it.
+    setTimeout(() => (safest || closeButton).focus(), 0);
   });
 },
 

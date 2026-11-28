@@ -3168,7 +3168,7 @@ html[data-haven-density="spacious"] #thread-panel { --thread-gap: 1rem; --thread
   [data-haven-page="auth"] .auth-container { width: 100%; box-sizing: border-box; padding: .75rem; }
   [data-haven-page="auth"] .auth-form input { width: 100%; }
 }
-.modal-overlay > .modal:not(.modal-settings, .media-gallery-modal, .has-profile-theme) {
+.modal-overlay > .modal:not(.modal-settings, .modal-activities, .modal-wizard, .media-gallery-modal, .has-profile-theme) {
   padding: 1.5rem; border-radius: var(--hb-radius-lg); box-shadow: var(--hb-elev-dialog);
 }
 .modal-overlay > .modal > h3 { font-size: var(--hb-text-lg); font-weight: 600; margin-block: 0 .75rem; }
