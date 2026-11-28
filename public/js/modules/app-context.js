@@ -128,6 +128,9 @@ _showUserContextMenu(e, targetUserId, targetNameOverride) {
       inviteBtn.setAttribute('aria-expanded', String(open));
       submenu.style.display = open ? 'block' : 'none';
       this._fitCtxMenu(menu);
+      // Habitat fork: a menu held to the bottom edge no longer flips, so
+      // the list it just grew would open below the fold. Scroll it in.
+      if (open) menu.scrollTop = inviteItem.offsetTop;
     };
     inviteBtn.addEventListener('click', () => expand(inviteBtn.getAttribute('aria-expanded') !== 'true'));
     inviteItem.addEventListener('pointerenter', ev => { if (ev.pointerType === 'mouse') expand(true); });

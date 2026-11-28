@@ -178,7 +178,8 @@ _bindSearchAndPins() {
   // Pins PiP: pop-in button (close PiP and re-open the sidebar panel)
   const pinsPipPopin = document.getElementById('pins-pip-popin');
   if (pinsPipPopin) pinsPipPopin.addEventListener('click', () => {
-    this._closePinsPiP?.();
+    // Habitat fork: the panel that holds focus is about to hide.
+    this._closePinsPiP?.({ restoreFocus: true });
     if (this.currentChannel) this.socket.emit('get-pinned-messages', { code: this.currentChannel });
   });
 
@@ -212,6 +213,9 @@ _bindSearchAndPins() {
 // row. The browser ignores focus on inert or non-focusable elements.
 _focusSurfaceOpener(opener) {
   if (opener && opener !== document.body && !opener.disabled && opener.getClientRects().length) {
+    // On a touch device a tapped button does not take focus, so the opener
+    // on record can be the composer itself; focusing it raises the keyboard.
+    if (globalThis.matchMedia?.('(pointer: coarse)')?.matches && opener.matches?.('input, textarea, [contenteditable]')) return;
     opener.focus({ preventScroll: true });
   }
 },

@@ -363,6 +363,11 @@ _closeThread({ restoreFocus = true } = {}) {
   clearTimeout(this._threadLoadTimer);
   this._activeThreadParent = null;
   this._clearThreadReply();
+  // Habitat fork: the field is shared by every thread. A draft left in it
+  // would show up in the next thread and, now that a typed reply keeps a
+  // thread open, stop Escape from closing that one.
+  const draft = document.getElementById('thread-input');
+  if (draft) draft.value = '';
   // A reaction picker opened on a reply has nothing left to react to.
   this._closeReactionPickers?.();
   const panel = document.getElementById('thread-panel');

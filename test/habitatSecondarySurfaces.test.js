@@ -101,7 +101,7 @@ test('core search and GIF buttons retain their row and tile sizing without a fil
     const body = source.split(selector + ' {')[1].split('}')[0];
     for (const declaration of expected) assert.ok(body.includes(declaration), selector + ' ' + declaration);
   }
-  assert.match(search, /@media \(min-width: 901px\) \{\s*\.channel-header:has\(> #search-container\[style\*="flex"\]\) #channel-header-name \{ display: none;/);
+  assert.match(search, /@media \(min-width: 901px\) \{\s*html\[data-habitat-layout\] \.channel-header:has\(> #search-container\[style\*="flex"\]\) #channel-header-name \{ display: none;/);
 });
 
 test('the Grafit padding rule respects modal bodies with their own full-bleed headers', () => {

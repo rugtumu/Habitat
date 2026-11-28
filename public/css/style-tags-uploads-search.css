@@ -1199,8 +1199,8 @@
 /* ── Search filter picker popover (phase 3) ── */
 /* Habitat fork: desktop search needs the title's space while the field is open. */
 @media (min-width: 901px) {
-  .channel-header:has(> #search-container[style*="flex"]) #channel-header-name { display: none; }
-  .channel-header:has(> #search-container[style*="flex"]) > .channel-info { flex: none; min-width: 0; }
+  html[data-habitat-layout] .channel-header:has(> #search-container[style*="flex"]) #channel-header-name { display: none; }
+  html[data-habitat-layout] .channel-header:has(> #search-container[style*="flex"]) > .channel-info { flex: none; min-width: 0; }
 }
 
 .search-container { position: relative; }
