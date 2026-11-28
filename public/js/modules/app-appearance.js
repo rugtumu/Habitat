@@ -719,7 +719,7 @@ _toolbarPreferences() {
   catch { /* A damaged order uses the default. */ }
 
   // Habitat fork: older pickers saved this exact pair even if the member never touched it.
-  const legacy = (rawSlots === null || rawSlots === '3') &&
+  const legacy = localStorage.getItem('haven-toolbar-migrated') === null && (rawSlots === null || rawSlots === '3') &&
     JSON.stringify(saved) === JSON.stringify(LEGACY_TOOLBAR_ORDER);
   const keys = Array.isArray(saved) && !legacy ? saved.filter(k => DEFAULT_TOOLBAR_ORDER.includes(k)) : [];
   const order = [...new Set([...keys, ...DEFAULT_TOOLBAR_ORDER])];
@@ -793,6 +793,8 @@ _setupToolbarIconPicker() {
   // Habitat fork: after an explicit change, show the order the message renderer will use for this pair.
   const saveOrder = (next) => {
     localStorage.setItem('haven-toolbar-order', JSON.stringify(next));
+    // Habitat fork: a member can deliberately save the old order with three visible slots.
+    if (localStorage.getItem('haven-toolbar-migrated') === null) localStorage.setItem('haven-toolbar-migrated', '1');
     currentOrder = this._toolbarPreferences().order;
     renderOrderList();
     refreshCurrentMessages();

@@ -660,11 +660,17 @@ class HabitatLayout {
     };
     this._bindMenu(button, menu, () => {
       menu.replaceChildren();
-      const forward = (id, key, icon) => {
+      const forward = (id, key, icon, afterClick) => {
         const source = document.getElementById(id);
-        if (source) add(this._text(key), icon, () => source.click(), source.disabled || source.getAttribute('aria-disabled') === 'true');
+        if (source) add(this._text(key), icon, () => {
+          source.click();
+          afterClick?.();
+        }, source.disabled || source.getAttribute('aria-disabled') === 'true');
       };
-      forward('voice-settings-toggle', 'voiceSettings', '⚙');
+      forward('voice-settings-toggle', 'voiceSettings', '⚙', () => {
+        const panel = this._region('voice-settings');
+        if (panel && panel.style.display !== 'none') panel.querySelector('[data-habitat-close-settings]')?.focus();
+      });
       if (this._openConnection) add(this._text('connection'), 'ⓘ', () => this._openConnection(button));
       forward('voice-soundboard-btn', 'soundboard', '♫');
       forward('voice-listen-together-btn', 'listenTogether', '♪');
@@ -1060,12 +1066,22 @@ class HabitatLayout {
       position: 'static', top: 'auto', right: 'auto', bottom: 'auto', left: 'auto',
       width: 'auto', 'max-width': 'none', transform: 'none', 'z-index': 'auto', resize: 'none'
     };
+    const settingsHeader = this._make('header', { 'data-habitat-call-settings-heading': '' });
+    this._make('h3', {}, settingsHeader).textContent = this._text('voiceSettings');
+    const closeSettings = this._make('button', { type: 'button', class: 'icon-btn', 'data-habitat-close-settings': '', 'aria-label': this._text('close') }, settingsHeader);
+    closeSettings.textContent = '×';
+    this._on(closeSettings, 'click', () => {
+      document.getElementById('voice-settings-toggle')?.click();
+      more.focus();
+    });
     let docked = [];
     let settingsWereHidden = false;
     const dockBar = (on) => {
       if (on) {
-        controls?.appendChild(more);
+        const leave = mode === 'desktop' ? proxies[4] : controls?.querySelector('#voice-leave-sidebar-btn');
+        controls?.insertBefore(more, leave || null);
         const settings = this._region('voice-settings');
+        settings?.insertBefore(settingsHeader, settings.firstChild);
         settingsWereHidden = settings?.style.display === 'none';
         const row = mode === 'compact' ? controls : null;
         const inline = row ? Object.keys(barStyle).map(name =>
@@ -1084,6 +1100,7 @@ class HabitatLayout {
         more.setAttribute('aria-expanded', 'false');
         this._closeCallConnection?.();
         more.remove();
+        settingsHeader.remove();
         const settings = this._region('voice-settings');
         if (settingsWereHidden && settings && settings.style.display !== 'none') document.getElementById('voice-settings-toggle')?.click();
         for (const [piece, parent, next, inline] of docked.reverse()) {
@@ -2153,11 +2170,8 @@ class HabitatLayout {
         if (ch.name === value && ch.created_by === app.user.id) done();
       };
     } else {
-      let rotatedCode;
-      listeners['user-joined'] = data => {
-        if (data.user?.id === app.user.id) rotatedCode = data.channelCode;
-      };
-      listeners['channel-joined'] = ch => { if (ch.code === value || ch.code === rotatedCode) done(); };
+      // Only the requesting socket gets this receipt, including when a role gate hides the room broadcast.
+      listeners['channel-joined'] = () => done();
       listeners.toast = data => {
         if (data?.type === 'success' && /^Invite accepted: joined \d+ channels?$/.test(data.message)) done();
       };

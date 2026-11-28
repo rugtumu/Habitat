@@ -1738,7 +1738,6 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) {
   display: block;
   padding-block: 1.75rem 1rem;
-  border-block-end: .0625rem solid var(--border-light);
 }
 #settings-modal .sp-page-intro h4,
 #settings-modal:not(.sp-search) .sp-single > .settings-section > .settings-section-title:first-child {
@@ -1758,11 +1757,24 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   cursor: pointer;
 }
 #settings-modal .sp-section-links button:is(:hover, :focus-visible) { border-color: var(--accent); color: var(--accent-hover); }
-#settings-modal .settings-section-title {
+/* The page title, section headings and controls share a single reading column. */
+#settings-modal .sp-body > * { max-width: 42rem; margin-inline: 0; }
+#settings-modal .sp-body > #admin-mod-panel { padding: 0 !important; }
+#settings-modal .sp-body > .settings-section:not(#admin-mod-panel),
+#settings-modal #admin-mod-panel > .admin-settings[id] {
+  padding-block: 2rem 0 !important;
+  margin-bottom: 1rem;
+  border-top: .0625rem solid var(--border) !important;
+}
+#settings-modal .settings-section-title,
+#settings-modal #admin-mod-panel > .admin-settings[id] > h5.settings-section-subtitle:first-child {
+  margin: 0 0 .75rem;
+  padding: 0;
   border: 0;
-  font: 700 1.5rem/1.25 var(--font-main);
-  letter-spacing: -.015em;
-  padding-block-end: .5rem;
+  color: var(--text-primary);
+  font: 650 1.125rem/1.4 var(--font-main);
+  text-transform: none;
+  letter-spacing: 0;
 }
 #settings-modal .settings-group-label {
   color: var(--text-primary);
@@ -1771,9 +1783,32 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   font: 650 1.0625rem/1.4 var(--font-main);
 }
 #settings-modal .settings-subsection { margin-block-start: .875rem; }
-#settings-modal .sp-tip-btn { width: 1.5rem; height: 1.5rem; color: var(--text-secondary); }
+#settings-modal .settings-group { padding-inline: 0; border: 0; background: transparent; }
+#settings-modal #admin-mod-panel > .admin-settings[id] { gap: 0; }
+#settings-modal #admin-mod-panel > .admin-settings[id] > .settings-group-label { margin-block-start: 1rem; }
+/* Grafit prints the help alongside its setting, including help folded by the page builder. */
+#settings-modal .sp-tip-btn { display: none; }
+#settings-modal:not(.sp-search) .sp-body .sp-tip:not(.sp-tip-open) { display: block !important; }
+#settings-modal .sp-body .settings-hint:not(.error, .success, .env-setting-hint) { color: var(--text-secondary); }
+#settings-modal .sp-body .toggle-row + .settings-hint {
+  margin-inline: 0;
+  padding-inline: 0 3rem;
+}
+#settings-modal .sp-body .notif-settings { gap: 0; }
+#settings-modal .sp-body :is(.checkbox-row, .call-preview-loopback) {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: 2.75rem;
+}
+#settings-modal .sp-body :is(.checkbox-row, .call-preview-loopback) > input { grid-column: 2; grid-row: 1; }
+#settings-modal .sp-body :is(.checkbox-row, .call-preview-loopback) > span { grid-column: 1; grid-row: 1; }
+#settings-modal .sp-body .checkbox-row > .settings-hint { grid-column: 1; margin-inline: 0 !important; }
+#settings-modal .sp-body .toggle-row { justify-content: space-between; color: var(--text-primary); }
+#settings-modal .sp-body .toggle-row > input[type="checkbox"] { order: 1; margin-inline-start: auto; flex: none; }
+#settings-modal .sp-body :is(.select-row, .volume-row) > :is(select, input) { margin-inline-start: auto; min-width: 0; }
+#settings-modal .sp-body .select-row > select { max-width: 60%; }
+#settings-modal .sp-body .volume-row > input[type="range"] { width: min(32%, 10rem); }
+#settings-modal .sp-body .settings-subsection > .settings-select { display: block; margin-inline-start: auto; }
 #settings-modal :is(.toggle-row, .select-row, .volume-row, .voice-settings-row) {
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   font-size: 1rem;
 }
 #settings-modal .density-btn {
@@ -1823,21 +1858,15 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   text-transform: none;
   letter-spacing: 0;
 }
-#settings-modal .call-settings-page-panel { padding: 1rem; border-radius: var(--hb-radius-lg); }
+#settings-modal .call-settings-page-panel { padding: 0; border: 0; background: transparent; max-width: none; }
 #settings-modal #section-call-settings > .volume-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(5rem, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(4rem, 32%) 4.2rem;
   gap: .625rem;
   margin-block: .75rem;
 }
 #settings-modal #section-call-settings .vol-readout { font-size: .875rem; }
 #settings-modal .toolbar-slots-row { font-size: .9375rem; }
-#settings-modal #admin-mod-panel > .admin-settings[id] > h5.settings-section-subtitle:first-child {
-  font: 700 1.5rem/1.25 var(--font-main);
-  color: var(--text-primary);
-  text-transform: none;
-  letter-spacing: -.015em;
-}
 #settings-modal .sp-body h6 { font-size: .9375rem !important; text-transform: none; }
 
 #settings-modal #voice-master-volume { width: 100%; min-width: 0; }
@@ -1864,7 +1893,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   }
   #settings-modal #section-layout .settings-group-label { margin: 0; }
   #settings-modal #section-layout .settings-hint { grid-column: 2; }
-  #settings-modal #section-layout .settings-select { justify-self: start; }
+  #settings-modal #section-layout .settings-select { justify-self: end; }
 }
 #settings-modal .density-sample-avatar {
   background: var(--hb-face-bg) var(--hb-face) center / cover no-repeat;
@@ -1941,8 +1970,6 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     min-height: 0;
     padding: 2.75rem 7.25rem 3rem var(--page-inset);
   }
-  html[data-habitat-layout] #settings-modal .sp-body > * { max-width: 46rem; margin-inline: 0; }
-  html[data-habitat-layout] #settings-modal .modal-maximized .sp-body > * { max-width: none; }
   html[data-habitat-layout] #settings-modal .admin-save-bar { grid-area: save; }
   html[data-habitat-layout] #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) { padding-top: 0; }
 }
@@ -2227,6 +2254,45 @@ html[data-habitat-layout] [data-habitat-stage-controls] > button > .haven-glyph:
 html[data-habitat-layout] [data-habitat-stage-controls] { --hb-mark: 1.375rem; }
 /* The account gear opens Settings. More on the stage opens the in-call device panel. */
 html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-toggle { display: none; }
+
+/* The stage keeps Haven's live controls, including its conditional rows and device lists. */
+[data-habitat-call-stage] + #voice-settings-panel {
+  padding: .75rem 1rem 1rem;
+  background: var(--bg-secondary);
+}
+#voice-settings-panel [data-habitat-call-settings-heading],
+[data-habitat-call-stage] + #voice-settings-panel > * {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+#voice-settings-panel [data-habitat-call-settings-heading] {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .75rem;
+}
+#voice-settings-panel [data-habitat-call-settings-heading] h3 { margin: 0; font: 650 1.125rem/1.4 var(--font-main); }
+#voice-settings-panel [data-habitat-call-settings-heading] button { width: 2.75rem; height: 2.75rem; font-size: 1.25rem; }
+[data-habitat-call-stage] + #voice-settings-panel .voice-settings-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center; gap: .375rem 1rem; min-height: 2.75rem;
+}
+[data-habitat-call-stage] + #voice-settings-panel .settings-hint { grid-column: 1 / -1; color: var(--text-secondary); }
+[data-habitat-call-stage] + #voice-settings-panel .voice-settings-section-label {
+  margin-block: .75rem .375rem; font: 650 1rem/1.4 var(--font-main); letter-spacing: 0; text-transform: none;
+}
+[data-habitat-call-stage] + #voice-settings-panel .voice-settings-label {
+  white-space: normal; font-size: .9375rem !important; color: var(--text-secondary);
+}
+[data-habitat-call-stage] + #voice-settings-panel :is(select, .ns-slider, .mic-meter) { width: 100%; min-width: 0; max-width: none; }
+[data-habitat-call-stage] + #voice-settings-panel :is(select, .bitrate-value, .bitrate-step-btn) {
+  min-height: 2.5rem; margin: 0; font-size: 1rem; background: var(--bg-input); border-radius: var(--radius-sm);
+}
+[data-habitat-call-stage] + #voice-settings-panel .bitrate-value { flex: 1; min-width: 0; }
+[data-habitat-call-stage] + #voice-settings-panel .bitrate-step-btn { width: 2.5rem; }
+@media (max-width: 768px) {
+  [data-habitat-call-stage] + #voice-settings-panel .voice-settings-row {
+    grid-template-columns: minmax(0, 1fr); padding-block: .375rem;
+  }
+}
 
 /* ── Sound Manager ────────────────────────────────────────────────────
    The same segmented tabs, fields and cards as the rest of Habitat, in

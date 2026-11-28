@@ -170,7 +170,7 @@ HavenGlyphs.ICON_EXPLICIT_SELECTOR = [
   '.risky-download-icon', '.transfer-admin-warning-icon', '.dm-safety-icon',
   '.rac-channel-icon', '.rac-card-locked', '.badge-scope', '.aml-member-storage',
   '.settings-nav-item', '.settings-group-label',
-  '#section-score-badges > .settings-hint', '#totp-manage-area > .settings-hint:first-child',
+  '#section-score-badges > .settings-hint', '#section-content-privacy > .settings-hint', '#totp-manage-area > .settings-hint:first-child',
   '.role-tpl-emoji', '.connection-icon', '.stream-size-label',
   '[data-i18n-title="modals.game_overlay.volume_label"]',
   '#manage-servers-btn .server-icon-text', '#sync-servers-btn .server-icon-text',

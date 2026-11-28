@@ -28,7 +28,7 @@ function storage() {
 
 // Drive the real switch, channel-list and history listeners. Only the other
 // UI modules and the transport are replaced.
-function client({ localStorage = storage(), search = '', user = { id: 7 }, touch = true, addDialog = null } = {}) {
+function client({ localStorage = storage(), search = '', user = { id: 7 }, touch = true, visibilityState = 'visible', addDialog = null } = {}) {
   const noop = () => {};
   const events = new Map(), elements = new Map(), timers = new Map();
   const sent = [], rendered = [];
@@ -44,7 +44,10 @@ function client({ localStorage = storage(), search = '', user = { id: 7 }, touch
   const sessionStorage = storage();
   const location = { search, pathname: '/app' };
   const context = vm.createContext({
-    document: { getElementById: el, querySelector: selector => selector === '[data-habitat-dialog]' ? addDialog : null, querySelectorAll: () => [] },
+    document: { visibilityState, documentElement: { hasAttribute: key => key === 'data-habitat-layout' },
+      addEventListener: (event, fn) => events.set(event, fn),
+      removeEventListener: event => events.delete(event),
+      getElementById: el, querySelector: selector => selector === '[data-habitat-dialog]' ? addDialog : null, querySelectorAll: () => [] },
     window: { location, history: { replaceState: () => { location.search = ''; } }, matchMedia: () => ({ matches: touch }) },
     navigator: {}, localStorage, sessionStorage, URLSearchParams, t: key => key, console,
     setTimeout(fn, ms) { const id = Symbol(); timers.set(id, { fn, ms }); return id; },
@@ -70,6 +73,10 @@ function client({ localStorage = storage(), search = '', user = { id: 7 }, touch
   };
   app._listenChannelsAndMessages();
   return { app, localStorage, sessionStorage, sent, el, rendered, pickerOpens: () => pickerOpens,
+    visibility(state) {
+      context.document.visibilityState = state;
+      events.get('visibilitychange')?.();
+    },
     list: rows => events.get('channels-list')(rows),
     history: (messages, extra = {}) => events.get('message-history')({ channelCode: app.currentChannel, messages, ...extra }),
     disconnect: () => events.get('disconnect')(),
@@ -115,17 +122,41 @@ test('switching channels preserves the dialog opener’s focus after a server re
   assert.equal(composerFocus, 1);
 });
 
-test('the last floating DM lands in the main pane, and closing it remembers the channel underneath', async () => {
+test('a saved DM follows the member’s current opening preference', async () => {
   const c = client();
   c.list([room, dm]);
   await c.app.switchChannel(room.code);
   c.app._openDMPiP(dm.code);
-  for (const expected of [dm, room]) {
+  for (const main of [false, true]) {
+    c.localStorage.setItem('haven_dm_fullscreen_default', String(main));
     const returning = client({ localStorage: c.localStorage });
     returning.list([room, dm]);
-    assert.equal(returning.app.currentChannel, expected.code);
-    assert.equal(returning.app._activeDMPip, undefined);
-    c.app._closeDMPiP();
+    assert.equal(returning.app.currentChannel, main ? dm.code : null);
+    assert.equal(returning.app._activeDMPip, main ? undefined : dm.code);
+  }
+  c.app._closeDMPiP();
+  const returning = client({ localStorage: c.localStorage });
+  returning.list([room, dm]);
+  assert.equal(returning.app.currentChannel, room.code);
+});
+
+test('a hidden tab waits for visibility and respects a conversation opened in the meantime', () => {
+  for (const opened of [null, 'channel', 'pip', 'closed', 'invite']) {
+    const c = client({ visibilityState: 'hidden' });
+    c.app._rememberConversation(room);
+    c.list([room, dm]);
+    c.visibility('hidden');
+    const reads = () => c.sent.filter(([event, data]) => event === 'mark-read' && data.code === room.code);
+    assert.equal(reads().length, 0);
+    assert.equal(c.app.currentChannel, null);
+    if (opened === 'channel') c.app.switchChannel(dm.code);
+    if (opened === 'pip' || opened === 'closed') c.app._openDMPiP(dm.code);
+    if (opened === 'closed') c.app._closeDMPiP();
+    if (opened === 'invite') c.sessionStorage.setItem('haven_pending_invite', 'invite');
+    c.visibility('visible');
+    c.visibility('visible');
+    assert.equal(reads().length, opened ? 0 : 1);
+    assert.equal(c.app.currentChannel, opened === 'channel' ? dm.code : opened ? null : room.code);
   }
 });
 

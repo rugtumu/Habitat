@@ -1541,6 +1541,8 @@
 
           <div class="settings-nav-group-label" data-i18n="settings.nav.group_privacy_presence">Privacy &amp; Presence</div>
           <div class="settings-nav-item" data-target="section-activity">🎮 <span data-i18n="settings.nav.activity">Activity</span></div>
+          <!-- Habitat fork: page navigation and search both consult the legacy targets. -->
+          <div class="settings-nav-item" data-target="section-content-privacy">🔞 <span data-i18n="settings.nav.content_privacy">Content &amp; privacy</span></div>
           <div class="settings-nav-item" data-target="section-score-badges">🚢 <span data-i18n="settings.nav.score_badges">Score Badges</span></div>
 
           <div class="settings-nav-group-label" data-i18n="settings.nav.group_account_security">Account &amp; Security</div>
@@ -1566,6 +1568,7 @@
           <div class="settings-nav-item settings-nav-admin" data-target="section-presence" style="display:none">🟢 <span data-i18n="settings.nav.presence">Presence &amp; Activity</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-custom-tos" style="display:none">⚖️ <span data-i18n="settings.nav.tos">Terms of Service</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-connectivity" style="display:none">📡 <span data-i18n="settings.nav.connectivity">Voice &amp; Connectivity</span></div>
+          <div class="settings-nav-item settings-nav-admin" data-target="section-privacy" style="display:none">🔒 <span data-i18n="settings.nav.privacy">Privacy &amp; delivery</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-large-server" style="display:none">🏟️ <span data-i18n="settings.nav.large_server">Large Server Setup</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-tunnel" style="display:none">🧭 <span data-i18n="settings.nav.tunnel">Tunnel</span></div>
 
@@ -1575,7 +1578,7 @@
           <div class="settings-nav-item settings-nav-admin" data-target="section-badges" style="display:none">🏅 <span data-i18n="settings.nav.badges">Badges</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-moderation" style="display:none">🛡️ <span data-i18n="settings.nav.moderation">Moderation</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-security" style="display:none">🔒 <span data-i18n="settings.nav.security">Security</span></div>
-          <div class="settings-nav-item settings-nav-admin" data-target="section-automod" style="display:none">🛡️ <span data-i18n="settings.nav.automod">Moderation</span></div>
+          <div class="settings-nav-item settings-nav-admin" data-target="section-automod" style="display:none">🛡️ <span data-i18n="settings.nav.automod">Auto-mod</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-whitelist" style="display:none">🚪 <span data-i18n="settings.nav.whitelist">Sign-ups</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-invite" style="display:none">🌐 <span data-i18n="settings.nav.invite">Invite Code</span></div>
           <div class="settings-nav-item settings-nav-admin" data-target="section-guests" style="display:none">👤 <span data-i18n="settings.nav.guests">Guest Access</span></div>
@@ -1603,39 +1606,7 @@
         </nav>
         <div class="settings-body" id="settings-body-user">
 
-      <!-- Localization Section -->
-      <div class="settings-section" id="section-language">
-        <h5 class="settings-section-title"><span data-i18n="settings.localization_section.title">Localization</span></h5>
-        <label class="select-row">
-          <span data-i18n="settings.language_section.label">Language</span>
-          <select id="language-select" class="settings-select">
-            <option value="auto" data-i18n="settings.language_section.auto">Automatic</option>
-            <option value="en">English</option>
-            <option value="fr">Français</option>
-            <option value="de">Deutsch</option>
-            <option value="es">Español</option>
-            <option value="pl">Polski</option>
-            <option value="ru">Русский</option>
-            <option value="uk">Українська</option>
-            <option value="zh">中文</option>
-            <option value="pt">Português (Brasil)</option>
-            <option value="fa">فارسی</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-          </select>
-        </label>
-        <small class="settings-hint" data-i18n="settings.language_section.hint">Changes apply immediately</small>
-
-        <div class="settings-subsection" id="timezone-subsection">
-          <small class="settings-group-label"><span data-i18n="settings.timezone_section.title">Timezone</span></small>
-          <div class="select-row">
-            <span id="timezone-current-summary" data-i18n="settings.timezone_section.not_set">Using this device's timezone</span>
-            <button type="button" class="btn-sm" id="configure-time-btn" data-i18n="settings.timezone_section.configure">Configure Time</button>
-          </div>
-          <small class="settings-hint" data-i18n="settings.timezone_section.hint">Saved to your account and used on every device</small>
-        </div>
-      </div>
-
+      <!-- Habitat fork: sections appear in reading order within each settings page. -->
       <div class="settings-section" id="section-layout">
         <h5 class="settings-section-title"><span data-i18n="settings.layout.title">Layout</span></h5>
         <div class="settings-subsection" id="layout-density-subsection">
@@ -1718,6 +1689,95 @@
             <div id="composer-buttons-list" class="toolbar-order-list"></div>
             <button type="button" class="btn-sm" id="composer-buttons-reset" data-i18n="settings.toolbar_icons.reset">Reset</button>
           </details>
+        </div>
+      </div>
+
+      <!-- Toolbar Icon Style -->
+      <div class="settings-section" id="section-toolbar-icons" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.toolbar_icons.title">Interface Icons</span></h5>
+        <div class="density-picker" id="toolbar-icon-picker">
+          <button type="button" class="density-btn active" data-toolbaricons="mono" title="Use sleek monochrome icons in message toolbars" data-i18n-title="settings.toolbar_icons.monochrome_hint">
+            <span class="density-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" stroke-linecap="round"></path>
+                <circle cx="9.2" cy="10.2" r="1" fill="currentColor" stroke="none"></circle>
+                <circle cx="14.8" cy="10.2" r="1" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </span>
+            <span class="density-label" data-i18n="settings.toolbar_icons.monochrome">Monochrome</span>
+          </button>
+          <button type="button" class="density-btn" data-toolbaricons="emoji" title="Use colorful emoji icons in message toolbars" data-i18n-title="settings.toolbar_icons.colorful_hint">
+            <span class="density-icon">😀</span>
+            <span class="density-label" data-i18n="settings.toolbar_icons.colorful">Colorful Emoji</span>
+          </button>
+          <button type="button" class="density-btn" data-toolbaricons="glyphs" title="Draw the whole interface's icons with the Haven Glyphs font instead of emoji" data-i18n-title="settings.toolbar_icons.glyphs_hint">
+            <span class="density-icon" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M12 2l2.9 6.2 6.8.8-5 4.7 1.3 6.7L12 17.1 5.9 20.4l1.3-6.7-5-4.7 6.8-.8z"/>
+              </svg>
+            </span>
+            <span class="density-label" data-i18n="settings.toolbar_icons.glyphs">Glyphs</span>
+          </button>
+        </div>
+        <small class="settings-hint" style="display:block" data-i18n="settings.toolbar_icons.glyphs_note">Monochrome and Colorful Emoji change the message toolbars. Glyphs redraws icons across the whole interface with the bundled Haven Glyphs plugin; message text, reactions and pickers are left alone.</small>
+        <label class="toolbar-slots-row" for="toolbar-visible-slots">
+          <span data-i18n="settings.toolbar_icons.visible_slots">Visible toolbar slots before overflow</span>
+          <input type="range" id="toolbar-visible-slots" min="1" max="7" step="1" value="3">
+          <span id="toolbar-visible-slots-value" class="toolbar-slots-value">3</span>
+        </label>
+        <details class="toolbar-order-wrap">
+          <summary data-i18n="settings.toolbar_icons.order">Toolbar slot order</summary>
+          <div id="toolbar-order-list" class="toolbar-order-list"></div>
+          <button type="button" class="btn-sm" id="toolbar-order-reset-btn" data-i18n="settings.toolbar_icons.reset">Reset</button>
+        </details>
+        <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.toolbar_icons.hint">Applies to message and thread hover action bars.</small>
+      </div>
+
+      <!-- Banner Display (client-side) -->
+      <div class="settings-section" id="section-banner-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px; display:none;">
+        <h5 class="settings-section-title"><span data-i18n="settings.banner_display.title">Banner Display</span></h5>
+        <label style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:0.75rem">
+          <span style="white-space:nowrap" data-i18n="settings.banner_display.height">Banner height</span>
+          <input type="range" id="banner-height-slider" min="80" max="400" step="10" value="180" style="flex:1">
+          <span id="banner-height-value" style="min-width:36px;text-align:right;font-variant-numeric:tabular-nums">180px</span>
+        </label>
+        <label style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:0.75rem">
+          <span style="white-space:nowrap" data-i18n="settings.banner_display.offset">Vertical offset</span>
+          <input type="range" id="banner-offset-slider" min="0" max="100" step="1" value="0" style="flex:1">
+          <span id="banner-offset-value" style="min-width:30px;text-align:right;font-variant-numeric:tabular-nums">0%</span>
+        </label>
+        <button type="button" class="btn-sm" id="banner-use-default-btn" style="margin-top:6px;display:none" data-i18n="settings.banner_display.use_default">Use the server's default</button>
+        <label class="select-row" style="margin-top:8px">
+          <span data-i18n="settings.banner_display.header_style">Header style</span>
+          <select id="banner-header-mode" style="max-width:160px">
+            <option value="full" data-i18n="settings.banner_display.full">Full Header (opaque)</option>
+            <option value="shaded" data-i18n="settings.banner_display.shaded">Shaded Header</option>
+            <option value="minimal" data-i18n="settings.banner_display.minimal">Minimal Header</option>
+            <option value="transparent" data-i18n="settings.banner_display.transparent">Transparent Header</option>
+          </select>
+        </label>
+        <small class="settings-hint" data-i18n="settings.banner_display.hint">How the banner interacts with the channel header area. These settings are per-device.</small>
+      </div>
+
+      <!-- Role Color Display -->
+      <div class="settings-section" id="section-role-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.role_display.title">Role Display</span></h5>
+        <div class="density-picker" id="role-display-picker">
+          <button type="button" class="density-btn active" data-roledisplay="colored-name" title="Color the username with the role color" data-i18n-title="settings.role_display.colored_name_hint">
+            <span class="density-icon" style="color:#5865f2;font-weight:bold">A</span>
+            <span class="density-label" data-i18n="settings.role_display.colored_name">Colored Name</span>
+          </button>
+          <button type="button" class="density-btn" data-roledisplay="dot" title="Show a colored dot next to the name (legacy)" data-i18n-title="settings.role_display.dot_hint">
+            <span class="density-icon">●</span>
+            <span class="density-label" data-i18n="settings.role_display.dot">Dot</span>
+          </button>
+        </div>
+        <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.role_display.hint">How role colors are shown next to usernames in chat and the member list.</small>
+        <div id="name-color-row" style="display:none;margin-top:12px">
+          <label class="settings-label" for="name-color-select" data-i18n="settings.role_display.name_color">Your name color</label>
+          <select id="name-color-select" class="form-select"></select>
+          <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.role_display.name_color_hint">Which of your roles colors your name for everyone. Automatic uses your highest role.</small>
         </div>
       </div>
 
@@ -1828,243 +1888,6 @@
         </div>
       </div>
 
-      <!-- Emoji Reaction Size -->
-      <div class="settings-section" id="section-reaction-size" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.reaction_size.title">Reaction Size</span></h5>
-        <div class="font-size-picker" id="emoji-size-picker">
-          <button type="button" class="density-btn" data-emojisize="small" title="Small reactions" data-i18n-title="settings.reaction_size.small_hint">
-            <span class="density-icon" style="font-size:0.6875rem">😀</span>
-            <span class="density-label" data-i18n="settings.reaction_size.small">Small</span>
-          </button>
-          <button type="button" class="density-btn active" data-emojisize="normal" title="Normal reactions (default)" data-i18n-title="settings.reaction_size.normal_hint">
-            <span class="density-icon" style="font-size:0.875rem">😀</span>
-            <span class="density-label" data-i18n="settings.reaction_size.normal">Normal</span>
-          </button>
-          <button type="button" class="density-btn" data-emojisize="large" title="Large reactions" data-i18n-title="settings.reaction_size.large_hint">
-            <span class="density-icon" style="font-size:1.125rem">😀</span>
-            <span class="density-label" data-i18n="settings.reaction_size.large">Large</span>
-          </button>
-          <button type="button" class="density-btn" data-emojisize="x-large" title="Extra large reactions" data-i18n-title="settings.reaction_size.xl_hint">
-            <span class="density-icon" style="font-size:1.375rem">😀</span>
-            <span class="density-label" data-i18n="settings.reaction_size.xl">XL</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Role Color Display -->
-      <div class="settings-section" id="section-role-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.role_display.title">Role Display</span></h5>
-        <div class="density-picker" id="role-display-picker">
-          <button type="button" class="density-btn active" data-roledisplay="colored-name" title="Color the username with the role color" data-i18n-title="settings.role_display.colored_name_hint">
-            <span class="density-icon" style="color:#5865f2;font-weight:bold">A</span>
-            <span class="density-label" data-i18n="settings.role_display.colored_name">Colored Name</span>
-          </button>
-          <button type="button" class="density-btn" data-roledisplay="dot" title="Show a colored dot next to the name (legacy)" data-i18n-title="settings.role_display.dot_hint">
-            <span class="density-icon">●</span>
-            <span class="density-label" data-i18n="settings.role_display.dot">Dot</span>
-          </button>
-        </div>
-        <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.role_display.hint">How role colors are shown next to usernames in chat and the member list.</small>
-        <div id="name-color-row" style="display:none;margin-top:12px">
-          <label class="settings-label" for="name-color-select" data-i18n="settings.role_display.name_color">Your name color</label>
-          <select id="name-color-select" class="form-select"></select>
-          <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.role_display.name_color_hint">Which of your roles colors your name for everyone. Automatic uses your highest role.</small>
-        </div>
-      </div>
-
-      <!-- Toolbar Icon Style -->
-      <div class="settings-section" id="section-toolbar-icons" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.toolbar_icons.title">Interface Icons</span></h5>
-        <div class="density-picker" id="toolbar-icon-picker">
-          <button type="button" class="density-btn active" data-toolbaricons="mono" title="Use sleek monochrome icons in message toolbars" data-i18n-title="settings.toolbar_icons.monochrome_hint">
-            <span class="density-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M8.5 14.5c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" stroke-linecap="round"></path>
-                <circle cx="9.2" cy="10.2" r="1" fill="currentColor" stroke="none"></circle>
-                <circle cx="14.8" cy="10.2" r="1" fill="currentColor" stroke="none"></circle>
-              </svg>
-            </span>
-            <span class="density-label" data-i18n="settings.toolbar_icons.monochrome">Monochrome</span>
-          </button>
-          <button type="button" class="density-btn" data-toolbaricons="emoji" title="Use colorful emoji icons in message toolbars" data-i18n-title="settings.toolbar_icons.colorful_hint">
-            <span class="density-icon">😀</span>
-            <span class="density-label" data-i18n="settings.toolbar_icons.colorful">Colorful Emoji</span>
-          </button>
-          <button type="button" class="density-btn" data-toolbaricons="glyphs" title="Draw the whole interface's icons with the Haven Glyphs font instead of emoji" data-i18n-title="settings.toolbar_icons.glyphs_hint">
-            <span class="density-icon" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <path d="M12 2l2.9 6.2 6.8.8-5 4.7 1.3 6.7L12 17.1 5.9 20.4l1.3-6.7-5-4.7 6.8-.8z"/>
-              </svg>
-            </span>
-            <span class="density-label" data-i18n="settings.toolbar_icons.glyphs">Glyphs</span>
-          </button>
-        </div>
-        <small class="settings-hint" style="display:block" data-i18n="settings.toolbar_icons.glyphs_note">Monochrome and Colorful Emoji change the message toolbars. Glyphs redraws icons across the whole interface with the bundled Haven Glyphs plugin; message text, reactions and pickers are left alone.</small>
-        <label class="toolbar-slots-row" for="toolbar-visible-slots">
-          <span data-i18n="settings.toolbar_icons.visible_slots">Visible toolbar slots before overflow</span>
-          <input type="range" id="toolbar-visible-slots" min="1" max="7" step="1" value="3">
-          <span id="toolbar-visible-slots-value" class="toolbar-slots-value">3</span>
-        </label>
-        <details class="toolbar-order-wrap">
-          <summary data-i18n="settings.toolbar_icons.order">Toolbar slot order</summary>
-          <div id="toolbar-order-list" class="toolbar-order-list"></div>
-          <button type="button" class="btn-sm" id="toolbar-order-reset-btn" data-i18n="settings.toolbar_icons.reset">Reset</button>
-        </details>
-        <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.toolbar_icons.hint">Applies to message and thread hover action bars.</small>
-      </div>
-
-      <div class="settings-section" id="section-image-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.image_display.title">Image Display</span></h5>
-
-        <!-- Image Display Mode -->
-        <!-- Renamed from the Layout Density section's id, which it duplicated.
-            getElementById always resolved to the first match, so this section
-            had no working nav anchor at all. -->
-        <div class="settings-subsection" id="image-mode-subsection">
-          <small class="settings-group-label"><span data-i18n="settings.image_display.image_mode.title">Image Display Mode</span></small>
-          <div class="density-picker" id="image-mode-picker">
-            <button type="button" class="density-btn active" data-image-mode="thumbnail" data-i18n-title="settings.image_display.image_mode.thumbnail_hint" title="Thumbnail: small preview, click to enlarge">
-              <span class="density-icon">🔍</span>
-              <span class="density-label" data-i18n="settings.image_display.image_mode.thumbnail">Thumbnail</span>
-            </button>
-            <button type="button" class="density-btn" data-image-mode="full" data-i18n-title="settings.image_display.image_mode.full_hint" title="Full: large inline images like Discord">
-              <span class="density-icon">🖼️</span>
-              <span class="density-label" data-i18n="settings.image_display.image_mode.full">Full</span>
-            </button>
-          </div>
-          <label class="toggle-row" style="margin-top:10px">
-            <span data-i18n="settings.image_display.hide_media">Hide pictures and videos</span>
-            <input type="checkbox" id="hide-media-toggle">
-          </label>
-          <small class="settings-hint" style="display:block" data-i18n="settings.image_display.hide_media_hint">Pictures, GIFs and videos in chat show as a small tag you click to see them, and link cards start folded. Handy around other people. Only changes what you see, on this device.</small>
-        </div>
-
-        <!-- Pictures sent together (#5799): the grid, or each picture whole,
-            one under another. Server default follows the admin's choice. -->
-        <div class="settings-subsection" id="media-layout-subsection">
-          <small class="settings-group-label"><span data-i18n="settings.image_display.media_layout.title">Pictures Sent Together</span></small>
-          <div class="density-picker" id="media-layout-picker">
-            <button type="button" class="density-btn active" data-media-layout="" title="Server default: whatever the server is set to">
-              <span class="density-icon">🏠</span>
-              <span class="density-label" data-i18n="settings.image_display.media_layout.default">Server default</span>
-            </button>
-            <button type="button" class="density-btn" data-media-layout="grid" data-i18n-title="settings.image_display.media_layout.grid_hint" title="Grid: fit them into one block, each picture cropped to its tile">
-              <span class="density-icon">🔲</span>
-              <span class="density-label" data-i18n="settings.image_display.media_layout.grid">Grid</span>
-            </button>
-            <button type="button" class="density-btn" data-media-layout="stacked" data-i18n-title="settings.image_display.media_layout.stacked_hint" title="Full size: every picture whole, one under another">
-              <span class="density-icon">🖼️</span>
-              <span class="density-label" data-i18n="settings.image_display.media_layout.stacked">Full size, one under another</span>
-            </button>
-          </div>
-          <small class="settings-hint" data-i18n="settings.image_display.media_layout.hint">How several pictures in one message show for you. The grid crops each picture to fill its tile; full size shows every one whole, at the Image Display Mode size above. Saved on your account, so it follows you to every device.</small>
-        </div>
-
-        <!-- Animated profile pictures (viewer side). The pfp owner can already turn
-            their own animation off for everyone; this is the other half, so a
-            viewer who doesn't want moving avatars can stop seeing them. -->
-        <div class="settings-subsection" id="animate-pfp-subsection">
-          <small class="settings-group-label"><span data-i18n="settings.image_display.animate_pfp.title">Animated Profile Pictures</span></small>
-          <div class="density-picker" id="animate-pfp-picker">
-            <button type="button" class="density-btn" data-animpfp="always" data-i18n-title="settings.image_display.animate_pfp.always_hint" title="Always: animated avatars loop constantly">
-              <span class="density-icon">▶️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_pfp.always">Always</span>
-            </button>
-            <button type="button" class="density-btn active" data-animpfp="hover" data-i18n-title="settings.image_display.animate_pfp.hover_hint" title="On hover: play while you hover a message or open a profile">
-              <span class="density-icon">🖱️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_pfp.hover">On hover</span>
-            </button>
-            <button type="button" class="density-btn" data-animpfp="never" data-i18n-title="settings.image_display.animate_pfp.never_hint" title="Never: show the first frame only">
-              <span class="density-icon">⏸️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_pfp.never">Never</span>
-            </button>
-          </div>
-          <small class="settings-hint" data-i18n="settings.image_display.animate_pfp.hint">Applies to everyone's avatars and borders as you see them. Anyone who has turned animation off for their own profile stays still regardless.</small>
-        </div>
-
-        <!-- Animated images in chat (#5526). Separate from the avatar setting above:
-            a GIF someone posted is content, an avatar is ambient, so this one
-            stays at Always unless the viewer asks otherwise. -->
-        <div class="settings-subsection" id="animate-chat-subsection">
-          <small class="settings-group-label"><span data-i18n="settings.image_display.animate_chat.title">Animated Images in Chat</span></small>
-          <div class="density-picker" id="animate-chat-picker">
-            <button type="button" class="density-btn active" data-animchat="always" data-i18n-title="settings.image_display.animate_chat.always_hint" title="Always: GIFs loop constantly">
-              <span class="density-icon">▶️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_chat.always">Always</span>
-            </button>
-            <button type="button" class="density-btn" data-animchat="hover" data-i18n-title="settings.image_display.animate_chat.hover_hint" title="On hover: play only while you point at the image">
-              <span class="density-icon">🖱️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_chat.hover">On hover</span>
-            </button>
-            <button type="button" class="density-btn" data-animchat="never" data-i18n-title="settings.image_display.animate_chat.never_hint" title="Never: show the first frame only">
-              <span class="density-icon">⏸️</span>
-              <span class="density-label" data-i18n="settings.image_display.animate_chat.never">Never</span>
-            </button>
-          </div>
-          <small class="settings-hint" data-i18n="settings.image_display.animate_chat.hint">Applies to GIFs and other animated images posted in messages, for you only. Nobody else's view changes.</small>
-        </div>
-      </div>
-
-      <!-- Embed / Link Preview Size -->
-      <div class="settings-section" id="section-embed-size" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.embed_display.title">Link Previews</span></h5>
-        <div class="density-picker" id="embed-size-picker">
-          <button type="button" class="density-btn" data-embed-size="off" title="Off: hide all link previews" data-i18n-title="settings.embed_display.off_hint">
-            <span class="density-icon">🚫</span>
-            <span class="density-label" data-i18n="settings.embed_display.off">Off</span>
-          </button>
-          <button type="button" class="density-btn" data-embed-size="small" title="Small: compact card with small media" data-i18n-title="settings.embed_display.small_hint">
-            <span class="density-icon">🔗</span>
-            <span class="density-label" data-i18n="settings.embed_display.small">Small</span>
-          </button>
-          <button type="button" class="density-btn active" data-embed-size="medium" title="Medium: balanced card with medium media" data-i18n-title="settings.embed_display.medium_hint">
-            <span class="density-icon">🖼️</span>
-            <span class="density-label" data-i18n="settings.embed_display.medium">Medium</span>
-          </button>
-          <button type="button" class="density-btn" data-embed-size="full" title="Large: big media, author, and post stats" data-i18n-title="settings.embed_display.full_hint">
-            <span class="density-icon">📰</span>
-            <span class="density-label" data-i18n="settings.embed_display.full">Large</span>
-          </button>
-        </div>
-        <label class="toggle-row" style="margin-top:10px">
-          <span data-i18n="settings.embed_display.pause_offscreen">Pause videos and audio scrolled out of view</span>
-          <input type="checkbox" id="pause-offscreen-media">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.embed_display.pause_offscreen_hint">A video, sound file or YouTube card in chat stops when you scroll past it.</small>
-        <label class="toggle-row" style="margin-top:10px">
-          <span data-i18n="settings.embed_display.start_folded">Start link previews folded</span>
-          <input type="checkbox" id="previews-folded-toggle">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.embed_display.start_folded_hint">Link previews show as a small bar you click to open. Only changes this device. A message with more than two links always folds the ones after the second.</small>
-      </div>
-
-      <!-- Banner Display (client-side) -->
-      <div class="settings-section" id="section-banner-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px; display:none;">
-        <h5 class="settings-section-title"><span data-i18n="settings.banner_display.title">Banner Display</span></h5>
-        <label style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:0.75rem">
-          <span style="white-space:nowrap" data-i18n="settings.banner_display.height">Banner height</span>
-          <input type="range" id="banner-height-slider" min="80" max="400" step="10" value="180" style="flex:1">
-          <span id="banner-height-value" style="min-width:36px;text-align:right;font-variant-numeric:tabular-nums">180px</span>
-        </label>
-        <label style="margin-top:4px;display:flex;align-items:center;gap:8px;font-size:0.75rem">
-          <span style="white-space:nowrap" data-i18n="settings.banner_display.offset">Vertical offset</span>
-          <input type="range" id="banner-offset-slider" min="0" max="100" step="1" value="0" style="flex:1">
-          <span id="banner-offset-value" style="min-width:30px;text-align:right;font-variant-numeric:tabular-nums">0%</span>
-        </label>
-        <button type="button" class="btn-sm" id="banner-use-default-btn" style="margin-top:6px;display:none" data-i18n="settings.banner_display.use_default">Use the server's default</button>
-        <label class="select-row" style="margin-top:8px">
-          <span data-i18n="settings.banner_display.header_style">Header style</span>
-          <select id="banner-header-mode" style="max-width:160px">
-            <option value="full" data-i18n="settings.banner_display.full">Full Header (opaque)</option>
-            <option value="shaded" data-i18n="settings.banner_display.shaded">Shaded Header</option>
-            <option value="minimal" data-i18n="settings.banner_display.minimal">Minimal Header</option>
-            <option value="transparent" data-i18n="settings.banner_display.transparent">Transparent Header</option>
-          </select>
-        </label>
-        <small class="settings-hint" data-i18n="settings.banner_display.hint">How the banner interacts with the channel header area. These settings are per-device.</small>
-      </div>
-
       <!-- Toggle Style (sliders vs checkboxes) -->
       <div class="settings-section" id="section-toggle-style" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
         <h5 class="settings-section-title"><span data-i18n="settings.toggle_style.title">Toggle Style</span></h5>
@@ -2081,520 +1904,36 @@
         <small class="settings-hint" style="margin-top:4px;display:block" data-i18n="settings.toggle_style.hint">Applies to on/off settings. Lists you tick items in, like permissions and channel pickers, always stay as boxes.</small>
       </div>
 
-      <!-- Chat Behavior -->
-      <div class="settings-section" id="section-chat-behavior" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.chat_behavior.title">Chat</span></h5>
-        <label class="toggle-row">
-          <span data-i18n="settings.chat_behavior.up_arrow_edit">Up Arrow Edits Last Message</span>
-          <input type="checkbox" id="up-arrow-edit" checked>
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.up_arrow_edit_hint">Press the Up arrow key on an empty input to quickly edit your last message.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.chat_behavior.emote_words">Turn emote names into emotes when I send</span>
-          <input type="checkbox" id="emote-words-toggle">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.emote_words_hint">A word that is exactly a custom emote's name, capitals included, is sent as that emote, with no colons. Code, links and mentions are left alone. Only changes this device.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.chat_behavior.dm_fullscreen">Open DMs in fullscreen on single click</span>
-          <input type="checkbox" id="dm-fullscreen-default">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.dm_fullscreen_hint">Single-click a DM to open it in the full pane instead of a floating PiP. Double-click opens the PiP.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.chat_behavior.hover_profile_card">Show profile card on hover</span>
-          <input type="checkbox" id="hover-profile-card" checked>
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.hover_profile_card_hint">Hovering over a name or avatar shows a quick profile preview. Clicking opens the full card either way.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.chat_behavior.mouse_nav">Mouse side buttons go back and forward</span>
-          <input type="checkbox" id="mouse-nav-toggle" checked>
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.mouse_nav_hint">Back closes the thread or pop-out DM you opened, or returns to the channel you came from. Turn this off if a side button is your push to talk or a hotkey in another program: the side buttons then do nothing in Haven.</small>
+      <!-- Localization Section -->
+      <div class="settings-section" id="section-language">
+        <h5 class="settings-section-title"><span data-i18n="settings.localization_section.title">Localization</span></h5>
         <label class="select-row">
-          <span data-i18n="settings.chat_behavior.official_style">Official messages</span>
-          <select id="official-style-select" style="max-width:160px">
-            <option value="badge" data-i18n="settings.chat_behavior.official_style_badge">Badge</option>
-            <option value="text" data-i18n="settings.chat_behavior.official_style_text">Colored text</option>
-            <option value="off" data-i18n="settings.chat_behavior.official_style_off">Off</option>
+          <span data-i18n="settings.language_section.label">Language</span>
+          <select id="language-select" class="settings-select">
+            <option value="auto" data-i18n="settings.language_section.auto">Automatic</option>
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="pl">Polski</option>
+            <option value="ru">Русский</option>
+            <option value="uk">Українська</option>
+            <option value="zh">中文</option>
+            <option value="pt">Português (Brasil)</option>
+            <option value="fa">فارسی</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
           </select>
         </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.official_style_hint">How messages posted as a role look to you. Badge: the role's name next to the message. Colored text: the text in the role's color, and a run of them reads as one block. Off: they look like any other message. Saved on this device.</small>
-        <div id="official-mode-setting" style="display:none">
-          <label class="toggle-row">
-            <span data-i18n="settings.chat_behavior.official_mode">Keep official mode on</span>
-            <input type="checkbox" id="official-mode-toggle">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.official_mode_hint">Every message you send where you can post as your role goes out official, until you turn this off. The megaphone then sends just the next message plain. Saved to your account, so it follows you to every device.</small>
-        </div>
-      </div>
+        <small class="settings-hint" data-i18n="settings.language_section.hint">Changes apply immediately</small>
 
-      <!-- What's new after an update (app-whats-new.js) -->
-      <div class="settings-section" id="section-whats-new" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.whats_new.title">What's New</span></h5>
-        <div class="whats-new-version" id="whats-new-version"></div>
-        <!-- Habitat fork: credit the upstream project beside the version, using its own name. -->
-        <small class="settings-hint"><a href="https://github.com/ancsemi/Haven" target="_blank" rel="noopener noreferrer"><span data-i18n="settings.whats_new.built_on">Built on</span> Haven</a></small>
-        <label class="select-row">
-          <span data-i18n="settings.whats_new.show_label">Show what's new after</span>
-          <select id="whats-new-select" style="max-width:180px">
-            <option value="all" data-i18n="settings.whats_new.all">Every update</option>
-            <option value="minor" data-i18n="settings.whats_new.minor">New features</option>
-            <option value="major" data-i18n="settings.whats_new.major">Big updates only</option>
-            <option value="off" data-i18n="settings.whats_new.off">Never</option>
-          </select>
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.whats_new.hint">A version number has three parts: a big update changes the first, new features the second, and fixes the third. When an underlined part changes, you get a popup with the release notes. Saved on this device.</small>
-        <button type="button" class="btn-sm" id="whats-new-show-btn" data-i18n="settings.whats_new.show_now">See what's new in this version</button>
-      </div>
-
-      <!-- Sounds Section -->
-      <!-- Voice & video: the call settings, usable outside a call, with a
-           microphone and camera test. The controls are built by
-           createCallSettingsPanel (js/modules/call-settings-panel.js) and the
-           tests are wired in js/modules/app-call-settings.js. -->
-      <div class="settings-section" id="section-call-settings">
-        <h5 class="settings-section-title"><span data-i18n="settings.call.title">Voice &amp; Video</span></h5>
-        <small class="settings-hint" style="display:block" data-i18n="settings.call.hint">Saved on this device. Changes apply to your next call, or straight away if you are in one.</small>
-        <div class="call-preview">
-          <div class="call-preview-buttons">
-            <button type="button" class="btn-sm call-preview-btn" id="call-preview-mic" aria-pressed="false"><span data-i18n="settings.call.test_mic">Test microphone</span></button>
-            <button type="button" class="btn-sm call-preview-btn" id="call-preview-camera" aria-pressed="false"><span data-i18n="settings.call.test_camera">Test camera</span></button>
+        <div class="settings-subsection" id="timezone-subsection">
+          <small class="settings-group-label"><span data-i18n="settings.timezone_section.title">Timezone</span></small>
+          <div class="select-row">
+            <span id="timezone-current-summary" data-i18n="settings.timezone_section.not_set">Using this device's timezone</span>
+            <button type="button" class="btn-sm" id="configure-time-btn" data-i18n="settings.timezone_section.configure">Configure Time</button>
           </div>
-          <label class="call-preview-loopback">
-            <input type="checkbox" id="call-preview-loopback" checked>
-            <span data-i18n="settings.call.hear_myself">Hear myself during the microphone test</span>
-          </label>
-          <small class="call-preview-loopback-hint" data-i18n="settings.call.hear_myself_hint">Use headphones, or your speakers may squeal. You hear yourself as a call would send you, with your noise reduction setting. Echo cancellation is paused while you listen, or it would keep cutting out your own voice. Nothing plays while you are deafened in a call.</small>
-          <small class="settings-hint call-preview-status" id="call-preview-status" role="status" aria-live="polite" hidden></small>
-          <video class="call-preview-video" id="call-preview-video" muted playsinline autoplay hidden></video>
-        </div>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.master_voice">Voice volume (everyone)</span>
-            <input type="range" id="voice-master-volume" min="0" max="200" value="100" class="slider-sm" data-curve="linear">
-          </label>
-        <div class="voice-settings-panel call-settings-page-panel" id="call-settings-page-panel"></div>
-      </div>
-
-      <div class="settings-section" id="section-sounds">
-        <h5 class="settings-section-title"><span data-i18n="settings.sounds_section.title">Sounds</span></h5>
-        <div class="notif-settings">
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.master_notifications">Notification volume (all sounds)</span>
-            <input type="range" id="notif-master-volume" min="0" max="100" value="100" class="slider-sm">
-          </label>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.master_soundboard">Soundboard volume (what you play)</span>
-            <input type="range" id="soundboard-master-volume" min="0" max="100" value="100" class="slider-sm" data-curve="linear">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.master_hint">Applied on top of each person's own volume and each sound's own volume below.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.show_db">Show volumes in dB</span>
-            <input type="checkbox" id="volume-show-db">
-          </label>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.notifications">Notifications</span>
-            <input type="checkbox" id="notif-enabled">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.notifications_hint">Sounds, pop-ups and push notifications for every message on this device (off by default). @Mentions, replies, and DMs always notify.</small>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.mute_server">Mute this server</span>
-            <select id="notif-server-mute-mode" class="settings-select">
-              <option value="off" data-i18n="mute.mode_off">Off</option>
-              <option value="all" data-i18n="mute.mode_all">Mute all</option>
-              <option value="mentions" data-i18n="mute.mode_mentions">Mute except @mentions</option>
-            </select>
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.mute_server_hint">Silences sounds, pop-ups, push notifications and the taskbar badge from this server. DMs still come through. Saved on your account, so it applies on every device. You can also right-click the server's icon.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.mentions">@Mentions</span>
-            <input type="checkbox" id="notif-mentions-enabled" checked>
-          </label>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.role_mentions">@Role mentions</span>
-            <input type="checkbox" id="notif-role-mentions-enabled" checked>
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.role_mentions_hint">Pings for roles you hold, like @Moderators. Off means they count as ordinary messages.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.replies">Replies</span>
-            <input type="checkbox" id="notif-replies-enabled" checked>
-          </label>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.direct_messages">Direct Messages</span>
-            <input type="checkbox" id="notif-dm-enabled" checked>
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.popup_limit">Limit pop-up notifications</span>
-            <select id="notif-popup-cooldown">
-              <option value="0" data-i18n="settings.sounds_section.popup_off">Off (show every one)</option>
-              <option value="30000" data-i18n="settings.sounds_section.popup_30s">At most 1 every 30 sec</option>
-              <option value="60000" data-i18n="settings.sounds_section.popup_1m">At most 1 per minute</option>
-              <option value="300000" data-i18n="settings.sounds_section.popup_5m">At most 1 every 5 min</option>
-              <option value="900000" data-i18n="settings.sounds_section.popup_15m">At most 1 every 15 min</option>
-              <option value="-1" data-i18n="settings.sounds_section.popup_never">Never (sounds and badges still work)</option>
-              <option value="custom" data-i18n="settings.sounds_section.popup_custom">Custom…</option>
-            </select>
-          </label>
-          <label class="select-row" id="notif-popup-custom-row" style="display:none">
-            <span data-i18n="settings.sounds_section.popup_custom_minutes">Minutes between pop-ups</span>
-            <input type="number" id="notif-popup-custom-minutes" min="1" max="1440" step="1" class="settings-number-input" style="width:5.5rem">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.popup_limit_hint">Throttle how often desktop/browser notification pop-ups appear, so a burst of messages or a flaky connection can't keep popping the app up. Notification sounds and unread badges are unaffected. Never also turns off push notifications on this device.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.auto_accept_streams">Auto-accept Streams</span>
-            <input type="checkbox" id="auto-accept-streams" checked>
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.auto_accept_streams_hint">Automatically open screen shares when someone starts streaming. Turn off to join manually.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.hide_voice_panel">Hide Voice Panel</span>
-            <input type="checkbox" id="hide-voice-panel">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.hide_voice_panel_hint">Hide the voice users panel on desktop. Voice users are still shown in channel indicators.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.sidebar_voice_controls">Sidebar Voice Controls</span>
-            <input type="checkbox" id="sidebar-voice-controls">
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.sidebar_voice_controls_hint">Show mute/deafen buttons in the sidebar instead of the voice panel header.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.sounds_section.voice_action_cues">Mute / PTT Cues</span>
-            <input type="checkbox" id="notif-voice-action-cues-enabled" checked>
-          </label>
-          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.voice_action_cues_hint">Play short cue tones when muting, unmuting, deafening, or using push-to-talk in Haven Desktop.</small>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.volume">Volume</span>
-            <input type="range" id="notif-volume" min="0" max="100" value="50" class="slider-sm">
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.messages">Messages</span>
-            <select id="notif-msg-sound">
-              <option value="ping">Ping</option>
-              <option value="chime">Chime</option>
-              <option value="blip">Blip</option>
-              <option value="bell">Bell</option>
-              <option value="drop">Drop</option>
-              <option value="alert">Alert</option>
-              <option value="chord">Chord</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.msg_sent">Msg Sent</span>
-            <select id="notif-sent-sound">
-              <option value="swoosh">Swoosh</option>
-              <option value="blip">Blip</option>
-              <option value="ping">Ping</option>
-              <option value="chime">Chime</option>
-              <option value="drop">Drop</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <div class="notif-divider"></div>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.mention_vol">@Mention Vol</span>
-            <input type="range" id="notif-mention-volume" min="0" max="100" value="80" class="slider-sm">
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.mentions">@Mentions</span>
-            <select id="notif-mention-sound">
-              <option value="bell">Bell</option>
-              <option value="alert">Alert</option>
-              <option value="chord">Chord</option>
-              <option value="ping">Ping</option>
-              <option value="chime">Chime</option>
-              <option value="blip">Blip</option>
-              <option value="drop">Drop</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <div class="notif-divider"></div>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.reply_vol">Reply Vol</span>
-            <input type="range" id="notif-reply-volume" min="0" max="100" value="80" class="slider-sm">
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.replies">Replies</span>
-            <select id="notif-reply-sound">
-              <option value="chime">Chime</option>
-              <option value="bell">Bell</option>
-              <option value="alert">Alert</option>
-              <option value="chord">Chord</option>
-              <option value="ping">Ping</option>
-              <option value="blip">Blip</option>
-              <option value="drop">Drop</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <div class="notif-divider"></div>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.join_vol">Join Vol</span>
-            <input type="range" id="notif-join-volume" min="0" max="100" value="80" class="slider-sm">
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.user_joined">User Joined</span>
-            <select id="notif-join-sound">
-              <option value="chime">Chime</option>
-              <option value="bell">Bell</option>
-              <option value="ping">Ping</option>
-              <option value="blip">Blip</option>
-              <option value="chord">Chord</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <div class="notif-divider"></div>
-          <label class="volume-row">
-            <span data-i18n="settings.sounds_section.leave_vol">Leave Vol</span>
-            <input type="range" id="notif-leave-volume" min="0" max="100" value="80" class="slider-sm">
-          </label>
-          <label class="select-row">
-            <span data-i18n="settings.sounds_section.user_left">User Left</span>
-            <select id="notif-leave-sound">
-              <option value="drop">Drop</option>
-              <option value="chime">Chime</option>
-              <option value="ping">Ping</option>
-              <option value="blip">Blip</option>
-              <option value="none">None</option>
-            </select>
-          </label>
-          <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
-            <button class="btn-sm btn-full btn-accent" id="open-sound-manager-user-btn">🎵 <span data-i18n="settings.sounds_section.sound_manager_btn">Sound Manager</span></button>
-            <small class="settings-hint" style="display:block;margin-top:4px" data-i18n="settings.sounds_section.sound_manager_hint">Browse sounds, assign to events, set hotkeys</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- Push Notifications Section -->
-      <div class="settings-section" id="section-push">
-        <h5 class="settings-section-title"><span data-i18n="settings.push_section.title">Push Notifications</span></h5>
-        <div class="notif-settings">
-          <label class="toggle-row">
-            <span data-i18n="settings.push_section.enable">Enable Push</span>
-            <input type="checkbox" id="push-notif-enabled">
-          </label>
-          <small class="settings-hint" id="push-notif-status" data-i18n="settings.push_section.checking">Checking...</small>
-          <small class="settings-hint" style="opacity:0.5" data-i18n="settings.push_section.hint">Receive notifications even when Haven is closed</small>
-        </div>
-      </div>
-
-      <!-- Activity / Rich Presence -->
-      <div class="settings-section" id="section-activity" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.activity_section.title">Activity</span></h5>
-        <label class="toggle-row">
-          <span data-i18n="settings.activity_section.share">Share my activity</span>
-          <input type="checkbox" id="share-activity">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.activity_section.share_hint">Others can see what you're playing or listening to. Games and music only appear once you link an account below. Nothing is ever shared while your status is Invisible.</small>
-
-        <div id="activity-suboptions" style="display:none;padding-left:10px;border-left:2px solid var(--border-light);margin-bottom:10px">
-          <label class="toggle-row">
-            <span data-i18n="settings.activity_section.show_games">Show games</span>
-            <input type="checkbox" id="share-game-activity">
-          </label>
-          <label class="toggle-row">
-            <span data-i18n="settings.activity_section.show_music">Show music</span>
-            <input type="checkbox" id="share-music-activity">
-          </label>
-        </div>
-
-        <!-- Activity from apps on this computer (#5894): Haven Desktop only, app-desktop-activity.js -->
-        <div id="desktop-app-activity-row" style="display:none;margin-bottom:10px">
-          <label class="toggle-row">
-            <span data-i18n="settings.activity_section.desktop_apps">Show activity from apps on this computer</span>
-            <input type="checkbox" id="desktop-app-activity">
-          </label>
-          <small class="settings-hint" style="display:block" data-i18n="settings.activity_section.desktop_apps_hint">Haven Desktop only. Games and music players that support rich presence, the kind that shows in Discord, appear as your activity on this server. Haven Desktop asks before switching it on, for each server separately. Nothing is looked up online, so there is no artwork, and it only works while Discord itself is closed.</small>
-        </div>
-
-        <h5 class="settings-section-title" style="margin-top:12px"><span data-i18n="settings.activity_section.connections">Connections</span></h5>
-        <div id="connections-list">
-          <small class="settings-hint" data-i18n="modals.common.loading">Loading…</small>
-        </div>
-        <small class="settings-hint" style="display:block;margin-top:6px" data-i18n="settings.activity_section.connections_hint">Haven's own music player needs no connection. It shares automatically while you're listening in a voice channel.</small>
-
-        <!-- Listening presence (any music player) -->
-        <div id="listening-connection" style="margin-top:14px">
-          <h5 class="settings-section-title"><span data-i18n="settings.listening.title">Listening Webhook</span></h5>
-          <small class="settings-hint" style="display:block;margin-bottom:8px" data-i18n-html="settings.listening.note">Please refer to the <a href="https://github.com/ancsemi/Haven/blob/main/docs/listening-api.md" target="_blank" rel="noopener noreferrer">Listening API</a>.</small>
-          <label class="toggle-row">
-            <span data-i18n="settings.listening.toggle">Show my music on Haven</span>
-            <input type="checkbox" id="listening-enabled">
-          </label>
-          <div id="listening-url-row" hidden style="margin-top:8px">
-            <label class="connection-field">
-              <span data-i18n="settings.listening.url_label">Your webhook URL</span>
-              <input type="text" id="listening-url" readonly autocomplete="off" spellcheck="false">
-            </label>
-            <small class="settings-hint" style="display:block;margin-top:4px" data-i18n="settings.listening.url_hint">Point your player's plugin or script at this URL. Keep it secret; anyone with it can post to your profile.</small>
-          </div>
-        </div>
-      </div>
-
-      <!-- Game Score Badges -->
-      <div class="settings-section" id="section-score-badges" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
-        <h5 class="settings-section-title"><span data-i18n="settings.score_badges.title">Score Badges</span></h5>
-        <label class="toggle-row">
-          <span data-i18n="settings.score_badges.hide_others">Hide other players' score badges</span>
-          <input type="checkbox" id="hide-other-scores">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.score_badges.hide_others_hint">Don't show 🚢 badges next to other users in the member list.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.score_badges.hide_own">Hide my score badge from this server</span>
-          <input type="checkbox" id="hide-own-score">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.score_badges.hide_own_hint">Other users (and you) won't see your 🚢 badge anywhere on this server, including the leaderboard.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.nsfw.hide">Hide NSFW channels</span>
-          <input type="checkbox" id="hide-nsfw-channels">
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.nsfw.hide_hint">Channels an admin marked 🔞 leave your sidebar until you turn this off. Handy on a phone in public.</small>
-        <label class="toggle-row">
-          <span data-i18n="settings.nsfw.blur">Blur NSFW topics and messages until clicked</span>
-          <input type="checkbox" id="blur-nsfw-topics" checked>
-        </label>
-        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.nsfw.blur_hint">Topics and messages marked 🔞 sit behind a blur, like a spoiler. Turn this off to see them plainly.</small>
-      </div>
-
-      <!-- Password Change Section -->
-      <div class="settings-section" id="section-password">
-        <h5 class="settings-section-title"><span data-i18n="settings.password_section.title">Password</span></h5>
-        <div class="password-change-form">
-          <div class="form-group compact">
-            <input type="password" id="current-password" data-i18n-placeholder="settings.password_section.current_placeholder" placeholder="Current password" maxlength="128" autocomplete="current-password">
-          </div>
-          <div class="form-group compact">
-            <input type="password" id="new-password" data-i18n-placeholder="settings.password_section.new_placeholder" placeholder="New password (8+ chars)" maxlength="128" autocomplete="new-password">
-          </div>
-          <div class="form-group compact">
-            <input type="password" id="confirm-password" data-i18n-placeholder="settings.password_section.confirm_placeholder" placeholder="Confirm new password" maxlength="128" autocomplete="new-password">
-          </div>
-          <button class="btn-sm btn-full" id="change-password-btn" data-i18n="settings.password_section.change_btn">Change Password</button>
-          <small class="settings-hint" id="password-status"></small>
-        </div>
-      </div>
-
-      <!-- Encryption Passphrase Section -->
-      <div class="settings-section" id="section-e2e-passphrase">
-        <h5 class="settings-section-title"><span data-i18n="settings.e2e_passphrase.title">Encryption Passphrase</span></h5>
-        <small class="settings-hint" data-i18n="settings.e2e_passphrase.hint">Your encrypted DMs use a key that is backed up on the server, so your other devices can use it too. Normally that backup is locked with your login password, which the server receives every time you sign in. Lock it with a separate passphrase instead and the server can never open it. You type the passphrase once on each new device, and nobody can reset it for you, including the server admin.</small>
-        <p class="settings-hint" id="e2e-pp-state" style="font-weight:600"></p>
-        <div class="password-change-form">
-          <div class="form-group compact">
-            <input type="password" id="e2e-pp-new" data-i18n-placeholder="settings.e2e_passphrase.new_placeholder" placeholder="New passphrase (8+ characters)" maxlength="256" autocomplete="new-password">
-          </div>
-          <div class="form-group compact">
-            <input type="password" id="e2e-pp-confirm" data-i18n-placeholder="settings.e2e_passphrase.confirm_placeholder" placeholder="Confirm passphrase" maxlength="256" autocomplete="new-password">
-          </div>
-          <button class="btn-sm btn-full" id="e2e-pp-save-btn" data-i18n="settings.e2e_passphrase.save_btn">Use This Passphrase</button>
-          <div id="e2e-pp-revert-area" style="display:none;margin-top:10px">
-            <div class="form-group compact">
-              <input type="password" id="e2e-pp-password" data-i18n-placeholder="settings.e2e_passphrase.password_placeholder" placeholder="Your login password" maxlength="128" autocomplete="current-password">
-            </div>
-            <button class="btn-sm btn-full" id="e2e-pp-revert-btn" data-i18n="settings.e2e_passphrase.revert_btn">Go Back to My Login Password</button>
-          </div>
-          <small class="settings-hint" id="e2e-pp-status"></small>
-        </div>
-      </div>
-
-      <!-- Active Sessions Section -->
-      <div class="settings-section" id="section-sessions">
-        <h5 class="settings-section-title"><span data-i18n="settings.sessions_section.title">Active Sessions</span></h5>
-        <small class="settings-hint" data-i18n="settings.sessions_section.hint">Devices with Haven open right now. A device that is signed in but closed will not be listed, so sign out everywhere if you think someone else has your account.</small>
-        <div id="sessions-list" class="sessions-list"></div>
-        <button class="btn-sm btn-full btn-danger" id="revoke-sessions-btn" data-i18n="settings.sessions_section.revoke_btn">Sign out all other devices</button>
-        <small class="settings-hint" id="sessions-status"></small>
-      </div>
-
-      <!-- Two-Factor Authentication Section -->
-      <div class="settings-section" id="section-2fa">
-        <h5 class="settings-section-title"><span data-i18n="settings.two_factor_section.title">Two-Factor Authentication</span></h5>
-
-        <!-- Status display -->
-        <div id="totp-status-area">
-          <p class="settings-hint" id="totp-status-text"></p>
-        </div>
-
-        <!-- Enable flow (shown when TOTP is OFF) -->
-        <div id="totp-enable-area" style="display:none">
-          <p class="settings-hint" style="margin-bottom:10px" data-i18n="settings.two_factor_section.enable_hint">Protect your account with a TOTP authenticator app (Google Authenticator, Authy, etc.).</p>
-          <button class="btn-sm btn-full" id="totp-enable-btn" data-i18n="settings.two_factor_section.enable_btn">Enable Two-Factor Auth</button>
-        </div>
-
-        <!-- Setup flow (shown after clicking Enable) -->
-        <div id="totp-setup-area" style="display:none">
-          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.two_factor_section.setup_hint">Scan this QR code with your authenticator app:</p>
-          <div style="text-align:center;margin:12px 0">
-            <img id="totp-qr-img" data-i18n-alt="settings.two_factor_section.qr_alt" alt="QR Code" style="max-width:200px;border-radius:8px;background:#fff;padding:8px">
-          </div>
-          <p class="settings-hint" style="margin-bottom:4px" data-i18n="settings.two_factor_section.manual_hint">Or enter this secret manually:</p>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
-            <code id="totp-secret-text" style="font-size:0.875rem;letter-spacing:2px;user-select:all;flex:1;word-break:break-all"></code>
-            <button class="btn-sm" id="totp-copy-secret" data-i18n-title="settings.two_factor_section.copy_secret_title" title="Copy secret" style="white-space:nowrap">📋 <span data-i18n="settings.two_factor_section.copy_secret_btn">Copy</span></button>
-          </div>
-          <div class="form-group compact">
-            <input type="password" id="totp-setup-password" data-i18n-placeholder="settings.two_factor_section.password_placeholder" placeholder="Your password" autocomplete="current-password" style="margin-bottom:6px">
-            <input type="text" id="totp-verify-code" data-i18n-placeholder="settings.two_factor_section.verify_placeholder" placeholder="Enter 6-digit code to confirm" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" style="text-align:center;font-size:1.125rem;letter-spacing:6px">
-          </div>
-          <button class="btn-sm btn-full" id="totp-verify-setup-btn" data-i18n="settings.two_factor_section.verify_btn">Verify & Activate</button>
-          <button class="btn-sm btn-full" id="totp-cancel-setup-btn" data-i18n="modals.common.cancel" style="margin-top:6px;opacity:0.7">Cancel</button>
-          <small class="settings-hint" id="totp-setup-status"></small>
-        </div>
-
-        <!-- Backup codes display (shown after successful setup) -->
-        <div id="totp-backup-area" style="display:none">
-          <h5 style="margin-bottom:6px"><span data-i18n="settings.two_factor_section.backup_title">Backup Codes</span></h5>
-          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.two_factor_section.backup_hint">Save these codes somewhere safe. Each can be used once if you lose access to your authenticator.</p>
-          <div id="totp-backup-codes" style="font-family:monospace;font-size:0.9375rem;line-height:2;background:var(--bg-primary);padding:12px;border-radius:8px;text-align:center;user-select:all"></div>
-          <button class="btn-sm btn-full" id="totp-copy-backup-btn" style="margin-top:8px">📋 <span data-i18n="settings.two_factor_section.copy_backup_btn">Copy Backup Codes</span></button>
-          <button class="btn-sm btn-full" id="totp-backup-done-btn" data-i18n="settings.two_factor_section.done_btn" style="margin-top:6px">Done</button>
-        </div>
-
-        <!-- Manage area (shown when TOTP is ON) -->
-        <div id="totp-manage-area" style="display:none">
-          <p class="settings-hint" style="color:var(--accent);margin-bottom:6px">✅ <span data-i18n="settings.two_factor_section.enabled_text">Two-factor authentication is enabled</span></p>
-          <p class="settings-hint" id="totp-backup-remaining" style="margin-bottom:12px"></p>
-          <div class="form-group compact">
-            <input type="password" id="totp-disable-password" data-i18n-placeholder="settings.two_factor_section.disable_password_placeholder" placeholder="Enter password to modify" maxlength="128" autocomplete="current-password">
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-sm btn-danger-fill" id="totp-disable-btn" data-i18n="settings.two_factor_section.disable_btn" style="flex:1">Disable 2FA</button>
-            <button class="btn-sm btn-accent" id="totp-regen-backup-btn" data-i18n="settings.two_factor_section.regen_backup_btn" style="flex:1">Regenerate Backup Codes</button>
-          </div>
-          <small class="settings-hint" id="totp-manage-status"></small>
-        </div>
-      </div>
-
-      <!-- Account Recovery Codes Section -->
-      <div class="settings-section" id="section-recovery">
-        <h5 class="settings-section-title"><span data-i18n="settings.recovery_section.title">Account Recovery</span></h5>
-        <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.recovery_section.desc">Generate one-time recovery codes to regain access if you forget your password. Store them somewhere safe: they work like a last-resort key.</p>
-        <div class="settings-warning-box" id="recovery-e2e-warning" style="background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.4);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82rem;color:var(--text-secondary)">
-          <span data-i18n-html="settings.recovery_section.e2e_warning">⚠️ <strong>Important:</strong> Using a recovery code to reset your password will permanently and irreversibly destroy your end-to-end encryption keys. All encrypted direct message history will become unreadable. There is no way to undo this.</span>
-        </div>
-        <!-- Status -->
-        <p class="settings-hint" id="recovery-code-status" style="margin-bottom:10px"></p>
-        <!-- Generate flow -->
-        <div id="recovery-generate-area">
-          <div class="form-group compact">
-            <input type="password" id="recovery-gen-password" data-i18n-placeholder="settings.recovery_section.confirm_password_placeholder" placeholder="Confirm your password" maxlength="128" autocomplete="current-password">
-          </div>
-          <button class="btn-sm btn-full btn-accent" id="recovery-generate-btn" data-i18n="settings.recovery_section.generate_btn">Generate Recovery Codes</button>
-          <small class="settings-hint" id="recovery-gen-status"></small>
-        </div>
-        <!-- Codes display (shown after generation) -->
-        <div id="recovery-codes-area" style="display:none">
-          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.recovery_section.save_hint">Save these codes now. They will not be shown again. Each code can only be used once.</p>
-          <div id="recovery-codes-list" style="font-family:monospace;font-size:0.9375rem;line-height:2;background:var(--bg-primary);padding:12px;border-radius:8px;text-align:center;user-select:all"></div>
-          <button class="btn-sm btn-full" id="recovery-copy-btn" style="margin-top:8px">📋 <span data-i18n="settings.recovery_section.copy_codes_btn">Copy Codes</span></button>
-          <button class="btn-sm btn-full" id="recovery-codes-done-btn" data-i18n="settings.recovery_section.done_btn" style="margin-top:6px">Done</button>
-        </div>
-      </div>
-
-      <!-- Delete Account Section -->
-      <div class="settings-section" id="section-delete-account">
-        <h5 class="settings-section-title"><span data-i18n="settings.delete_account_section.title">Delete Account</span></h5>
-        <p class="settings-hint" style="margin-bottom:8px;" data-i18n="settings.delete_account_section.desc">Permanently delete your account. This cannot be undone.</p>
-        <button class="btn-sm btn-danger-fill" id="delete-account-btn" data-i18n="settings.delete_account_section.btn">Delete My Account</button>
-        <div id="self-purge-block" style="display:none;margin-top:14px">
-          <h5 class="settings-section-title"><span data-i18n="settings.self_purge.title">Delete All My Messages</span></h5>
-          <p class="settings-hint" style="margin-bottom:8px;" data-i18n="settings.self_purge.desc">Remove every message and file you ever posted here, in one go, and keep your account. Messages a moderator has protected stay. This cannot be undone.</p>
-          <button class="btn-sm btn-danger-fill" id="self-purge-btn" data-i18n="settings.self_purge.btn">Delete All My Messages</button>
+          <small class="settings-hint" data-i18n="settings.timezone_section.hint">Saved to your account and used on every device</small>
         </div>
       </div>
 
@@ -2743,22 +2082,6 @@
 
         <div class="desktop-pref-row">
           <label class="toggle-row">
-            <input type="checkbox" id="pref-voice-mute-on-join">
-            <span class="toggle-label" data-i18n="settings.debug_section.mute_on_join">Always join voice muted</span>
-          </label>
-          <p class="settings-hint" data-i18n="settings.debug_section.mute_on_join_hint">Force the mic to start muted every time you join a voice channel. Useful if you tend to lurk first, or if you don't want to risk hot-mic'ing right after joining. You can unmute normally once you're in.</p>
-        </div>
-
-        <div class="desktop-pref-row">
-          <label class="toggle-row">
-            <input type="checkbox" id="pref-voice-listener-only">
-            <span class="toggle-label" data-i18n="settings.debug_section.listener_only">Join voice without microphone (listener only)</span>
-          </label>
-          <p class="settings-hint" data-i18n="settings.debug_section.listener_only_hint">Join voice channels without requesting microphone access. You'll hear everyone but won't be able to talk. Useful if you don't own a mic, can't grant mic permission right now, or just want to listen in. Haven will also fall back to listener-only automatically if the mic can't be opened for any reason. (#5380)</p>
-        </div>
-
-        <div class="desktop-pref-row">
-          <label class="toggle-row">
             <input type="checkbox" id="pref-debug-screen-share-voice-proc">
             <span class="toggle-label" data-i18n="settings.debug_section.screen_share_voice_proc">Apply voice processing to screen-share audio</span>
           </label>
@@ -2856,6 +2179,687 @@
         </div>
       </div>
 
+      <!-- Chat Behavior -->
+      <div class="settings-section" id="section-chat-behavior" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.chat_behavior.title">Chat</span></h5>
+        <label class="toggle-row">
+          <span data-i18n="settings.chat_behavior.up_arrow_edit">Up Arrow Edits Last Message</span>
+          <input type="checkbox" id="up-arrow-edit" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.up_arrow_edit_hint">Press the Up arrow key on an empty input to quickly edit your last message.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.chat_behavior.emote_words">Turn emote names into emotes when I send</span>
+          <input type="checkbox" id="emote-words-toggle">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.emote_words_hint">A word that is exactly a custom emote's name, capitals included, is sent as that emote, with no colons. Code, links and mentions are left alone. Only changes this device.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.chat_behavior.dm_fullscreen">Open DMs in fullscreen on single click</span>
+          <input type="checkbox" id="dm-fullscreen-default">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.dm_fullscreen_hint">Single-click a DM to open it in the full pane instead of a floating PiP. Double-click opens the PiP.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.chat_behavior.hover_profile_card">Show profile card on hover</span>
+          <input type="checkbox" id="hover-profile-card" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.hover_profile_card_hint">Hovering over a name or avatar shows a quick profile preview. Clicking opens the full card either way.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.chat_behavior.mouse_nav">Mouse side buttons go back and forward</span>
+          <input type="checkbox" id="mouse-nav-toggle" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.mouse_nav_hint">Back closes the thread or pop-out DM you opened, or returns to the channel you came from. Turn this off if a side button is your push to talk or a hotkey in another program: the side buttons then do nothing in Haven.</small>
+        <label class="select-row">
+          <span data-i18n="settings.chat_behavior.official_style">Official messages</span>
+          <select id="official-style-select" style="max-width:160px">
+            <option value="badge" data-i18n="settings.chat_behavior.official_style_badge">Badge</option>
+            <option value="text" data-i18n="settings.chat_behavior.official_style_text">Colored text</option>
+            <option value="off" data-i18n="settings.chat_behavior.official_style_off">Off</option>
+          </select>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.official_style_hint">How messages posted as a role look to you. Badge: the role's name next to the message. Colored text: the text in the role's color, and a run of them reads as one block. Off: they look like any other message. Saved on this device.</small>
+        <div id="official-mode-setting" style="display:none">
+          <label class="toggle-row">
+            <span data-i18n="settings.chat_behavior.official_mode">Keep official mode on</span>
+            <input type="checkbox" id="official-mode-toggle">
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.chat_behavior.official_mode_hint">Every message you send where you can post as your role goes out official, until you turn this off. The megaphone then sends just the next message plain. Saved to your account, so it follows you to every device.</small>
+        </div>
+      </div>
+
+      <div class="settings-section" id="section-image-display" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.image_display.title">Image Display</span></h5>
+
+        <!-- Image Display Mode -->
+        <!-- Renamed from the Layout Density section's id, which it duplicated.
+            getElementById always resolved to the first match, so this section
+            had no working nav anchor at all. -->
+        <div class="settings-subsection" id="image-mode-subsection">
+          <small class="settings-group-label"><span data-i18n="settings.image_display.image_mode.title">Image Display Mode</span></small>
+          <div class="density-picker" id="image-mode-picker">
+            <button type="button" class="density-btn active" data-image-mode="thumbnail" data-i18n-title="settings.image_display.image_mode.thumbnail_hint" title="Thumbnail: small preview, click to enlarge">
+              <span class="density-icon">🔍</span>
+              <span class="density-label" data-i18n="settings.image_display.image_mode.thumbnail">Thumbnail</span>
+            </button>
+            <button type="button" class="density-btn" data-image-mode="full" data-i18n-title="settings.image_display.image_mode.full_hint" title="Full: large inline images like Discord">
+              <span class="density-icon">🖼️</span>
+              <span class="density-label" data-i18n="settings.image_display.image_mode.full">Full</span>
+            </button>
+          </div>
+          <label class="toggle-row" style="margin-top:10px">
+            <span data-i18n="settings.image_display.hide_media">Hide pictures and videos</span>
+            <input type="checkbox" id="hide-media-toggle">
+          </label>
+          <small class="settings-hint" style="display:block" data-i18n="settings.image_display.hide_media_hint">Pictures, GIFs and videos in chat show as a small tag you click to see them, and link cards start folded. Handy around other people. Only changes what you see, on this device.</small>
+        </div>
+
+        <!-- Pictures sent together (#5799): the grid, or each picture whole,
+            one under another. Server default follows the admin's choice. -->
+        <div class="settings-subsection" id="media-layout-subsection">
+          <small class="settings-group-label"><span data-i18n="settings.image_display.media_layout.title">Pictures Sent Together</span></small>
+          <div class="density-picker" id="media-layout-picker">
+            <button type="button" class="density-btn active" data-media-layout="" title="Server default: whatever the server is set to">
+              <span class="density-icon">🏠</span>
+              <span class="density-label" data-i18n="settings.image_display.media_layout.default">Server default</span>
+            </button>
+            <button type="button" class="density-btn" data-media-layout="grid" data-i18n-title="settings.image_display.media_layout.grid_hint" title="Grid: fit them into one block, each picture cropped to its tile">
+              <span class="density-icon">🔲</span>
+              <span class="density-label" data-i18n="settings.image_display.media_layout.grid">Grid</span>
+            </button>
+            <button type="button" class="density-btn" data-media-layout="stacked" data-i18n-title="settings.image_display.media_layout.stacked_hint" title="Full size: every picture whole, one under another">
+              <span class="density-icon">🖼️</span>
+              <span class="density-label" data-i18n="settings.image_display.media_layout.stacked">Full size, one under another</span>
+            </button>
+          </div>
+          <small class="settings-hint" data-i18n="settings.image_display.media_layout.hint">How several pictures in one message show for you. The grid crops each picture to fill its tile; full size shows every one whole, at the Image Display Mode size above. Saved on your account, so it follows you to every device.</small>
+        </div>
+
+        <!-- Animated profile pictures (viewer side). The pfp owner can already turn
+            their own animation off for everyone; this is the other half, so a
+            viewer who doesn't want moving avatars can stop seeing them. -->
+        <div class="settings-subsection" id="animate-pfp-subsection">
+          <small class="settings-group-label"><span data-i18n="settings.image_display.animate_pfp.title">Animated Profile Pictures</span></small>
+          <div class="density-picker" id="animate-pfp-picker">
+            <button type="button" class="density-btn" data-animpfp="always" data-i18n-title="settings.image_display.animate_pfp.always_hint" title="Always: animated avatars loop constantly">
+              <span class="density-icon">▶️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_pfp.always">Always</span>
+            </button>
+            <button type="button" class="density-btn active" data-animpfp="hover" data-i18n-title="settings.image_display.animate_pfp.hover_hint" title="On hover: play while you hover a message or open a profile">
+              <span class="density-icon">🖱️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_pfp.hover">On hover</span>
+            </button>
+            <button type="button" class="density-btn" data-animpfp="never" data-i18n-title="settings.image_display.animate_pfp.never_hint" title="Never: show the first frame only">
+              <span class="density-icon">⏸️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_pfp.never">Never</span>
+            </button>
+          </div>
+          <small class="settings-hint" data-i18n="settings.image_display.animate_pfp.hint">Applies to everyone's avatars and borders as you see them. Anyone who has turned animation off for their own profile stays still regardless.</small>
+        </div>
+
+        <!-- Animated images in chat (#5526). Separate from the avatar setting above:
+            a GIF someone posted is content, an avatar is ambient, so this one
+            stays at Always unless the viewer asks otherwise. -->
+        <div class="settings-subsection" id="animate-chat-subsection">
+          <small class="settings-group-label"><span data-i18n="settings.image_display.animate_chat.title">Animated Images in Chat</span></small>
+          <div class="density-picker" id="animate-chat-picker">
+            <button type="button" class="density-btn active" data-animchat="always" data-i18n-title="settings.image_display.animate_chat.always_hint" title="Always: GIFs loop constantly">
+              <span class="density-icon">▶️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_chat.always">Always</span>
+            </button>
+            <button type="button" class="density-btn" data-animchat="hover" data-i18n-title="settings.image_display.animate_chat.hover_hint" title="On hover: play only while you point at the image">
+              <span class="density-icon">🖱️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_chat.hover">On hover</span>
+            </button>
+            <button type="button" class="density-btn" data-animchat="never" data-i18n-title="settings.image_display.animate_chat.never_hint" title="Never: show the first frame only">
+              <span class="density-icon">⏸️</span>
+              <span class="density-label" data-i18n="settings.image_display.animate_chat.never">Never</span>
+            </button>
+          </div>
+          <small class="settings-hint" data-i18n="settings.image_display.animate_chat.hint">Applies to GIFs and other animated images posted in messages, for you only. Nobody else's view changes.</small>
+        </div>
+      </div>
+
+      <!-- Embed / Link Preview Size -->
+      <div class="settings-section" id="section-embed-size" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.embed_display.title">Link Previews</span></h5>
+        <div class="density-picker" id="embed-size-picker">
+          <button type="button" class="density-btn" data-embed-size="off" title="Off: hide all link previews" data-i18n-title="settings.embed_display.off_hint">
+            <span class="density-icon">🚫</span>
+            <span class="density-label" data-i18n="settings.embed_display.off">Off</span>
+          </button>
+          <button type="button" class="density-btn" data-embed-size="small" title="Small: compact card with small media" data-i18n-title="settings.embed_display.small_hint">
+            <span class="density-icon">🔗</span>
+            <span class="density-label" data-i18n="settings.embed_display.small">Small</span>
+          </button>
+          <button type="button" class="density-btn active" data-embed-size="medium" title="Medium: balanced card with medium media" data-i18n-title="settings.embed_display.medium_hint">
+            <span class="density-icon">🖼️</span>
+            <span class="density-label" data-i18n="settings.embed_display.medium">Medium</span>
+          </button>
+          <button type="button" class="density-btn" data-embed-size="full" title="Large: big media, author, and post stats" data-i18n-title="settings.embed_display.full_hint">
+            <span class="density-icon">📰</span>
+            <span class="density-label" data-i18n="settings.embed_display.full">Large</span>
+          </button>
+        </div>
+        <label class="toggle-row" style="margin-top:10px">
+          <span data-i18n="settings.embed_display.pause_offscreen">Pause videos and audio scrolled out of view</span>
+          <input type="checkbox" id="pause-offscreen-media">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.embed_display.pause_offscreen_hint">A video, sound file or YouTube card in chat stops when you scroll past it.</small>
+        <label class="toggle-row" style="margin-top:10px">
+          <span data-i18n="settings.embed_display.start_folded">Start link previews folded</span>
+          <input type="checkbox" id="previews-folded-toggle">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.embed_display.start_folded_hint">Link previews show as a small bar you click to open. Only changes this device. A message with more than two links always folds the ones after the second.</small>
+      </div>
+
+      <!-- Emoji Reaction Size -->
+      <div class="settings-section" id="section-reaction-size" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.reaction_size.title">Reaction Size</span></h5>
+        <div class="font-size-picker" id="emoji-size-picker">
+          <button type="button" class="density-btn" data-emojisize="small" title="Small reactions" data-i18n-title="settings.reaction_size.small_hint">
+            <span class="density-icon" style="font-size:0.6875rem">😀</span>
+            <span class="density-label" data-i18n="settings.reaction_size.small">Small</span>
+          </button>
+          <button type="button" class="density-btn active" data-emojisize="normal" title="Normal reactions (default)" data-i18n-title="settings.reaction_size.normal_hint">
+            <span class="density-icon" style="font-size:0.875rem">😀</span>
+            <span class="density-label" data-i18n="settings.reaction_size.normal">Normal</span>
+          </button>
+          <button type="button" class="density-btn" data-emojisize="large" title="Large reactions" data-i18n-title="settings.reaction_size.large_hint">
+            <span class="density-icon" style="font-size:1.125rem">😀</span>
+            <span class="density-label" data-i18n="settings.reaction_size.large">Large</span>
+          </button>
+          <button type="button" class="density-btn" data-emojisize="x-large" title="Extra large reactions" data-i18n-title="settings.reaction_size.xl_hint">
+            <span class="density-icon" style="font-size:1.375rem">😀</span>
+            <span class="density-label" data-i18n="settings.reaction_size.xl">XL</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Habitat fork: member content filters have their own searchable section. -->
+      <div class="settings-section" id="section-content-privacy">
+        <h5 class="settings-section-title"><span data-i18n="settings.content_privacy.title">Content &amp; privacy</span></h5>
+        <label class="toggle-row">
+          <span data-i18n="settings.nsfw.hide">Hide NSFW channels</span>
+          <input type="checkbox" id="hide-nsfw-channels">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.nsfw.hide_hint">Channels an admin marked 🔞 leave your sidebar until you turn this off. Handy on a phone in public.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.nsfw.blur">Blur NSFW topics and messages until clicked</span>
+          <input type="checkbox" id="blur-nsfw-topics" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.nsfw.blur_hint">Topics and messages marked 🔞 sit behind a blur, like a spoiler. Turn this off to see them plainly.</small>
+      </div>
+
+      <!-- Game Score Badges -->
+      <div class="settings-section" id="section-score-badges" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.score_badges.title">Score Badges</span></h5>
+        <label class="toggle-row">
+          <span data-i18n="settings.score_badges.hide_others">Hide other players' score badges</span>
+          <input type="checkbox" id="hide-other-scores">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.score_badges.hide_others_hint">Don't show 🚢 badges next to other users in the member list.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.score_badges.hide_own">Hide my score badge from this server</span>
+          <input type="checkbox" id="hide-own-score">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.score_badges.hide_own_hint">Other users (and you) won't see your 🚢 badge anywhere on this server, including the leaderboard.</small>
+      </div>
+
+      <!-- Voice & video: the call settings, usable outside a call, with a
+           microphone and camera test. The controls are built by
+           createCallSettingsPanel (js/modules/call-settings-panel.js) and the
+           tests are wired in js/modules/app-call-settings.js. -->
+      <div class="settings-section" id="section-call-settings">
+        <h5 class="settings-section-title"><span data-i18n="settings.call.title">Voice &amp; Video</span></h5>
+        <small class="settings-hint" style="display:block" data-i18n="settings.call.hint">Saved on this device. Changes apply to your next call, or straight away if you are in one.</small>
+        <div class="call-preview">
+          <div class="call-preview-buttons">
+            <button type="button" class="btn-sm call-preview-btn" id="call-preview-mic" aria-pressed="false"><span data-i18n="settings.call.test_mic">Test microphone</span></button>
+            <button type="button" class="btn-sm call-preview-btn" id="call-preview-camera" aria-pressed="false"><span data-i18n="settings.call.test_camera">Test camera</span></button>
+          </div>
+          <label class="call-preview-loopback">
+            <input type="checkbox" id="call-preview-loopback" checked>
+            <span data-i18n="settings.call.hear_myself">Hear myself during the microphone test</span>
+          </label>
+          <small class="call-preview-loopback-hint" data-i18n="settings.call.hear_myself_hint">Use headphones, or your speakers may squeal. You hear yourself as a call would send you, with your noise reduction setting. Echo cancellation is paused while you listen, or it would keep cutting out your own voice. Nothing plays while you are deafened in a call.</small>
+          <small class="settings-hint call-preview-status" id="call-preview-status" role="status" aria-live="polite" hidden></small>
+          <video class="call-preview-video" id="call-preview-video" muted playsinline autoplay hidden></video>
+        </div>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.master_voice">Voice volume (everyone)</span>
+            <input type="range" id="voice-master-volume" min="0" max="200" value="100" class="slider-sm" data-curve="linear">
+          </label>
+        <div class="voice-settings-panel call-settings-page-panel" id="call-settings-page-panel"></div>
+        <!-- Habitat fork: keep joining and in-call preferences beside device settings. -->
+        <h6 class="settings-group-label" data-i18n="settings.call.preferences">Call preferences</h6>
+        <label class="toggle-row">
+          <span data-i18n="settings.sounds_section.auto_accept_streams">Auto-accept Streams</span>
+          <input type="checkbox" id="auto-accept-streams" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.auto_accept_streams_hint">Automatically open screen shares when someone starts streaming. Turn off to join manually.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.sounds_section.hide_voice_panel">Hide Voice Panel</span>
+          <input type="checkbox" id="hide-voice-panel">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.hide_voice_panel_hint">Hide the voice users panel on desktop. Voice users are still shown in channel indicators.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.sounds_section.sidebar_voice_controls">Sidebar Voice Controls</span>
+          <input type="checkbox" id="sidebar-voice-controls">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.sidebar_voice_controls_hint">Show mute/deafen buttons in the sidebar instead of the voice panel header.</small>
+        <label class="toggle-row">
+          <span data-i18n="settings.sounds_section.voice_action_cues">Mute / PTT Cues</span>
+          <input type="checkbox" id="notif-voice-action-cues-enabled" checked>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.voice_action_cues_hint">Play short cue tones when muting, unmuting, deafening, or using push-to-talk in Haven Desktop.</small>
+        <label class="toggle-row">
+          <span class="toggle-label" data-i18n="settings.debug_section.mute_on_join">Always join voice muted</span>
+          <input type="checkbox" id="pref-voice-mute-on-join">
+        </label>
+        <p class="settings-hint" data-i18n="settings.debug_section.mute_on_join_hint">Force the mic to start muted every time you join a voice channel. Useful if you tend to lurk first, or if you don't want to risk hot-mic'ing right after joining. You can unmute normally once you're in.</p>
+        <label class="toggle-row">
+          <span class="toggle-label" data-i18n="settings.debug_section.listener_only">Join voice without microphone (listener only)</span>
+          <input type="checkbox" id="pref-voice-listener-only">
+        </label>
+        <p class="settings-hint" data-i18n="settings.debug_section.listener_only_hint">Join voice channels without requesting microphone access. You'll hear everyone but won't be able to talk. Useful if you don't own a mic, can't grant mic permission right now, or just want to listen in. Haven will also fall back to listener-only automatically if the mic can't be opened for any reason. (#5380)</p>
+      </div>
+
+      <div class="settings-section" id="section-sounds">
+        <h5 class="settings-section-title"><span data-i18n="settings.sounds_section.title">Sounds</span></h5>
+        <div class="notif-settings">
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.master_notifications">Notification volume (all sounds)</span>
+            <input type="range" id="notif-master-volume" min="0" max="100" value="100" class="slider-sm">
+          </label>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.master_soundboard">Soundboard volume (what you play)</span>
+            <input type="range" id="soundboard-master-volume" min="0" max="100" value="100" class="slider-sm" data-curve="linear">
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.master_hint">Applied on top of each person's own volume and each sound's own volume below.</small>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.show_db">Show volumes in dB</span>
+            <input type="checkbox" id="volume-show-db">
+          </label>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.notifications">Notifications</span>
+            <input type="checkbox" id="notif-enabled">
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.notifications_hint">Sounds, pop-ups and push notifications for every message on this device (off by default). @Mentions, replies, and DMs always notify.</small>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.mute_server">Mute this server</span>
+            <select id="notif-server-mute-mode" class="settings-select">
+              <option value="off" data-i18n="mute.mode_off">Off</option>
+              <option value="all" data-i18n="mute.mode_all">Mute all</option>
+              <option value="mentions" data-i18n="mute.mode_mentions">Mute except @mentions</option>
+            </select>
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.mute_server_hint">Silences sounds, pop-ups, push notifications and the taskbar badge from this server. DMs still come through. Saved on your account, so it applies on every device. You can also right-click the server's icon.</small>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.mentions">@Mentions</span>
+            <input type="checkbox" id="notif-mentions-enabled" checked>
+          </label>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.role_mentions">@Role mentions</span>
+            <input type="checkbox" id="notif-role-mentions-enabled" checked>
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.role_mentions_hint">Pings for roles you hold, like @Moderators. Off means they count as ordinary messages.</small>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.replies">Replies</span>
+            <input type="checkbox" id="notif-replies-enabled" checked>
+          </label>
+          <label class="toggle-row">
+            <span data-i18n="settings.sounds_section.direct_messages">Direct Messages</span>
+            <input type="checkbox" id="notif-dm-enabled" checked>
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.popup_limit">Limit pop-up notifications</span>
+            <select id="notif-popup-cooldown">
+              <option value="0" data-i18n="settings.sounds_section.popup_off">Off (show every one)</option>
+              <option value="30000" data-i18n="settings.sounds_section.popup_30s">At most 1 every 30 sec</option>
+              <option value="60000" data-i18n="settings.sounds_section.popup_1m">At most 1 per minute</option>
+              <option value="300000" data-i18n="settings.sounds_section.popup_5m">At most 1 every 5 min</option>
+              <option value="900000" data-i18n="settings.sounds_section.popup_15m">At most 1 every 15 min</option>
+              <option value="-1" data-i18n="settings.sounds_section.popup_never">Never (sounds and badges still work)</option>
+              <option value="custom" data-i18n="settings.sounds_section.popup_custom">Custom…</option>
+            </select>
+          </label>
+          <label class="select-row" id="notif-popup-custom-row" style="display:none">
+            <span data-i18n="settings.sounds_section.popup_custom_minutes">Minutes between pop-ups</span>
+            <input type="number" id="notif-popup-custom-minutes" min="1" max="1440" step="1" class="settings-number-input" style="width:5.5rem">
+          </label>
+          <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.sounds_section.popup_limit_hint">Throttle how often desktop/browser notification pop-ups appear, so a burst of messages or a flaky connection can't keep popping the app up. Notification sounds and unread badges are unaffected. Never also turns off push notifications on this device.</small>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.volume">Volume</span>
+            <input type="range" id="notif-volume" min="0" max="100" value="50" class="slider-sm">
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.messages">Messages</span>
+            <select id="notif-msg-sound">
+              <option value="ping">Ping</option>
+              <option value="chime">Chime</option>
+              <option value="blip">Blip</option>
+              <option value="bell">Bell</option>
+              <option value="drop">Drop</option>
+              <option value="alert">Alert</option>
+              <option value="chord">Chord</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.msg_sent">Msg Sent</span>
+            <select id="notif-sent-sound">
+              <option value="swoosh">Swoosh</option>
+              <option value="blip">Blip</option>
+              <option value="ping">Ping</option>
+              <option value="chime">Chime</option>
+              <option value="drop">Drop</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div class="notif-divider"></div>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.mention_vol">@Mention Vol</span>
+            <input type="range" id="notif-mention-volume" min="0" max="100" value="80" class="slider-sm">
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.mentions">@Mentions</span>
+            <select id="notif-mention-sound">
+              <option value="bell">Bell</option>
+              <option value="alert">Alert</option>
+              <option value="chord">Chord</option>
+              <option value="ping">Ping</option>
+              <option value="chime">Chime</option>
+              <option value="blip">Blip</option>
+              <option value="drop">Drop</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div class="notif-divider"></div>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.reply_vol">Reply Vol</span>
+            <input type="range" id="notif-reply-volume" min="0" max="100" value="80" class="slider-sm">
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.replies">Replies</span>
+            <select id="notif-reply-sound">
+              <option value="chime">Chime</option>
+              <option value="bell">Bell</option>
+              <option value="alert">Alert</option>
+              <option value="chord">Chord</option>
+              <option value="ping">Ping</option>
+              <option value="blip">Blip</option>
+              <option value="drop">Drop</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div class="notif-divider"></div>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.join_vol">Join Vol</span>
+            <input type="range" id="notif-join-volume" min="0" max="100" value="80" class="slider-sm">
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.user_joined">User Joined</span>
+            <select id="notif-join-sound">
+              <option value="chime">Chime</option>
+              <option value="bell">Bell</option>
+              <option value="ping">Ping</option>
+              <option value="blip">Blip</option>
+              <option value="chord">Chord</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div class="notif-divider"></div>
+          <label class="volume-row">
+            <span data-i18n="settings.sounds_section.leave_vol">Leave Vol</span>
+            <input type="range" id="notif-leave-volume" min="0" max="100" value="80" class="slider-sm">
+          </label>
+          <label class="select-row">
+            <span data-i18n="settings.sounds_section.user_left">User Left</span>
+            <select id="notif-leave-sound">
+              <option value="drop">Drop</option>
+              <option value="chime">Chime</option>
+              <option value="ping">Ping</option>
+              <option value="blip">Blip</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+            <button class="btn-sm btn-full btn-accent" id="open-sound-manager-user-btn">🎵 <span data-i18n="settings.sounds_section.sound_manager_btn">Sound Manager</span></button>
+            <small class="settings-hint" style="display:block;margin-top:4px" data-i18n="settings.sounds_section.sound_manager_hint">Browse sounds, assign to events, set hotkeys</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Push Notifications Section -->
+      <div class="settings-section" id="section-push">
+        <h5 class="settings-section-title"><span data-i18n="settings.push_section.title">Push Notifications</span></h5>
+        <div class="notif-settings">
+          <label class="toggle-row">
+            <span data-i18n="settings.push_section.enable">Enable Push</span>
+            <input type="checkbox" id="push-notif-enabled">
+          </label>
+          <small class="settings-hint" id="push-notif-status" data-i18n="settings.push_section.checking">Checking...</small>
+          <small class="settings-hint" style="opacity:0.5" data-i18n="settings.push_section.hint">Receive notifications even when Haven is closed</small>
+        </div>
+      </div>
+
+      <!-- What's new after an update (app-whats-new.js) -->
+      <div class="settings-section" id="section-whats-new" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.whats_new.title">What's New</span></h5>
+        <div class="whats-new-version" id="whats-new-version"></div>
+        <!-- Habitat fork: credit the upstream project beside the version, using its own name. -->
+        <small class="settings-hint"><a href="https://github.com/ancsemi/Haven" target="_blank" rel="noopener noreferrer"><span data-i18n="settings.whats_new.built_on">Built on</span> Haven</a></small>
+        <label class="select-row">
+          <span data-i18n="settings.whats_new.show_label">Show what's new after</span>
+          <select id="whats-new-select" style="max-width:180px">
+            <option value="all" data-i18n="settings.whats_new.all">Every update</option>
+            <option value="minor" data-i18n="settings.whats_new.minor">New features</option>
+            <option value="major" data-i18n="settings.whats_new.major">Big updates only</option>
+            <option value="off" data-i18n="settings.whats_new.off">Never</option>
+          </select>
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.whats_new.hint">A version number has three parts: a big update changes the first, new features the second, and fixes the third. When an underlined part changes, you get a popup with the release notes. Saved on this device.</small>
+        <button type="button" class="btn-sm" id="whats-new-show-btn" data-i18n="settings.whats_new.show_now">See what's new in this version</button>
+      </div>
+
+      <!-- Activity / Rich Presence -->
+      <div class="settings-section" id="section-activity" style="border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 8px;">
+        <h5 class="settings-section-title"><span data-i18n="settings.activity_section.title">Activity</span></h5>
+        <label class="toggle-row">
+          <span data-i18n="settings.activity_section.share">Share my activity</span>
+          <input type="checkbox" id="share-activity">
+        </label>
+        <small class="settings-hint" style="display:block;margin-bottom:6px" data-i18n="settings.activity_section.share_hint">Others can see what you're playing or listening to. Games and music only appear once you link an account below. Nothing is ever shared while your status is Invisible.</small>
+
+        <div id="activity-suboptions" style="display:none;padding-left:10px;border-left:2px solid var(--border-light);margin-bottom:10px">
+          <label class="toggle-row">
+            <span data-i18n="settings.activity_section.show_games">Show games</span>
+            <input type="checkbox" id="share-game-activity">
+          </label>
+          <label class="toggle-row">
+            <span data-i18n="settings.activity_section.show_music">Show music</span>
+            <input type="checkbox" id="share-music-activity">
+          </label>
+        </div>
+
+        <!-- Activity from apps on this computer (#5894): Haven Desktop only, app-desktop-activity.js -->
+        <div id="desktop-app-activity-row" style="display:none;margin-bottom:10px">
+          <label class="toggle-row">
+            <span data-i18n="settings.activity_section.desktop_apps">Show activity from apps on this computer</span>
+            <input type="checkbox" id="desktop-app-activity">
+          </label>
+          <small class="settings-hint" style="display:block" data-i18n="settings.activity_section.desktop_apps_hint">Haven Desktop only. Games and music players that support rich presence, the kind that shows in Discord, appear as your activity on this server. Haven Desktop asks before switching it on, for each server separately. Nothing is looked up online, so there is no artwork, and it only works while Discord itself is closed.</small>
+        </div>
+
+        <h5 class="settings-section-title" style="margin-top:12px"><span data-i18n="settings.activity_section.connections">Connections</span></h5>
+        <div id="connections-list">
+          <small class="settings-hint" data-i18n="modals.common.loading">Loading…</small>
+        </div>
+        <small class="settings-hint" style="display:block;margin-top:6px" data-i18n="settings.activity_section.connections_hint">Haven's own music player needs no connection. It shares automatically while you're listening in a voice channel.</small>
+
+        <!-- Listening presence (any music player) -->
+        <div id="listening-connection" style="margin-top:14px">
+          <h5 class="settings-section-title"><span data-i18n="settings.listening.title">Listening Webhook</span></h5>
+          <small class="settings-hint" style="display:block;margin-bottom:8px" data-i18n-html="settings.listening.note">Please refer to the <a href="https://github.com/ancsemi/Haven/blob/main/docs/listening-api.md" target="_blank" rel="noopener noreferrer">Listening API</a>.</small>
+          <label class="toggle-row">
+            <span data-i18n="settings.listening.toggle">Show my music on Haven</span>
+            <input type="checkbox" id="listening-enabled">
+          </label>
+          <div id="listening-url-row" hidden style="margin-top:8px">
+            <label class="connection-field">
+              <span data-i18n="settings.listening.url_label">Your webhook URL</span>
+              <input type="text" id="listening-url" readonly autocomplete="off" spellcheck="false">
+            </label>
+            <small class="settings-hint" style="display:block;margin-top:4px" data-i18n="settings.listening.url_hint">Point your player's plugin or script at this URL. Keep it secret; anyone with it can post to your profile.</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password Change Section -->
+      <div class="settings-section" id="section-password">
+        <h5 class="settings-section-title"><span data-i18n="settings.password_section.title">Password</span></h5>
+        <div class="password-change-form">
+          <div class="form-group compact">
+            <input type="password" id="current-password" data-i18n-placeholder="settings.password_section.current_placeholder" placeholder="Current password" maxlength="128" autocomplete="current-password">
+          </div>
+          <div class="form-group compact">
+            <input type="password" id="new-password" data-i18n-placeholder="settings.password_section.new_placeholder" placeholder="New password (8+ chars)" maxlength="128" autocomplete="new-password">
+          </div>
+          <div class="form-group compact">
+            <input type="password" id="confirm-password" data-i18n-placeholder="settings.password_section.confirm_placeholder" placeholder="Confirm new password" maxlength="128" autocomplete="new-password">
+          </div>
+          <button class="btn-sm btn-full" id="change-password-btn" data-i18n="settings.password_section.change_btn">Change Password</button>
+          <small class="settings-hint" id="password-status"></small>
+        </div>
+      </div>
+
+      <!-- Two-Factor Authentication Section -->
+      <div class="settings-section" id="section-2fa">
+        <h5 class="settings-section-title"><span data-i18n="settings.two_factor_section.title">Two-Factor Authentication</span></h5>
+
+        <!-- Status display -->
+        <div id="totp-status-area">
+          <p class="settings-hint" id="totp-status-text"></p>
+        </div>
+
+        <!-- Enable flow (shown when TOTP is OFF) -->
+        <div id="totp-enable-area" style="display:none">
+          <p class="settings-hint" style="margin-bottom:10px" data-i18n="settings.two_factor_section.enable_hint">Protect your account with a TOTP authenticator app (Google Authenticator, Authy, etc.).</p>
+          <button class="btn-sm btn-full" id="totp-enable-btn" data-i18n="settings.two_factor_section.enable_btn">Enable Two-Factor Auth</button>
+        </div>
+
+        <!-- Setup flow (shown after clicking Enable) -->
+        <div id="totp-setup-area" style="display:none">
+          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.two_factor_section.setup_hint">Scan this QR code with your authenticator app:</p>
+          <div style="text-align:center;margin:12px 0">
+            <img id="totp-qr-img" data-i18n-alt="settings.two_factor_section.qr_alt" alt="QR Code" style="max-width:200px;border-radius:8px;background:#fff;padding:8px">
+          </div>
+          <p class="settings-hint" style="margin-bottom:4px" data-i18n="settings.two_factor_section.manual_hint">Or enter this secret manually:</p>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+            <code id="totp-secret-text" style="font-size:0.875rem;letter-spacing:2px;user-select:all;flex:1;word-break:break-all"></code>
+            <button class="btn-sm" id="totp-copy-secret" data-i18n-title="settings.two_factor_section.copy_secret_title" title="Copy secret" style="white-space:nowrap">📋 <span data-i18n="settings.two_factor_section.copy_secret_btn">Copy</span></button>
+          </div>
+          <div class="form-group compact">
+            <input type="password" id="totp-setup-password" data-i18n-placeholder="settings.two_factor_section.password_placeholder" placeholder="Your password" autocomplete="current-password" style="margin-bottom:6px">
+            <input type="text" id="totp-verify-code" data-i18n-placeholder="settings.two_factor_section.verify_placeholder" placeholder="Enter 6-digit code to confirm" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" style="text-align:center;font-size:1.125rem;letter-spacing:6px">
+          </div>
+          <button class="btn-sm btn-full" id="totp-verify-setup-btn" data-i18n="settings.two_factor_section.verify_btn">Verify & Activate</button>
+          <button class="btn-sm btn-full" id="totp-cancel-setup-btn" data-i18n="modals.common.cancel" style="margin-top:6px;opacity:0.7">Cancel</button>
+          <small class="settings-hint" id="totp-setup-status"></small>
+        </div>
+
+        <!-- Backup codes display (shown after successful setup) -->
+        <div id="totp-backup-area" style="display:none">
+          <h5 style="margin-bottom:6px"><span data-i18n="settings.two_factor_section.backup_title">Backup Codes</span></h5>
+          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.two_factor_section.backup_hint">Save these codes somewhere safe. Each can be used once if you lose access to your authenticator.</p>
+          <div id="totp-backup-codes" style="font-family:monospace;font-size:0.9375rem;line-height:2;background:var(--bg-primary);padding:12px;border-radius:8px;text-align:center;user-select:all"></div>
+          <button class="btn-sm btn-full" id="totp-copy-backup-btn" style="margin-top:8px">📋 <span data-i18n="settings.two_factor_section.copy_backup_btn">Copy Backup Codes</span></button>
+          <button class="btn-sm btn-full" id="totp-backup-done-btn" data-i18n="settings.two_factor_section.done_btn" style="margin-top:6px">Done</button>
+        </div>
+
+        <!-- Manage area (shown when TOTP is ON) -->
+        <div id="totp-manage-area" style="display:none">
+          <p class="settings-hint" style="color:var(--accent);margin-bottom:6px">✅ <span data-i18n="settings.two_factor_section.enabled_text">Two-factor authentication is enabled</span></p>
+          <p class="settings-hint" id="totp-backup-remaining" style="margin-bottom:12px"></p>
+          <div class="form-group compact">
+            <input type="password" id="totp-disable-password" data-i18n-placeholder="settings.two_factor_section.disable_password_placeholder" placeholder="Enter password to modify" maxlength="128" autocomplete="current-password">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm btn-danger-fill" id="totp-disable-btn" data-i18n="settings.two_factor_section.disable_btn" style="flex:1">Disable 2FA</button>
+            <button class="btn-sm btn-accent" id="totp-regen-backup-btn" data-i18n="settings.two_factor_section.regen_backup_btn" style="flex:1">Regenerate Backup Codes</button>
+          </div>
+          <small class="settings-hint" id="totp-manage-status"></small>
+        </div>
+      </div>
+
+      <!-- Account Recovery Codes Section -->
+      <div class="settings-section" id="section-recovery">
+        <h5 class="settings-section-title"><span data-i18n="settings.recovery_section.title">Account Recovery</span></h5>
+        <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.recovery_section.desc">Generate one-time recovery codes to regain access if you forget your password. Store them somewhere safe: they work like a last-resort key.</p>
+        <div class="settings-warning-box" id="recovery-e2e-warning" style="background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.4);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82rem;color:var(--text-secondary)">
+          <span data-i18n-html="settings.recovery_section.e2e_warning">⚠️ <strong>Important:</strong> Using a recovery code to reset your password will permanently and irreversibly destroy your end-to-end encryption keys. All encrypted direct message history will become unreadable. There is no way to undo this.</span>
+        </div>
+        <!-- Status -->
+        <p class="settings-hint" id="recovery-code-status" style="margin-bottom:10px"></p>
+        <!-- Generate flow -->
+        <div id="recovery-generate-area">
+          <div class="form-group compact">
+            <input type="password" id="recovery-gen-password" data-i18n-placeholder="settings.recovery_section.confirm_password_placeholder" placeholder="Confirm your password" maxlength="128" autocomplete="current-password">
+          </div>
+          <button class="btn-sm btn-full btn-accent" id="recovery-generate-btn" data-i18n="settings.recovery_section.generate_btn">Generate Recovery Codes</button>
+          <small class="settings-hint" id="recovery-gen-status"></small>
+        </div>
+        <!-- Codes display (shown after generation) -->
+        <div id="recovery-codes-area" style="display:none">
+          <p class="settings-hint" style="margin-bottom:8px" data-i18n="settings.recovery_section.save_hint">Save these codes now. They will not be shown again. Each code can only be used once.</p>
+          <div id="recovery-codes-list" style="font-family:monospace;font-size:0.9375rem;line-height:2;background:var(--bg-primary);padding:12px;border-radius:8px;text-align:center;user-select:all"></div>
+          <button class="btn-sm btn-full" id="recovery-copy-btn" style="margin-top:8px">📋 <span data-i18n="settings.recovery_section.copy_codes_btn">Copy Codes</span></button>
+          <button class="btn-sm btn-full" id="recovery-codes-done-btn" data-i18n="settings.recovery_section.done_btn" style="margin-top:6px">Done</button>
+        </div>
+      </div>
+
+      <!-- Active Sessions Section -->
+      <div class="settings-section" id="section-sessions">
+        <h5 class="settings-section-title"><span data-i18n="settings.sessions_section.title">Active Sessions</span></h5>
+        <small class="settings-hint" data-i18n="settings.sessions_section.hint">Devices with Haven open right now. A device that is signed in but closed will not be listed, so sign out everywhere if you think someone else has your account.</small>
+        <div id="sessions-list" class="sessions-list"></div>
+        <button class="btn-sm btn-full btn-danger" id="revoke-sessions-btn" data-i18n="settings.sessions_section.revoke_btn">Sign out all other devices</button>
+        <small class="settings-hint" id="sessions-status"></small>
+      </div>
+
+      <!-- Encryption Passphrase Section -->
+      <div class="settings-section" id="section-e2e-passphrase">
+        <h5 class="settings-section-title"><span data-i18n="settings.e2e_passphrase.title">Encryption Passphrase</span></h5>
+        <small class="settings-hint" data-i18n="settings.e2e_passphrase.hint">Your encrypted DMs use a key that is backed up on the server, so your other devices can use it too. Normally that backup is locked with your login password, which the server receives every time you sign in. Lock it with a separate passphrase instead and the server can never open it. You type the passphrase once on each new device, and nobody can reset it for you, including the server admin.</small>
+        <p class="settings-hint" id="e2e-pp-state" style="font-weight:600"></p>
+        <div class="password-change-form">
+          <div class="form-group compact">
+            <input type="password" id="e2e-pp-new" data-i18n-placeholder="settings.e2e_passphrase.new_placeholder" placeholder="New passphrase (8+ characters)" maxlength="256" autocomplete="new-password">
+          </div>
+          <div class="form-group compact">
+            <input type="password" id="e2e-pp-confirm" data-i18n-placeholder="settings.e2e_passphrase.confirm_placeholder" placeholder="Confirm passphrase" maxlength="256" autocomplete="new-password">
+          </div>
+          <button class="btn-sm btn-full" id="e2e-pp-save-btn" data-i18n="settings.e2e_passphrase.save_btn">Use This Passphrase</button>
+          <div id="e2e-pp-revert-area" style="display:none;margin-top:10px">
+            <div class="form-group compact">
+              <input type="password" id="e2e-pp-password" data-i18n-placeholder="settings.e2e_passphrase.password_placeholder" placeholder="Your login password" maxlength="128" autocomplete="current-password">
+            </div>
+            <button class="btn-sm btn-full" id="e2e-pp-revert-btn" data-i18n="settings.e2e_passphrase.revert_btn">Go Back to My Login Password</button>
+          </div>
+          <small class="settings-hint" id="e2e-pp-status"></small>
+        </div>
+      </div>
+
+      <!-- Delete Account Section -->
+      <div class="settings-section" id="section-delete-account">
+        <h5 class="settings-section-title"><span data-i18n="settings.delete_account_section.title">Delete Account</span></h5>
+        <p class="settings-hint" style="margin-bottom:8px;" data-i18n="settings.delete_account_section.desc">Permanently delete your account. This cannot be undone.</p>
+        <button class="btn-sm btn-danger-fill" id="delete-account-btn" data-i18n="settings.delete_account_section.btn">Delete My Account</button>
+        <div id="self-purge-block" style="display:none;margin-top:14px">
+          <h5 class="settings-section-title"><span data-i18n="settings.self_purge.title">Delete All My Messages</span></h5>
+          <p class="settings-hint" style="margin-bottom:8px;" data-i18n="settings.self_purge.desc">Remove every message and file you ever posted here, in one go, and keep your account. Messages a moderator has protected stay. This cannot be undone.</p>
+          <button class="btn-sm btn-danger-fill" id="self-purge-btn" data-i18n="settings.self_purge.btn">Delete All My Messages</button>
+        </div>
+      </div>
+
         </div><!-- /settings-body-user -->
 
         <!-- Admin settings body (separate tab) -->
@@ -2877,6 +2881,17 @@
             <button class="btn-sm danger" id="server-shutdown-btn" data-i18n="settings.admin.shutdown_btn">Shut Down Server</button>
           </div>
           <small class="settings-hint" data-i18n="settings.admin.shutdown_hint">Stops Haven cleanly, the same as Ctrl+C. Start it again the way you usually do. If Docker or a service manager restarts Haven on its own, this restarts it instead.</small>
+          <!-- Habitat fork: release options belong to admin-only updates, so Manage Server delegates no longer see them. -->
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.update_banner_label">Update banner (admins only)</span>
+            <input type="checkbox" id="update-banner-admin-only">
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.update_banner_hint">When enabled, the "update available" banner is only shown to admins</small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.update_early_label">Early access updates</span>
+            <input type="checkbox" id="update-channel-early">
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.update_early_hint">Offers new versions as soon as they are made, before they become a stable release (about once a week). You get fixes and features sooner, and sometimes a bug the stable release won't have. Docker: use the :beta image instead of :latest.</small>
         </div>
 
         <!-- Plugin and Theme Updates -->
@@ -3065,6 +3080,16 @@
           <small class="settings-hint" data-i18n="channel_types.hint">A channel type is a set of Channel Functions with its own icon. Right-click a channel and pick Channel Type: it gets those functions, and the sidebar shows the type's icon instead of separate ones. Editing a type updates every channel that has it.</small>
           <button type="button" class="btn-sm btn-accent ct-new-btn" id="channel-type-new-btn">＋ <span data-i18n="channel_types.new_btn">New channel type</span></button>
           <div id="channel-type-list" class="ct-list"></div>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.category_layout_label">Show categories as tabs</span>
+            <input type="checkbox" id="category-layout-tabs">
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.category_layout_hint">Lays the category headers out as a grid of tabs above their channels, wrapping onto more rows when there are many. Right-click a category to give it a short name or emoji to show while it is collapsed.</small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.hide_disabled_badges_label">Hide the crossed-out icons in the channel list</span>
+            <input type="checkbox" id="hide-disabled-badges">
+          </label>
+          <small class="settings-hint" data-i18n="settings.admin.hide_disabled_badges_hint">Channels with screen share or music turned off show small crossed-out icons next to their name. Turn this on to hide those icons for everyone.</small>
         </div>
 
         <!-- Presence & Activity -->
@@ -3126,6 +3151,59 @@
             <small class="settings-hint" style="display:block;margin-top:6px" data-i18n="settings.admin.test_connectivity_hint">Checks the servers above the same way a call does, and says in plain English what works and what doesn't. Save your changes first.</small>
             <div id="connectivity-test-result" style="display:none;margin-top:10px"></div>
           </div>
+          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.voice_privacy_group">Voice privacy</span></small>
+          <small class="settings-hint" style="display:block" data-i18n="settings.admin.voice_relay_desc">Haven voice is peer-to-peer, so by default everyone in a call can see everyone else's IP address. It is how the connection is made, it needs no clicking, and nobody is told it happened. Relay-only mode routes all voice through your TURN server instead, so participants only ever see the TURN server's address. This needs a TURN server configured under Voice &amp; Connectivity, and it uses your server's bandwidth for every call.</small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.voice_relay_label">Relay-only voice (hide member IPs)</span>
+            <input type="checkbox" id="voice-force-relay">
+          </label>
+        </div>
+
+        <!-- Habitat fork: server privacy and delivery settings share the Operations access gate. -->
+        <div class="admin-settings" id="section-privacy" style="display:none">
+          <h5 class="settings-section-subtitle"><span data-i18n="settings.admin.privacy_title">Privacy &amp; delivery</span></h5>
+          <small class="settings-group-label" style="margin-top:8px;display:block"><span data-i18n="settings.admin.referrer_policy_group">Referrer configuration</span></small>
+          <small class="settings-hint" style="display:block" data-i18n="settings.admin.referrer_policy_desc">Sets the Referrer-Policy header Haven sends to browsers, which controls how much of the current page's address is shared when the browser loads resources or follows links to other sites. The recommended options cover almost every server; the advanced policies are standard browser values left to your discretion. Policies that would send the full page address to other sites are not offered, because Haven invite links live in that address.</small>
+          <ul class="settings-hint" style="margin:6px 0 0;padding-left:20px">
+            <li data-i18n-html="settings.admin.referrer_policy_opt_same"><strong>Same-Origin (default):</strong> within this server, shares the full address; to other sites, shares nothing.</li>
+            <li style="margin-top:4px" data-i18n-html="settings.admin.referrer_policy_opt_none"><strong>No-Referrer:</strong> shares nothing anywhere, not even within this server.</li>
+            <li style="margin-top:4px" data-i18n-html="settings.admin.referrer_policy_opt_default"><strong>Strict-Origin-When-Cross-Origin:</strong> within this server, shares the full address; to other sites, shares only the origin. This was Haven's default before 3.41.0. Pick it to go back to the old behaviour.</li>
+          </ul>
+          <small class="settings-hint" style="display:block;margin-top:6px" data-i18n="settings.admin.referrer_policy_note">Same-Origin and No-Referrer send nothing to other sites, so either one fixes embeds whose CDN rejects a cross-origin referrer, such as Twitter/X video. If an image or embed somewhere else stops loading after this change, that host wants a referrer: switch to Strict-Origin-When-Cross-Origin to restore the pre-3.41.0 behaviour.</small>
+          <label class="select-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.referrer_policy_label">Referrer policy</span>
+            <select id="referrer-policy-select">
+              <optgroup label="Recommended" data-i18n-label="settings.admin.referrer_recommended">
+                <option value="same-origin" data-i18n="settings.admin.referrer_same_origin">Same-Origin (default)</option>
+                <option value="no-referrer" data-i18n="settings.admin.referrer_no_referrer">No-Referrer</option>
+                <option value="strict-origin-when-cross-origin" data-i18n="settings.admin.referrer_strict_cross_origin">Strict-Origin-When-Cross-Origin (Haven's pre-3.41.0 default)</option>
+              </optgroup>
+              <optgroup label="Advanced: use at your own discretion" data-i18n-label="settings.admin.referrer_advanced">
+                <option value="strict-origin">Strict-Origin</option>
+                <option value="origin">Origin</option>
+                <option value="origin-when-cross-origin">Origin-When-Cross-Origin</option>
+              </optgroup>
+            </select>
+          </label>
+          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.media_proxy_group">Image privacy</span></small>
+          <small class="settings-hint" style="display:block" data-i18n="settings.admin.media_proxy_desc">Haven fetches images from other sites itself and serves them from its own cache, so your members' browsers never contact those sites. With this off, anyone who posts an image link collects the IP address and browser details of everyone who scrolls past it, without a single click. It also means embeds keep working after the original link expires or the site goes down. Costs some bandwidth and disk on your server; each image is fetched once and cached for 30 days.</small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.media_proxy_label">Proxy and cache remote images</span>
+            <input type="checkbox" id="media-proxy-enabled">
+          </label>
+          <div id="media-cache-stats" class="settings-hint" style="margin-top:4px"></div>
+          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.fcm_privacy_group">FCM Privacy</span></small>
+          <small class="settings-hint" style="display:block" data-i18n-html="settings.admin.fcm_desc">FCM (Firebase Cloud Messaging) is Google's system for delivering push notifications to Android phones. It's what wakes your phone when you receive a new message while Haven is closed. This means that all notifications (including your Haven username, channel name and message content) sent to your Android phone have to pass through Google's servers to reach your phone.<br><br>While this may be fine for most users, some may prefer to keep Google completely out of the equation. <a href="https://unifiedpush.org" target="_blank" rel="noopener">UnifiedPush</a> is a decentralized notification standard that supports several notification apps, and if a UnifiedPush compatible app is installed on your phone, Haven Mobile will prioritize it over FCM.</small>
+          <small class="settings-hint" style="display:block;margin-top:8px" data-i18n-html="settings.admin.fcm_note"><strong>Dangerous Action Warning: Before disabling this, please ensure every member in your Haven server including yourself has a UnifiedPush compatible app installed on their phone. Otherwise, some members of your server will not receive any mobile notifications.</strong></small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.fcm_enabled_label">Enable Google FCM Push Notifications</span>
+            <input type="checkbox" id="fcm-enabled">
+          </label>
+          <small class="settings-hint" style="display:block;margin-top:8px" data-i18n="settings.admin.fcm_hide_note">Updated Haven apps get encrypted pushes, so Google, Apple and the push relay only see a sealed blob. Older apps still send the message text through them. Turn this on and those older apps only show "New message".</small>
+          <label class="toggle-row" style="margin-top:8px">
+            <span data-i18n="settings.admin.fcm_hide_label">Hide message text in pushes to older apps</span>
+            <input type="checkbox" id="fcm-hide-content">
+          </label>
         </div>
 
         <!-- Large Server Setup (Admin only) -->
@@ -3267,30 +3345,10 @@
             <button class="btn-sm btn-accent" id="view-all-members-btn">👥 <span data-i18n="settings.admin.view_all_members_btn">View All Members</span></button>
           </div>
           <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.update_banner_label">Update banner (admins only)</span>
-            <input type="checkbox" id="update-banner-admin-only">
-          </label>
-          <small class="settings-hint" data-i18n="settings.admin.update_banner_hint">When enabled, the "update available" banner is only shown to admins</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.update_early_label">Early access updates</span>
-            <input type="checkbox" id="update-channel-early">
-          </label>
-          <small class="settings-hint" data-i18n="settings.admin.update_early_hint">Offers new versions as soon as they are made, before they become a stable release (about once a week). You get fixes and features sooner, and sometimes a bug the stable release won't have. Docker: use the :beta image instead of :latest.</small>
-          <label class="toggle-row" style="margin-top:8px">
             <span data-i18n="settings.admin.allow_self_purge_label">Members can delete all their own messages</span>
             <input type="checkbox" id="allow-self-purge">
           </label>
           <small class="settings-hint" data-i18n="settings.admin.allow_self_purge_hint">Puts a Delete All My Messages button in everyone's Settings, next to Delete Account, for people who want to leave nothing behind. It works whether or not their role may delete messages one by one; messages a moderator has protected are kept.</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.category_layout_label">Show categories as tabs</span>
-            <input type="checkbox" id="category-layout-tabs">
-          </label>
-          <small class="settings-hint" data-i18n="settings.admin.category_layout_hint">Lays the category headers out as a grid of tabs above their channels, wrapping onto more rows when there are many. Right-click a category to give it a short name or emoji to show while it is collapsed.</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.hide_disabled_badges_label">Hide the crossed-out icons in the channel list</span>
-            <input type="checkbox" id="hide-disabled-badges">
-          </label>
-          <small class="settings-hint" data-i18n="settings.admin.hide_disabled_badges_hint">Channels with screen share or music turned off show small crossed-out icons next to their name. Turn this on to hide those icons for everyone.</small>
           <label class="toggle-row" style="margin-top:8px">
             <span data-i18n="settings.admin.admin_pw_reset_label">Allow admin password reset</span>
             <input type="checkbox" id="admin-password-reset-enabled">
@@ -3424,54 +3482,6 @@
           <small class="settings-hint" style="display:block" data-i18n="settings.admin.oidc_create_users_hint">Off means only people who already have a Haven account linked to your provider can sign in this way. Since linking an existing account is not built yet, leaving this off will turn away everyone new.</small>
           <div id="oidc-secret-warning" class="settings-hint" style="display:none;margin-top:6px;color:var(--warning,#e0a800)" data-i18n="settings.admin.oidc_secret_warning">OIDC_CLIENT_SECRET is not set in the server environment, so the sign-in button stays hidden until it is.</div>
 
-          <small class="settings-group-label" style="margin-top:8px;display:block"><span data-i18n="settings.admin.referrer_policy_group">Referrer configuration</span></small>
-          <small class="settings-hint" style="display:block" data-i18n="settings.admin.referrer_policy_desc">Sets the Referrer-Policy header Haven sends to browsers, which controls how much of the current page's address is shared when the browser loads resources or follows links to other sites. The recommended options cover almost every server; the advanced policies are standard browser values left to your discretion. Policies that would send the full page address to other sites are not offered, because Haven invite links live in that address.</small>
-          <ul class="settings-hint" style="margin:6px 0 0;padding-left:20px">
-            <li data-i18n-html="settings.admin.referrer_policy_opt_same"><strong>Same-Origin (default):</strong> within this server, shares the full address; to other sites, shares nothing.</li>
-            <li style="margin-top:4px" data-i18n-html="settings.admin.referrer_policy_opt_none"><strong>No-Referrer:</strong> shares nothing anywhere, not even within this server.</li>
-            <li style="margin-top:4px" data-i18n-html="settings.admin.referrer_policy_opt_default"><strong>Strict-Origin-When-Cross-Origin:</strong> within this server, shares the full address; to other sites, shares only the origin. This was Haven's default before 3.41.0. Pick it to go back to the old behaviour.</li>
-          </ul>
-          <small class="settings-hint" style="display:block;margin-top:6px" data-i18n="settings.admin.referrer_policy_note">Same-Origin and No-Referrer send nothing to other sites, so either one fixes embeds whose CDN rejects a cross-origin referrer, such as Twitter/X video. If an image or embed somewhere else stops loading after this change, that host wants a referrer: switch to Strict-Origin-When-Cross-Origin to restore the pre-3.41.0 behaviour.</small>
-          <label class="select-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.referrer_policy_label">Referrer policy</span>
-            <select id="referrer-policy-select">
-              <optgroup label="Recommended" data-i18n-label="settings.admin.referrer_recommended">
-                <option value="same-origin" data-i18n="settings.admin.referrer_same_origin">Same-Origin (default)</option>
-                <option value="no-referrer" data-i18n="settings.admin.referrer_no_referrer">No-Referrer</option>
-                <option value="strict-origin-when-cross-origin" data-i18n="settings.admin.referrer_strict_cross_origin">Strict-Origin-When-Cross-Origin (Haven's pre-3.41.0 default)</option>
-              </optgroup>
-              <optgroup label="Advanced: use at your own discretion" data-i18n-label="settings.admin.referrer_advanced">
-                <option value="strict-origin">Strict-Origin</option>
-                <option value="origin">Origin</option>
-                <option value="origin-when-cross-origin">Origin-When-Cross-Origin</option>
-              </optgroup>
-            </select>
-          </label>
-          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.media_proxy_group">Image privacy</span></small>
-          <small class="settings-hint" style="display:block" data-i18n="settings.admin.media_proxy_desc">Haven fetches images from other sites itself and serves them from its own cache, so your members' browsers never contact those sites. With this off, anyone who posts an image link collects the IP address and browser details of everyone who scrolls past it, without a single click. It also means embeds keep working after the original link expires or the site goes down. Costs some bandwidth and disk on your server; each image is fetched once and cached for 30 days.</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.media_proxy_label">Proxy and cache remote images</span>
-            <input type="checkbox" id="media-proxy-enabled">
-          </label>
-          <div id="media-cache-stats" class="settings-hint" style="margin-top:4px"></div>
-          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.voice_privacy_group">Voice privacy</span></small>
-          <small class="settings-hint" style="display:block" data-i18n="settings.admin.voice_relay_desc">Haven voice is peer-to-peer, so by default everyone in a call can see everyone else's IP address. It is how the connection is made, it needs no clicking, and nobody is told it happened. Relay-only mode routes all voice through your TURN server instead, so participants only ever see the TURN server's address. This needs a TURN server configured under Voice &amp; Connectivity, and it uses your server's bandwidth for every call.</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.voice_relay_label">Relay-only voice (hide member IPs)</span>
-            <input type="checkbox" id="voice-force-relay">
-          </label>
-          <small class="settings-group-label" style="margin-top:14px;display:block"><span data-i18n="settings.admin.fcm_privacy_group">FCM Privacy</span></small>
-          <small class="settings-hint" style="display:block" data-i18n-html="settings.admin.fcm_desc">FCM (Firebase Cloud Messaging) is Google's system for delivering push notifications to Android phones. It's what wakes your phone when you receive a new message while Haven is closed. This means that all notifications (including your Haven username, channel name and message content) sent to your Android phone have to pass through Google's servers to reach your phone.<br><br>While this may be fine for most users, some may prefer to keep Google completely out of the equation. <a href="https://unifiedpush.org" target="_blank" rel="noopener">UnifiedPush</a> is a decentralized notification standard that supports several notification apps, and if a UnifiedPush compatible app is installed on your phone, Haven Mobile will prioritize it over FCM.</small>
-          <small class="settings-hint" style="display:block;margin-top:8px" data-i18n-html="settings.admin.fcm_note"><strong>Dangerous Action Warning: Before disabling this, please ensure every member in your Haven server including yourself has a UnifiedPush compatible app installed on their phone. Otherwise, some members of your server will not receive any mobile notifications.</strong></small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.fcm_enabled_label">Enable Google FCM Push Notifications</span>
-            <input type="checkbox" id="fcm-enabled">
-          </label>
-          <small class="settings-hint" style="display:block;margin-top:8px" data-i18n="settings.admin.fcm_hide_note">Updated Haven apps get encrypted pushes, so Google, Apple and the push relay only see a sealed blob. Older apps still send the message text through them. Turn this on and those older apps only show "New message".</small>
-          <label class="toggle-row" style="margin-top:8px">
-            <span data-i18n="settings.admin.fcm_hide_label">Hide message text in pushes to older apps</span>
-            <input type="checkbox" id="fcm-hide-content">
-          </label>
         </div>
 
         <!-- Auto-mod -->

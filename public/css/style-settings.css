@@ -1046,7 +1046,8 @@
 .sp-body .settings-section, .sp-body #admin-mod-panel > .admin-settings[id] { margin-top: 0 !important; padding-top: 1.25rem !important; padding-bottom: 0.5rem !important; border-top: 0 !important; border-bottom: 0 !important; }
 .sp-body #admin-mod-panel > .admin-settings[id] > h5.settings-section-subtitle:first-child { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 0.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
 .sp-body #admin-mod-panel h5.settings-section-subtitle:not(.admin-settings[id] > :first-child), .sp-body .settings-section .settings-section-title ~ .settings-section-title, .sp-body .settings-section * .settings-section-title, .sp-body h6 { margin: 0.75rem 0 0.25rem !important; padding: 0; border: 0; font-size: 0.6875rem !important; font-weight: 600 !important; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted) !important; }
-#settings-modal.sp-search .sp-body .sp-off:not(.settings-search-hidden) { display: block !important; }
+/* Habitat fork: changing permissions while search is open must also hide previous matches. */
+#settings-modal.sp-search .sp-body .sp-off:not([hidden], .settings-search-hidden) { display: block !important; }
 #settings-modal.sp-search .sp-cat.active { background: none; color: var(--text-secondary); }
 #settings-modal:not(.sp-search) .sp-body .sp-tip:not(.sp-tip-open) { display: none !important; }
 .sp-tip-btn { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; margin: 0 auto 0 0.25rem; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); font-size: 0.8125rem; font-weight: 400; line-height: 1; text-transform: none; letter-spacing: 0; vertical-align: middle; cursor: pointer; opacity: 0.7; }

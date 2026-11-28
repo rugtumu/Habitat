@@ -82,8 +82,9 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   the stage) is keyed by who is there, never by which element is new.
 - Desktop call controls mirror Haven's real buttons, including availability.
   More opens call settings, connection details, Soundboard, Listen Together
-  and actions for the pictures on stage. On compact layouts More follows the
-  real controls under the stage. Voice settings open below the stage in both shapes.
+  and actions for the pictures on stage. More sits just before Disconnect in
+  both stage docks. Voice settings open below the stage, and their close
+  button returns focus to More.
 
 - A server banner larger than a 4K frame is shown, and uploaded, as a copy
   scaled down to one (`_showBanner` and `_bannerCopy` in
@@ -96,9 +97,9 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   layout; the regions the layout moves stay out of sight until the plugin
   stamps `data-habitat-layout`, and the mark expires after three seconds so
   a failed plugin never leaves the page hidden. A returning member lands in
-  the conversation they last had open on that device
-  (`habitat_last_conversation_<userId>`); nothing else opens by itself,
-  because opening a channel marks it read. The message list carries
+  the last conversation saved in `habitat_last_conversation_<userId>` once
+  the tab is visible. DMs follow the member’s opening preference. Opening a
+  conversation marks it read, so a new device starts at Welcome. The message list carries
   `data-history` (pending, loading, ready, start, empty, failed), and the
   conversation introduction shows only for `start` and `empty`.
 

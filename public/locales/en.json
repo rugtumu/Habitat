@@ -1667,7 +1667,10 @@
       "import": "Import",
       "mod_mode": "Mod Mode",
       "security": "Security",
-      "automod": "Auto-Mod",
+      "_habitat_sections": "Habitat fork: settings navigation and section headings share the same names.",
+      "content_privacy": "Content & privacy",
+      "privacy": "Privacy & delivery",
+      "automod": "Auto-mod",
       "guests": "Guest Access",
       "moderation": "Moderation",
       "sessions": "Sessions",
@@ -2006,6 +2009,9 @@
       "show": "Show Status Bar",
       "hint": "Show the status bar at the bottom of the screen with server, ping, channel, and online info."
     },
+    "content_privacy": {
+      "title": "Content & privacy"
+    },
     "score_badges": {
       "title": "Score Badges",
       "hide_others": "Hide other players' score badges",
@@ -2320,6 +2326,7 @@
       "linux_vaapi_hint": "Linux only. Lets Haven Desktop use your graphics card's VA-API video encoder for screen sharing even where Chromium's driver blocklist would not, including on Nvidia cards. It can lower CPU use while you share, but some drivers give black or broken video, so it is off by default. Requires restart to take effect."
     },
     "admin": {
+      "privacy_title": "Privacy & delivery",
       "title": "Admin",
       "update_title": "Server Updates",
       "update_hint": "Check for new Haven releases and apply them in place. The server will create a pre-update backup automatically and restart itself.",
@@ -3340,6 +3347,7 @@
       "show_now": "See what's new in this version"
     },
     "call": {
+      "preferences": "Call preferences",
       "title": "Voice & Video",
       "hint": "Saved on this device. Changes apply to your next call, or straight away if you are in one.",
       "test_mic": "Test microphone",

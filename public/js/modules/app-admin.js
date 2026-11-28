@@ -760,6 +760,8 @@ _syncSettingsNav() {
     // the same bar the server enforces. Keep this list in step with
     // _hasAnyAdminSettingsAccess in app.js, which gates the Admin tab switch.
     'section-moderation':   ['view_audit_log', 'ban_user', 'kick_user', 'view_all_members'],
+    // Habitat fork: delivery settings stay admin-only in navigation and search.
+    'section-privacy':      [],
     'section-security':     [],
     // The server lets Manage Server holders change Auto-mod
     // (_canManageAutomod in socketHandlers/admin.js), so they see it too.
@@ -867,6 +869,7 @@ _syncSettingsNav() {
   // non-admin users simply because its nav item was hidden.
   document.querySelectorAll('#admin-mod-panel .admin-settings').forEach(section => {
     const access = getSectionAccess(section.id);
+    section.hidden = access === null;
     section.style.display = (access === null) ? 'none' : '';
   });
 
@@ -1413,6 +1416,9 @@ _cancelAdminSettings() {
     if (uce) uce.checked = snap.update_channel_early === 'true';
     const asp = document.getElementById('allow-self-purge');
     if (asp) asp.checked = snap.allow_self_purge === 'true';
+    // Habitat fork: cancel also restores the channel list layout shown beside its badges.
+    const categoryTabs = document.getElementById('category-layout-tabs');
+    if (categoryTabs) categoryTabs.checked = snap.category_layout === 'tabs';
     const hdb = document.getElementById('hide-disabled-badges');
     if (hdb) hdb.checked = snap.hide_disabled_channel_badges !== 'false';
     const dt = document.getElementById('default-theme-select');

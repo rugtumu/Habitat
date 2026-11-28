@@ -240,7 +240,7 @@ test('no scroll glides past reduced motion', () => {
 test('every control in the Accessibility section has a name', () => {
   const html = read('public/app.html');
   const start = html.indexOf('<div class="settings-section" id="section-zoom"');
-  const section = html.slice(start, html.indexOf('<!-- Emoji Reaction Size -->', start));
+  const section = html.slice(start, html.indexOf('<div class="settings-section"', start + 1));
   for (const id of ['ui-zoom-slider', 'text-size-slider', 'text-size-out-btn', 'text-size-in-btn']) {
     assert.match(section, new RegExp(`id="${id}"[^>]*aria-label="`), `${id} has an aria-label`);
   }
@@ -277,4 +277,13 @@ test('every Accessibility string the page asks for exists in en.json', () => {
     const value = key.split('.').reduce((o, k) => (o ? o[k] : undefined), en);
     assert.equal(typeof value, 'string', `${key} is in en.json`);
   }
+});
+
+test('phone dialog and conversation fields keep a readable focus size at every interface zoom', () => {
+  const css = read('public/css/style-accessibility.css');
+  const rules = css.match(/@media \(max-width: 768px\) \{\s*:root :is\(\[data-habitat-dialog\][\s\S]*?\n\}/)[0];
+  for (const selector of ['[data-habitat-dialog] input', '[data-habitat-dialog] select', '#quick-switcher-input',
+    '.dm-pip-input', '.thread-input']) assert.ok(rules.includes(selector), selector);
+  assert.equal(rules.match(/font-size: max\(1rem, 16px/g).length, 2);
+  assert.match(rules, /var\(--msg-text-scale, 1\)/);
 });

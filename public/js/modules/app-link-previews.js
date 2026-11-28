@@ -313,20 +313,17 @@ _fetchLinkPreviews(containerEl) {
     }
 
     if (!host || host.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
-    // Habitat fork: restored history is bottom-aligned, so reserve a card in the same
-    // paint as its message. A folded card needs only its header. A failed lookup
-    // releases the slot, respecting anyone who scrolled away in the meantime.
+    // Habitat fork: reserve only a previously measured card. An ordinary link may have no preview.
     let pending = null;
     const folded = this._embedFolded(url, slot);
     const height = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
-    if (restoring && (!heights || height > 0)) {
+    if (Number.isFinite(height) && height > 0) {
       pending = document.createElement('div');
       pending.className = 'link-preview link-preview--rich lp-pending' + (folded ? ' lp-collapsed' : '');
       pending.dataset.url = url;
       pending.dataset.previewSlot = slot;
       pending.setAttribute('aria-hidden', 'true');
-      if (Number.isFinite(height)) pending.style.height = height + 'rem';
-      else pending.innerHTML = '<div class="lp-content"><div class="lp-media"></div></div>';
+      pending.style.height = height + 'rem';
       host.appendChild(pending);
       reserved = true;
     }

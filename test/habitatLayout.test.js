@@ -280,7 +280,7 @@ function buildApp({ desktop = true, phone = false, lang = 'en', layoutOn = '1', 
   voiceBar.style.display = 'none';
   const footer = region(doc, 'sidebar-footer', [el(doc, 'div', { id: 'theme-popup' }), voiceBar, actions]);
   const navigation = region(doc, 'navigation-sidebar', [header, content, footer], 'aside');
-  const voiceControls = region(doc, 'voice-controls');
+  const voiceControls = region(doc, 'voice-controls', [button('voice-leave-sidebar-btn', 'Disconnect')]);
   voiceControls.style.setProperty('position', 'absolute');
   const context = region(doc, 'context-sidebar', [
     region(doc, 'voice-roster'),
@@ -867,7 +867,7 @@ test('join handles code refusal, rotation and the two server invite receipts', (
   a.code.value = 'deadbeef';
   a.join.fire('submit');
   assert.equal(a.join.querySelector('[type="submit"]').textContent, 'Joining…');
-  a.socket.emit('channel-joined', { code: 'another' });
+  a.socket.emit('user-joined', { user: { id: 23 }, channelCode: 'another' });
   assert.ok(!a.dialog.hidden);
   a.socket.emit('error-msg', 'Invalid channel code. Double-check it');
   assert.equal(a.join.querySelector('[role="alert"]').textContent, 'Invalid channel code. Double-check it');
@@ -875,7 +875,7 @@ test('join handles code refusal, rotation and the two server invite receipts', (
   assert.equal(a.doc.activeElement, a.code);
   assert.equal(a.code.value, 'deadbeef');
   a.join.fire('submit');
-  a.socket.emit('user-joined', { user: { id: 17 }, channelCode: 'feedcafe' });
+  // A role-gated joiner receives only the private receipt with the rotated code.
   a.socket.emit('channel-joined', { code: 'feedcafe' });
   assert.ok(a.dialog.hidden);
   for (const [event, receipt] of [['toast', { message: 'Invite accepted: joined 2 channels', type: 'success' }],
@@ -1427,7 +1427,9 @@ for (const desktop of [true, false]) {
     const more = doc.querySelector('[data-habitat-call-more]');
     const menu = doc.getElementById('habitat-menu-call');
     assert.equal(more.parentNode, desktop ? stage.querySelector('[data-habitat-stage-controls]') : voiceControls);
-    assert.equal(more.parentNode.children.at(-1), more);
+    const leave = more.parentNode.children.at(-1);
+    assert.equal(leave.getAttribute('data-habitat-for') || leave.id, desktop ? 'voice-bar-leave-btn' : 'voice-leave-sidebar-btn');
+    assert.equal(more.nextSibling, leave);
     const settings = doc.querySelector('[data-haven-region="voice-settings"]');
     assert.equal(settings.parentNode, area);
     const hits = [];
@@ -1440,7 +1442,7 @@ for (const desktop of [true, false]) {
     const gear = action(voiceControls, { id: 'voice-settings-toggle' });
     gear.style.display = 'none';
     settings.style.display = 'none';
-    gear.addEventListener('click', () => { settings.style.display = ''; });
+    gear.addEventListener('click', () => { settings.style.display = settings.style.display === 'none' ? '' : 'none'; });
     const sound = action(voiceControls, { id: 'voice-soundboard-btn' });
     const listen = action(voiceControls, { id: 'voice-listen-together-btn' });
     const camera = tile('webcam-tile-1', 'webcam-tile');
@@ -1451,7 +1453,7 @@ for (const desktop of [true, false]) {
     const pop = action(camera, { class: 'stream-popout-btn' });
     for (const id of ['a', 'b']) shares.appendChild(tile(id, 'screen-share-tile'));
     settle();
-    const pick = name => {
+    const pick = (name, focus = more) => {
       more.click();
       const row = menu.querySelector(`[aria-label="${name}"]`);
       assert.ok(row, name);
@@ -1459,7 +1461,7 @@ for (const desktop of [true, false]) {
       row.click();
       menu.fire('click', { target: row }); // bubble in the DOM double
       assert.ok(menu.hidden);
-      assert.equal(doc.activeElement, more);
+      assert.equal(doc.activeElement, focus);
     };
     more.click();
     assert.equal(doc.activeElement.getAttribute('aria-label'), 'Voice settings');
@@ -1474,8 +1476,13 @@ for (const desktop of [true, false]) {
     doc.fire('pointerdown', { target: area });
     assert.ok(menu.hidden);
     assert.equal(doc.activeElement, more);
-    pick('Voice settings');
+    const heading = settings.querySelector('[data-habitat-call-settings-heading]');
+    const close = heading.querySelector('button');
+    pick('Voice settings', close);
     assert.equal(settings.style.display, '');
+    close.click();
+    assert.equal(settings.style.display, 'none');
+    assert.equal(doc.activeElement, more);
     pick('Soundboard');
     pick('Listen together');
     pick('Pop out camera for Deniz');
@@ -1487,7 +1494,7 @@ for (const desktop of [true, false]) {
     doc.body.appendChild(overlay);
     const popIn = action(overlay, { class: 'stream-pip-popin' });
     pick('Return camera for Deniz');
-    assert.deepEqual(hits, [gear, sound, listen, pop, pop, popIn]);
+    assert.deepEqual(hits, [gear, gear, sound, listen, pop, pop, popIn]);
     pick('Connection details');
     assert.equal(doc.querySelector('[data-habitat-connection]').hidden, false);
     pick('Show every shared screen together');

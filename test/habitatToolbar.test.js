@@ -77,15 +77,25 @@ test('changing slots preserves the displayed migrated order, and reorder and res
   assert.equal(stored.get(slotsKey), '5', 'the existing reset button resets the order');
 });
 
-test('returning the legacy slider to three resolves both the displayed and rendered order', () => {
+test('explicitly saving three slots preserves the legacy order in the picker and renderer', () => {
   const { app, document } = setup(legacy, '4');
   const slider = document.getElementById('toolbar-visible-slots');
   slider.value = '3';
   // The fixture keeps children when innerHTML is cleared, so inspect the latest redraw.
   slider.dispatch('change');
   const rows = document.getElementById('toolbar-order-list').children.slice(-defaults.length);
-  assert.deepEqual(rows.map(row => row.innerHTML.match(/data-key="([^"]+)"/)[1]), defaults);
-  assert.deepEqual([...app._toolbarPreferences().order], defaults);
+  assert.deepEqual(rows.map(row => row.innerHTML.match(/data-key="([^"]+)"/)[1]), legacy);
+  assert.deepEqual([...app._toolbarPreferences().order], legacy);
+});
+
+test('moving Edit back to its old position is an explicit choice even with three slots', () => {
+  const { app, document, writes } = setup(legacy, '3');
+  const list = document.getElementById('toolbar-order-list');
+  for (let position = defaults.indexOf('edit'); position < legacy.indexOf('edit'); position++) {
+    list.dispatch('click', { target: { closest: () => ({ dataset: { key: 'edit', dir: 'down' } }) } });
+  }
+  assert.deepEqual([...app._toolbarPreferences().order], legacy);
+  assert.equal(writes.filter(key => key === 'haven-toolbar-migrated').length, 1);
 });
 
 test('message markup and picker share the order, reserving unavailable default slots only', () => {

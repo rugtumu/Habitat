@@ -70,7 +70,7 @@ test('Haven Glyphs scopes hosts and protects user content', () => {
     '.music-pip-label-icon', '.music-pip-vol-icon', '.viewer-eye',
     '.organize-tag-icon', '.thread-mention-badge', '.import-channel-type-icon',
     '.connectivity-test-icon', '.wizard-check', '.file-type-icon',
-    '#section-score-badges > .settings-hint', '.role-tpl-emoji',
+    '#section-score-badges > .settings-hint', '#section-content-privacy > .settings-hint', '.role-tpl-emoji',
     '.connection-icon', '.stream-size-label',
     '[data-i18n-title="modals.game_overlay.volume_label"]'
   ];

@@ -79,11 +79,11 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   const link = { href: 'https://example.test/link', dataset: {}, closest: () => host };
   const container = { id: 'messages', querySelectorAll: () => [link] };
   let finish, scrolls = 0, requests = 0;
-  const app = view({ _fetchLinkPreviews: m._fetchLinkPreviews, _restoredPreviewHeights: () => null, _coupledToBottom: true, _scrollToBottom: () => scrolls++,
+  const app = view({ _fetchLinkPreviews: m._fetchLinkPreviews, _restoredPreviewHeights: () => ({ '42/0/false': 20 }), _coupledToBottom: true, _scrollToBottom: () => scrolls++,
     _linkPreviewData() { requests++; return new Promise(resolve => { finish = resolve; }); } });
   app._fetchLinkPreviews(container);
   assert.match(host.card.className, /lp-pending/);
-  assert.match(host.card.innerHTML, /class="lp-media"/);
+  assert.equal(host.card.style.height, '20rem');
   assert.equal(host.card['aria-hidden'], 'true');
   assert.equal(scrolls, 1);
   app._fetchLinkPreviews(container);
@@ -110,6 +110,16 @@ test('bottom-coupled history reserves a single slot before metadata and keeps th
   await settle();
   assert.equal(scrolls, 4, 'successful metadata also respects someone who has scrolled away');
   assert.equal(host.card.style['--lp-image-ratio'], undefined, 'no dimensions uses the CSS fallback');
+  app._coupledToBottom = true;
+  for (const heights of [null, {}, { '42/1/false': 20 }, { '43/0/false': 20 }]) {
+    host.card = null;
+    app._restoredPreviewHeights = () => heights;
+    app._fetchLinkPreviews(container);
+    assert.equal(host.card, null, 'an unmeasured link takes no space while pending');
+    finish({ title: 'Article' });
+    await settle();
+    assert.match(host.card.innerHTML, /Article/);
+  }
 });
 
 test('a restored feed reuses measured card heights only for the same conversation and size', () => {

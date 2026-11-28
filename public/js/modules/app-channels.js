@@ -84,17 +84,29 @@ _rememberConversation(channel) {
   } catch { /* Storage is optional for navigation. */ }
 },
 
-_restoreConversation() {
+_restoreConversation(expectedId) {
   if (this.currentChannel || this._activeDMPip || this.user?.id == null || this.user.isGuest) return;
   let id;
   try {
     if (sessionStorage.getItem('haven_pending_invite') || sessionStorage.getItem('haven_pending_channel')) return;
     id = localStorage.getItem('habitat_last_conversation_' + this.user.id);
   } catch { return; }
-  if (id === null) return;
+  if (id === null || (expectedId !== undefined && id !== expectedId)) return;
+  // Habitat fork: both surfaces mark the conversation read. Recheck the saved choice and pending navigation when visible.
+  if (document.visibilityState !== 'visible') {
+    const userId = this.user.id;
+    const whenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      document.removeEventListener('visibilitychange', whenVisible);
+      if (this.user?.id === userId) this._restoreConversation(id);
+    };
+    document.addEventListener('visibilitychange', whenVisible);
+    return;
+  }
   const channel = this.channels.find(ch => String(ch.id) === id);
-  if (channel) this.switchChannel(channel.code);
-  else this._rememberConversation(null);
+  if (!channel) this._rememberConversation(null);
+  else if (channel.is_dm && !this._dmOpensInMain()) this._openDMPiP(channel.code);
+  else this.switchChannel(channel.code);
 },
 
 // Habitat fork: the first page may arrive before a loading label would be useful.

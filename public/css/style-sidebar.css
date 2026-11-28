@@ -927,6 +927,10 @@ html[data-habitat-boot] :is(#fx-layers, #status-bar-toggle, #sidebar-toggle-btn,
 @media (min-width: 769px) {
   .channel-header { flex-wrap: wrap; row-gap: 0.5rem; justify-content: flex-start; }
   .channel-info { min-width: 4.5rem; }
+  /* Habitat fork: a second row would overlap the topic below the fixed header. */
+  html:is([data-habitat-boot], [data-habitat-layout]) [data-haven-region="channel-header"] {
+    flex-wrap: nowrap; overflow: hidden;
+  }
 }
 
 /* ── Header actions box (code/settings | search/pin) ── */

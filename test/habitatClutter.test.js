@@ -109,6 +109,8 @@ test('Habitat reserves the channel header during boot and after the layout engag
   const selector = 'html:is([data-habitat-boot], [data-habitat-layout]) [data-haven-region="channel-header"]';
   const headers = css.split(selector).slice(1).map(part => part.split('}')[0]);
   assert.match(headers[0], /box-sizing: border-box; height: 3\.8125rem; flex: none/);
+  assert.match(headers[2], /flex-wrap: nowrap; overflow: hidden;/);
+  assert.match(CSS, /\.channel-header:has\(details\[open\]\).*overflow: visible/);
   assert.match(headers[1], /height: calc\(3\.25rem \+ var\(--safe-top/);
 });
 

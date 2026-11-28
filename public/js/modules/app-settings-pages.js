@@ -1,22 +1,20 @@
-// Habitat fork: group related sections so members can reach them from one settings page.
-// Five member pages and four admin pages. The order of sections on a page is
-// their order in app.html; this map only says which page shows them. The
-// account sections sit on the last page so that opening Settings does not ask
-// the server for sessions, two-factor state and recovery codes every time.
+// Habitat fork: five member pages and four admin pages keep related settings together.
+// The map orders jump links. The sections themselves follow their order in app.html.
+// Account comes last so opening Settings does not fetch sessions, two-factor state and recovery codes.
 const SETTINGS_PAGES = {
   user: [
     // The two desktop sections are hidden in a browser and simply do not show.
-    ['look', '🎨', 'settings.pages.interface', 'Interface & accessibility', ['section-language', 'section-layout', 'section-zoom', 'section-role-display', 'section-toolbar-icons', 'section-banner-display', 'section-toggle-style', 'section-plugins', 'section-desktop-shortcuts', 'section-desktop-app', 'section-debug']],
-    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-reaction-size', 'section-image-display', 'section-embed-size', 'section-chat-behavior', 'section-score-badges']],
+    ['look', '🎨', 'settings.pages.interface', 'Interface & accessibility', ['section-layout', 'section-toolbar-icons', 'section-banner-display', 'section-role-display', 'section-zoom', 'section-toggle-style', 'section-language', 'section-plugins', 'section-desktop-shortcuts', 'section-desktop-app', 'section-debug']],
+    ['chat', '💬', 'settings.pages.chat', 'Chat & media', ['section-chat-behavior', 'section-image-display', 'section-embed-size', 'section-reaction-size', 'section-content-privacy', 'section-score-badges']],
     ['voice', '🎧', 'settings.pages.voice', 'Voice & video', ['section-call-settings']],
-    ['alerts', '🔔', 'settings.pages.alerts', 'Notifications', ['section-whats-new', 'section-sounds', 'section-push']],
-    ['profile', '👤', 'settings.pages.account', 'Profile & account', ['section-activity', 'section-password', 'section-e2e-passphrase', 'section-sessions', 'section-2fa', 'section-recovery', 'section-delete-account']]
+    ['alerts', '🔔', 'settings.pages.alerts', 'Notifications', ['section-sounds', 'section-push', 'section-whats-new']],
+    ['profile', '👤', 'settings.pages.account', 'Profile & account', ['section-activity', 'section-password', 'section-2fa', 'section-recovery', 'section-sessions', 'section-e2e-passphrase', 'section-delete-account']]
   ],
   admin: [
     ['server', '🏠', 'settings.pages.server_channels', 'Server & channels', ['section-branding', 'section-channel-types', 'section-presence', 'section-custom-tos', 'section-modmode']],
     ['people', '👥', 'settings.pages.people_safety', 'People & safety', ['section-members', 'section-roles', 'section-badges', 'section-moderation', 'section-security', 'section-automod', 'section-whitelist', 'section-invite', 'section-guests', 'section-audit-log']],
     ['content', '😎', 'settings.pages.content_integrations', 'Content & integrations', ['section-emojis', 'section-stickers', 'section-gifs', 'section-sounds-admin', 'section-uploads', 'section-tags-admin', 'section-bots', 'section-ferry', 'section-import']],
-    ['network', '🛠️', 'settings.pages.operations', 'Operations', ['section-update', 'section-extension-updates', 'section-connectivity', 'section-large-server', 'section-tunnel', 'section-backup', 'section-template', 'section-cleanup']]
+    ['network', '🛠️', 'settings.pages.operations', 'Operations', ['section-update', 'section-extension-updates', 'section-connectivity', 'section-privacy', 'section-large-server', 'section-tunnel', 'section-backup', 'section-template', 'section-cleanup']]
   ]
 };
 export default {

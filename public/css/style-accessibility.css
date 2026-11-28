@@ -109,6 +109,15 @@
 :root[data-text-size]:not([data-text-size="100"])[data-density="spacious"] .message-content { font-size: calc(0.9375rem * var(--msg-text-scale, 1)) !important; }
 :root[data-text-size]:not([data-text-size="100"]) .dm-pip-messages .message-content { font-size: calc(0.8125rem * var(--msg-text-scale, 1)) !important; }
 :root[data-text-size]:not([data-text-size="100"]) .dm-pip-input { font-size: calc(0.8125rem * var(--msg-text-scale, 1)) !important; }
+/* Habitat fork: Safari zooms focused fields below 16 CSS pixels, including at reduced interface zoom. */
+@media (max-width: 768px) {
+  :root :is([data-habitat-dialog] input, [data-habitat-dialog] select, #quick-switcher-input) {
+    font-size: max(1rem, 16px);
+  }
+  :root[data-haven-page="app"] :is(#thread-input, #dm-pip-input, .thread-input, .dm-pip-input) {
+    font-size: max(1rem, 16px, calc(.8125rem * var(--msg-text-scale, 1))) !important;
+  }
+}
 @media (max-width: 480px) {
   /* Never under 1rem on phones, or iOS zooms the page in on focus. */
   :root[data-text-size]:not([data-text-size="100"]) .message-input-area textarea { font-size: max(1rem, calc(0.875rem * var(--msg-text-scale, 1))) !important; }
