@@ -73,14 +73,16 @@ badge run `node scripts/habitat-icons.js`; never edit between the
   panels dissolve with `display: contents` and each of Haven's own tiles is
   given a grid cell; tiles are never rebuilt or re-parented one by one, so
   their buttons and handlers keep working. `HabitatLayout.stageGrid` picks the
-  tile size. Haven writes sizes and `display` inline on those panels, which is
+  tile size. Enter and Space enlarge a tile, Escape returns to the grid, and a
+  camera with its owner's name plate has one enlargement tab stop. Haven writes sizes and `display` inline on those panels, which is
   why the stage carries four `!important` rules; the layout test lists them.
 - Haven redraws every voice row when anyone's state changes. Anything that
   should happen once per person (the join and leave effects, the avatars on
   the stage) is keyed by who is there, never by which element is new.
-- The buttons on the stage (`[data-habitat-stage-controls]`) are stand-ins:
-  they click the real button and copy its icon, name and state. Do not move
-  the real ones there.
+- Desktop call controls mirror Haven's real buttons, including availability.
+  More opens call settings, connection details, Soundboard, Listen Together
+  and actions for the pictures on stage. On compact layouts More follows the
+  real controls under the stage. Voice settings open below the stage in both shapes.
 
 - A server banner larger than a 4K frame is shown, and uploaded, as a copy
   scaled down to one (`_showBanner` and `_bannerCopy` in

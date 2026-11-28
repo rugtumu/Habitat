@@ -626,6 +626,72 @@ class HabitatLayout {
     return best;
   }
 
+  _placeCallPopup(panel, button) {
+    const anchor = button.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const gap = rem / 2;
+    const clamp = (value, max) => Math.max(gap, Math.min(value, max - gap));
+    const above = anchor.top - box.height - gap;
+    panel.style.left = clamp(anchor.right - box.width, window.innerWidth - box.width) / rem + 'rem';
+    panel.style.top = clamp(above >= gap ? above : anchor.bottom + gap, window.innerHeight - box.height) / rem + 'rem';
+  }
+
+  _buildStageMenu(button, stage, spread, showGrid) {
+    const menu = this._newMenu(document.body, 'call');
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', this._text('callActions'));
+    const actions = new WeakMap();
+    this._on(menu, 'click', event => {
+      const row = event.target.closest?.('button');
+      if (row && !row.disabled && !menu.hidden) actions.get(row)?.();
+    });
+    const add = (name, icon, action, disabled = false) => {
+      const row = this._make('button', {
+        type: 'button', role: 'menuitem', tabindex: '-1', 'aria-label': name, 'data-habitat-label': name
+      }, menu);
+      row.textContent = icon;
+      row.disabled = disabled;
+      actions.set(row, action);
+    };
+    this._bindMenu(button, menu, () => {
+      menu.replaceChildren();
+      const forward = (id, key, icon) => {
+        const source = document.getElementById(id);
+        if (source) add(this._text(key), icon, () => source.click(), source.disabled || source.getAttribute('aria-disabled') === 'true');
+      };
+      forward('voice-settings-toggle', 'voiceSettings', '⚙');
+      if (this._openConnection) add(this._text('connection'), 'ⓘ', () => this._openConnection(button));
+      forward('voice-soundboard-btn', 'soundboard', '♫');
+      forward('voice-listen-together-btn', 'listenTogether', '♪');
+      if (stage.hasAttribute('data-habitat-focus')) add(this._text('showGrid'), '⊞', showGrid);
+      if (!spread.hidden && spread.getAttribute('aria-pressed') !== 'true') add(this._text('sideBySide'), '◫', () => spread.click());
+      const cameras = stage.querySelectorAll('.webcam-tile');
+      const shares = [...stage.querySelectorAll('.screen-share-tile')].filter(tile => tile.getAttribute('data-hidden') !== 'true');
+      for (const tile of [...cameras, ...shares]) {
+        const popped = tile.matches('.stream-popped-out, .webcam-popped-out');
+        const camera = tile.matches('.webcam-tile');
+        let popout = tile.querySelector('.stream-popout-btn');
+        if (popped && document.pictureInPictureElement !== tile.querySelector('video')) {
+          const overlay = tile.id.replace(camera ? 'webcam-tile-' : 'screen-tile-', camera ? 'webcam-pip-' : 'stream-pip-');
+          popout = document.getElementById(overlay)?.querySelector('.stream-pip-popin');
+        }
+        const name = tile.querySelector('.webcam-tile-label, .screen-share-tile-label')?.textContent;
+        const key = popped ? (camera ? 'returnCamera' : 'returnScreen') : (camera ? 'popCamera' : 'popScreen');
+        if (popout) add(this._text(key).replace('{name}', () => name || this._text('participant')), '⧉', () => popout.click(), popout.disabled);
+      }
+      if (cameras.length) forward('webcam-close-btn', 'closeCameras', '×');
+      if (shares.length) {
+        const voice = window.app?.voice;
+        // Only the mesh minimise handler hides the tiles themselves. On the relay it hides the dissolved panel.
+        if (voice?.inVoice && !voice._relay && voice._callTransport !== 'relay') forward('screen-share-minimize', 'minimizeStreams', '−');
+        forward('screen-share-close', 'closeStreams', '×');
+      }
+      this._placeCallPopup(menu, button);
+    });
+    return menu;
+  }
+
   // One grid holds everyone in the call. Haven keeps people, cameras and
   // screen shares in three separate boxes that stack and scroll; here the
   // boxes dissolve and every tile is given a cell, so a camera fills its
@@ -666,6 +732,10 @@ class HabitatLayout {
     let cast = null;       // what was on the stage at the last arrangement: tile -> its row and where it sat
     let lastSize = '';     // the stage's own size then, to tell a regrouping from a window being resized
     const glides = new WeakMap();
+    let keyboardRow = null;
+    this._on(document, 'focusin', event => {
+      keyboardRow = stage.contains(event.target) && event.target.matches('.voice-user-item[tabindex="0"]') ? event.target : null;
+    });
     // Alone in a room, the stage says so and offers the way to bring people in.
     const alone = this._make('div', { 'data-habitat-alone': '', hidden: '' }, stage);
     this._make('strong', {}, alone).textContent = this._text('aloneTitle');
@@ -685,20 +755,38 @@ class HabitatLayout {
     // copies its icon, name and state: nothing is moved, and there is still
     // one place that decides. A phone has the real row under the stage.
     const proxies = [];
+    const controls = mode === 'desktop'
+      ? this._make('div', { 'data-habitat-stage-controls': '', role: 'group' }, stage) : this._region('voice-controls');
     if (mode === 'desktop') {
-      const controls = this._make('div', { 'data-habitat-stage-controls': '', role: 'group' }, stage);
       for (const id of ['voice-mute-btn', 'voice-deafen-btn', 'voice-cam-btn', 'screen-share-btn', 'voice-bar-leave-btn']) {
         const proxy = this._make('button', { type: 'button', 'data-habitat-for': id }, controls);
-        this._on(proxy, 'click', () => document.getElementById(id)?.click());
+        this._on(proxy, 'click', () => { if (!proxy.disabled && !proxy.hidden) document.getElementById(id)?.click(); });
         proxies.push(proxy);
       }
       proxies[4].appendChild(this._icon('M3.5 14.5c5-4.5 12-4.5 17 0l-1.8 2.6-3.7-1.4v-2.2c-2-.6-4-.6-6 0v2.2l-3.7 1.4z'));
     }
+    const more = this._make('button', {
+      type: 'button', class: 'voice-panel-btn', 'data-habitat-call-more': '', 'aria-haspopup': 'menu',
+      'aria-label': this._text('callActions'), title: this._text('callActions')
+    });
+    more.appendChild(this._icon('M6 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM18 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z'));
+    const showGrid = () => {
+      focusKey = null;
+      autoFocus = false;
+      spread = false;
+      arrange();
+    };
+    const menu = this._buildStageMenu(more, stage, spreadButton, showGrid);
     const mirror = () => {
       for (const proxy of proxies) {
         const real = document.getElementById(proxy.getAttribute('data-habitat-for'));
-        proxy.hidden = !real;
+        proxy.hidden = !real || real.hidden || real.getAttribute('aria-hidden') === 'true'
+          || !real.getClientRects().length || getComputedStyle(real).visibility === 'hidden';
         if (!real) continue;
+        const ariaDisabled = real.getAttribute('aria-disabled');
+        proxy.disabled = real.disabled || ariaDisabled === 'true';
+        if (ariaDisabled === null) proxy.removeAttribute('aria-disabled');
+        else proxy.setAttribute('aria-disabled', ariaDisabled);
         const name = real.getAttribute('title') || real.getAttribute('aria-label') || real.textContent.trim();
         if (proxy.getAttribute('aria-label') !== name) {
           proxy.setAttribute('aria-label', name);
@@ -746,10 +834,29 @@ class HabitatLayout {
     const flag = (part, name, on) => {
       if (on) part.setAttribute(name, ''); else part.removeAttribute(name);
     };
+    const tileStyles = new WeakMap();
+    const tileAttrs = new WeakMap();
+    const rowTitles = new WeakMap();
+    const restoreTile = part => {
+      for (const [name, value] of tileAttrs.get(part) || []) {
+        if (value === null) part.removeAttribute(name); else part.setAttribute(name, value);
+      }
+      tileAttrs.delete(part);
+    };
     const unmark = (part) => {
-      for (const name of ['grid-area', 'left', 'top', 'width', 'height']) part.style.removeProperty(name);
+      for (const [name, value, priority] of tileStyles.get(part) || []) {
+        if (value) part.style.setProperty(name, value, priority); else part.style.removeProperty(name);
+      }
+      tileStyles.delete(part);
       for (const name of marks) part.removeAttribute(name);
-      if (part.matches('.voice-user-item')) part.removeAttribute('title');
+      part.removeAttribute('data-habitat-enter');
+      glides.get(part)?.cancel();
+      restoreTile(part);
+      if (rowTitles.has(part)) {
+        const title = rowTitles.get(part);
+        if (title === null) part.removeAttribute('title'); else part.setAttribute('title', title);
+        rowTitles.delete(part);
+      }
       if (part.getAttribute('style') === '') part.removeAttribute('style');
     };
     // Shares first, then each person with their camera, then a camera whose
@@ -818,6 +925,21 @@ class HabitatLayout {
       const put = (slot, cell, box = {}) => {
         for (const part of slot.parts) {
           now.add(part);
+          if (!tileStyles.has(part)) tileStyles.set(part, ['grid-area', 'left', 'top', 'width', 'height']
+            .map(name => [name, part.style.getPropertyValue(name), part.style.getPropertyPriority(name)]));
+          // The camera and its name plate form one tile. Only its picture takes a tab stop.
+          if (part === slot.parts[0]) {
+            if (!tileAttrs.has(part)) tileAttrs.set(part, ['tabindex', 'role', 'aria-label', 'aria-pressed']
+              .map(name => [name, part.getAttribute(name)]));
+            const name = slot.row?.querySelector('.user-item-name')?.textContent
+              || part.querySelector('.webcam-tile-label, .screen-share-tile-label')?.textContent || this._text('participant');
+            const key = slot.share ? 'enlargeScreen' : part === slot.row ? 'enlargePerson' : 'enlargeCamera';
+            const canEnlarge = !slot.away && all.length > 1;
+            part.setAttribute('role', canEnlarge ? 'button' : 'group');
+            part.setAttribute('tabindex', '0');
+            if (canEnlarge) part.setAttribute('aria-pressed', String(!cell)); else part.removeAttribute('aria-pressed');
+            part.setAttribute('aria-label', canEnlarge ? this._text(key).replace('{name}', () => name) : name);
+          } else restoreTile(part);
           if (cell) part.style.setProperty('grid-area', cell); else part.style.removeProperty('grid-area');
           for (const side of ['left', 'top', 'width', 'height']) {
             if (side in box) part.style.setProperty(side, `${(box[side] / rem).toFixed(3)}rem`);
@@ -828,6 +950,7 @@ class HabitatLayout {
           flag(part, 'data-habitat-paired', part === slot.camera);
         }
         if (!slot.row) return;
+        if (!rowTitles.has(slot.row)) rowTitles.set(slot.row, slot.row.getAttribute('title'));
         const name = dense && cell ? slot.row.querySelector('.user-item-name')?.textContent.trim() : '';
         if (name) slot.row.setAttribute('title', name); else slot.row.removeAttribute('title');
       };
@@ -851,6 +974,11 @@ class HabitatLayout {
       }));
       for (const part of placed) if (!now.has(part)) unmark(part);
       placed = now;
+      if (keyboardRow && !now.has(keyboardRow) && document.activeElement === document.body) {
+        const replacement = all.find(slot => slot.row?.dataset.userId === keyboardRow.dataset.userId)?.parts[0];
+        keyboardRow = null;
+        if (replacement?.getAttribute('tabindex') === '0') replacement.focus({ preventScroll: true });
+      }
       // A newcomer's tile settles in, and the tile of someone who left stays
       // where it was for the length of a fade. Haven redraws every row when
       // anyone's state changes, so only a person new to the call, or gone
@@ -929,21 +1057,31 @@ class HabitatLayout {
       width: 'auto', 'max-width': 'none', transform: 'none', 'z-index': 'auto', resize: 'none'
     };
     let docked = [];
+    let settingsWereHidden = false;
     const dockBar = (on) => {
-      const controls = this._region('voice-controls');
-      if (on && mode === 'compact' && controls && controls.parentNode !== area) {
+      if (on) {
+        controls?.appendChild(more);
         const settings = this._region('voice-settings');
-        const inline = Object.keys(barStyle).map(name =>
-          [name, controls.style.getPropertyValue(name), controls.style.getPropertyPriority(name)]);
-        for (const piece of [settings, controls]) {
+        settingsWereHidden = settings?.style.display === 'none';
+        const row = mode === 'compact' ? controls : null;
+        const inline = row ? Object.keys(barStyle).map(name =>
+          [name, row.style.getPropertyValue(name), row.style.getPropertyPriority(name)]) : [];
+        for (const piece of [row, settings]) {
           if (!piece) continue;
-          docked.push([piece, piece.parentNode, piece.nextSibling, piece === controls ? inline : []]);
+          docked.push([piece, piece.parentNode, piece.nextSibling, piece === row ? inline : []]);
           area.insertBefore(piece, stage.nextSibling);
         }
-        if (settings) area.insertBefore(settings, controls);
-        for (const [name, value] of Object.entries(barStyle)) controls.style.setProperty(name, value, 'important');
-        controls.setAttribute('data-habitat-call-bar', '');
-      } else if (!on) {
+        if (row) {
+          for (const [name, value] of Object.entries(barStyle)) row.style.setProperty(name, value, 'important');
+          row.setAttribute('data-habitat-call-bar', '');
+        }
+      } else {
+        menu.hidden = true;
+        more.setAttribute('aria-expanded', 'false');
+        this._closeCallConnection?.();
+        more.remove();
+        const settings = this._region('voice-settings');
+        if (settingsWereHidden && settings && settings.style.display !== 'none') document.getElementById('voice-settings-toggle')?.click();
         for (const [piece, parent, next, inline] of docked.reverse()) {
           for (const [name, value, priority] of inline) {
             if (value) piece.style.setProperty(name, value, priority); else piece.style.removeProperty(name);
@@ -987,14 +1125,16 @@ class HabitatLayout {
         focusKey = null; autoFocus = true; shareCount = 0; spread = false; cast = null; lastSize = '';
         if (proxies.length) {
           this._controlsObserver = new MutationObserver(mirror);
+          this._controlsObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-habitat-layout', 'data-habitat-in-voice'] });
           for (const home of [document.querySelector('[data-habitat-tools]'), this._region('voice-controls'), document.getElementById('voice-bar')]) {
-            if (home) this._controlsObserver.observe(home, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'title'] });
+            if (home) this._controlsObserver.observe(home, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'title', 'aria-label', 'disabled', 'aria-disabled', 'hidden', 'aria-hidden'] });
           }
           mirror();
         }
         dockBar(true);
         arrange();
       } else {
+        keyboardRow = null;
         this._stageObserver?.disconnect();
         this._stageSize?.disconnect();
         this._controlsObserver?.disconnect();
@@ -1021,18 +1161,33 @@ class HabitatLayout {
     };
     // A click on a tile enlarges it; a click on the large tile puts it back.
     // Controls inside a tile, and a tile shown fullscreen, keep their own clicks.
-    this._on(stage, 'click', (event) => {
-      const tile = event.target.closest?.('.screen-share-tile, .webcam-tile, .voice-user-item');
-      if (!tile || document.fullscreenElement) return;
-      if (event.target.closest('button, input, a, label, .user-item-name, .voice-stream-badge, .stream-audio-controls, .fullscreen-call-toolbar')) return;
+    const toggleTile = tile => {
       const slot = slots().find(item => item.parts.includes(tile));
-      if (!slot) return;
+      if (!slot || slot.away) return;
       const focused = tile.hasAttribute('data-habitat-focused');
       // From side by side, a click keeps the one that was clicked.
       focusKey = focused && !spread ? null : slot.key;
       if (focused && !spread) autoFocus = false;
       spread = false;
       arrange();
+    };
+    this._on(stage, 'click', event => {
+      const tile = event.target.closest?.('.screen-share-tile, .webcam-tile, .voice-user-item');
+      if (!tile || document.fullscreenElement) return;
+      if (event.target.closest('button, input, a, label, .user-item-name, .voice-stream-badge, .stream-audio-controls, .fullscreen-call-toolbar')) return;
+      toggleTile(tile);
+    });
+    this._on(stage, 'keydown', event => {
+      if (document.fullscreenElement || event.defaultPrevented) return;
+      if (event.key === 'Escape' && stage.hasAttribute('data-habitat-focus')
+          && event.target.closest?.('.screen-share-tile, .webcam-tile, .voice-user-item')) {
+        showGrid();
+      } else if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('[tabindex="0"][aria-pressed]')
+          && event.target.matches('.screen-share-tile, .webcam-tile, .voice-user-item')) {
+        if (!event.repeat) toggleTile(event.target);
+      } else return;
+      event.preventDefault();
+      event.stopPropagation();
     });
     this._on(spreadButton, 'click', () => {
       spread = !spread;
@@ -1360,16 +1515,26 @@ class HabitatLayout {
       cells.server.textContent = window.location?.host || '–';
     };
     const place = () => {
+      panel.style.top = '';
       const box = bar.getBoundingClientRect();
       panel.style.setProperty('left', `${box.left + 8}px`);
       panel.style.setProperty('bottom', `${window.innerHeight - box.top + 8}px`);
       panel.style.setProperty('width', `${Math.max(box.width - 16, 200)}px`);
     };
-    const setOpen = (open) => {
+    let stageAnchor = null;
+    const setOpen = (open, anchor = null) => {
+      stageAnchor = open ? anchor : null;
       panel.hidden = !open;
       bar.querySelector('.voice-bar-status')?.setAttribute('aria-expanded', String(open));
-      if (open) { place(); draw(); }
+      if (stageAnchor) {
+        panel.style.bottom = 'auto';
+        panel.style.width = 'min(20rem, 95vw)';
+        this._placeCallPopup(panel, stageAnchor);
+        draw();
+      } else if (open) { place(); draw(); }
     };
+    this._openConnection = anchor => setOpen(true, anchor);
+    this._closeCallConnection = () => { if (stageAnchor) setOpen(false); };
     this._on(bar, 'click', (event) => {
       if (event.target.closest?.('.voice-bar-status')) setOpen(panel.hidden);
     });
@@ -1510,6 +1675,7 @@ class HabitatLayout {
       // Haven's tooltip borrows title on hover. Copy the current name before
       // focus moves, including a translation applied since the last opening.
       for (const row of menu.querySelectorAll('button')) {
+        if (row.getAttribute('role') === 'menuitem') continue;
         const name = row.getAttribute('aria-label') || row.title;
         if (labelled.has(row)) row.setAttribute('data-habitat-label', name || '');
         else {
@@ -1517,7 +1683,7 @@ class HabitatLayout {
           labelled.add(row);
         }
       }
-      const first = [...menu.querySelectorAll('button')].find(row => !row.hidden && row.getClientRects().length);
+      const first = [...menu.querySelectorAll('button')].find(row => !row.disabled && !row.hidden && row.getClientRects().length);
       first?.focus();
     };
     this._on(button, 'click', event => {
@@ -1527,6 +1693,15 @@ class HabitatLayout {
     }, true);
     this._on(document, 'focusin', event => {
       if (!menu.hidden && !menu.contains(event.target) && !button.contains(event.target)) close();
+    });
+    this._on(menu, 'keydown', event => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const rows = [...menu.querySelectorAll('button')].filter(row => !row.disabled && !row.hidden && row.getClientRects().length);
+      if (!rows.length) return;
+      event.preventDefault();
+      const index = rows.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : index + (event.key === 'ArrowDown' ? 1 : -1);
+      rows[(next + rows.length) % rows.length].focus();
     });
     this._on(menu, 'click', event => {
       if (!event.target.closest('button')) return;
@@ -2053,6 +2228,7 @@ class HabitatLayout {
     this._mediaObserver?.disconnect();
     this._closeStage?.();
     this._closeStage = null;
+    this._openConnection = this._closeCallConnection = null;
     this._selectList = null;
     this._badgeObserver?.disconnect();
     this._dmAvatarObserver?.disconnect();
@@ -2132,6 +2308,11 @@ HabitatLayout.TEXT = Object.freeze({
     serverActions: 'Server list actions', serverSettings: 'Server settings', createChannel: 'Create channel',
     notifications: 'Server notifications', topic: 'Set or edit topic', rotate: 'Rotate channel code',
     joinRoom: 'Join voice', moveMember: 'Move to voice channel…', permissions: 'Roles & permissions', speaking: 'Speaking', voiceRooms: 'Voice channels', emptyVoice: 'No voice channels yet.', addVoice: 'Create a voice channel',
+    callActions: 'More call actions', voiceSettings: 'Voice settings', soundboard: 'Soundboard', listenTogether: 'Listen together',
+    participant: 'Participant', enlargePerson: 'Enlarge tile for {name}', enlargeCamera: 'Enlarge camera for {name}',
+    enlargeScreen: 'Enlarge screen for {name}', popCamera: 'Pop out camera for {name}', popScreen: 'Pop out screen for {name}',
+    returnCamera: 'Return camera for {name}', returnScreen: 'Return screen for {name}', minimizeStreams: 'Minimize streams',
+    showGrid: 'Return to grid', closeCameras: 'Close cameras', closeStreams: 'Close streams',
     callView: 'Call view', find: 'Find a conversation', messages: 'Messages',
     tools: 'Channel actions', noDM: 'No conversations yet. Open a member’s profile to send a message.',
     roomEmpty: 'No one is here yet. Be the first in.', roomOne: '1 person is here', roomMany: '{n} people are here',
@@ -2164,6 +2345,11 @@ HabitatLayout.TEXT = Object.freeze({
     serverActions: 'Sunucu listesi işlemleri', serverSettings: 'Sunucu ayarları', createChannel: 'Kanal oluştur',
     notifications: 'Sunucu bildirimleri', topic: 'Kanal konusunu düzenle', rotate: 'Kanal kodunu yenile',
     joinRoom: 'Ses odasına katıl', moveMember: 'Ses odasına taşı…', permissions: 'Roller ve yetkiler', speaking: 'Konuşuyor', voiceRooms: 'Sesli odalar', emptyVoice: 'Henüz sesli oda yok.', addVoice: 'Sesli oda oluştur',
+    callActions: 'Diğer arama işlemleri', voiceSettings: 'Ses ayarları', soundboard: 'Ses panosu', listenTogether: 'Birlikte dinle',
+    participant: 'Katılımcı', enlargePerson: '{name} için kutucuğu büyüt', enlargeCamera: '{name} için kamerayı büyüt',
+    enlargeScreen: '{name} için ekranı büyüt', popCamera: '{name} için kamerayı ayrı pencerede aç', popScreen: '{name} için ekranı ayrı pencerede aç',
+    returnCamera: '{name} için kamerayı geri getir', returnScreen: '{name} için ekranı geri getir', minimizeStreams: 'Yayınları küçült',
+    showGrid: 'Izgaraya dön', closeCameras: 'Kameraları kapat', closeStreams: 'Yayınları kapat',
     callView: 'Arama görünümü', find: 'Sohbet bul', messages: 'Mesajlar',
     tools: 'Kanal işlemleri', noDM: 'Henüz sohbet yok. Mesaj göndermek için bir üyenin profilini aç.',
     roomEmpty: 'Henüz kimse yok. İlk sen katıl.', roomOne: '1 kişi burada', roomMany: '{n} kişi burada',
@@ -2395,7 +2581,7 @@ html[data-habitat-layout] [data-habitat-menu] button::after {
 html[data-habitat-layout]:has(#sidebar-invite-panel[style*="none"]) [data-habitat-menu] > #right-btn-invite-popout,
 [data-habitat-menu] > #right-btn-invite-popout::after { display: none; }
 #sidebar-invite-panel[data-habitat-emptied] { padding: 0; border: 0; }
-html[data-habitat-layout] [data-habitat-menu="rail"] {
+html[data-habitat-layout] :is([data-habitat-menu="rail"], [data-habitat-menu="call"]) {
   position: fixed; right: auto; width: min(14rem, 95vw); max-height: 90dvh; overflow: auto; z-index: 100001;
 }
 html[data-habitat-layout] [data-haven-region="account"] { position: relative; }
@@ -2684,6 +2870,12 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
   width: 100%; height: 100%; max-height: none !important; object-fit: cover;
 }
 [data-habitat-call-stage] .screen-share-tile > video { object-fit: contain; }
+[data-habitat-call-stage] :is(.voice-user-item, .webcam-tile, .screen-share-tile):focus-visible {
+  outline: .125rem solid var(--accent); outline-offset: -.1875rem;
+}
+[data-habitat-call-stage] + [data-haven-region="voice-settings"] {
+  max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain;
+}
 [data-habitat-call-stage] [data-habitat-focused] { position: absolute; z-index: 1; }
 [data-habitat-call-stage] > [data-habitat-leave] { position: absolute; z-index: 0; pointer-events: none; }
 [data-habitat-alone] {
@@ -2712,11 +2904,14 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-call-stage][data-habitat-focus] > [data-habitat-stage-controls] {
   bottom: calc(var(--hb-stage-pad) + var(--hb-tile-h, 0rem) + var(--hb-stage-gap) + .75rem);
 }
+[data-habitat-stage-controls]:has(> [aria-expanded="true"]),
 [data-habitat-call-stage]:is(:hover, :focus-within) > [data-habitat-stage-controls] { opacity: 1; pointer-events: auto; }
 [data-habitat-stage-controls] > button {
   display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0;
   border: 0; border-radius: 50%; color: var(--hb-on-media); background: var(--hb-on-media-fill); cursor: pointer;
 }
+html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: .45; cursor: default; }
+[data-habitat-stage-controls] > button:disabled { opacity: .45; cursor: default; scale: 1; }
 [data-habitat-stage-controls] > button[hidden] { display: none; }
 [data-habitat-stage-controls] > button[aria-pressed="true"] { color: var(--danger-text); background: var(--danger); }
 [data-habitat-stage-controls] > :is([data-habitat-for="voice-cam-btn"], [data-habitat-for="screen-share-btn"])[aria-pressed="true"] {

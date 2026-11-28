@@ -61,3 +61,73 @@ test('a card folded by hand stays folded whatever the settings say', () => {
   assert.equal(view({ _collapsedEmbeds: new Set(['u']), _openedEmbeds: new Set(['u']) })._embedFolded('u'), true);
   assert.equal(view()._embedFolded('u'), false);
 });
+
+test('bottom-coupled history reserves a single slot before metadata and keeps the image inside it', async () => {
+  const css = fs.readFileSync(path.join(ROOT, 'public/css/style-profile-servers-modals.css'), 'utf8');
+  const rules = selector => css.split(selector + ' {').at(-1).split('}')[0];
+  assert.match(rules('.embed-size-small .link-preview--rich .lp-media'), /max-height: 10rem/);
+  assert.match(css, /\.link-preview--rich \.lp-media\s*\{\s*width: 100%; aspect-ratio: var\(--lp-image-ratio, 16 \/ 9\); max-height: 32\.5rem/);
+  assert.match(css, /\.embed-size-medium \.link-preview--rich \.lp-media \{ max-height: 18\.75rem/);
+  assert.match(rules('.link-preview--rich .lp-media > .lp-image'), /position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain/);
+  const host = { isConnected: true, card: null, closest: () => ({ dataset: { msgId: 42 } }), querySelector() { return this.card; },
+    querySelectorAll() { return this.card ? [this.card] : []; }, appendChild(card) { this.card = card; } };
+  const dom = { ...globals.document, createElement: () => ({
+    dataset: {}, style: { setProperty(k, v) { this[k] = v; } }, setAttribute(k, v) { this[k] = v; },
+    replaceWith(card) { assert.equal(host.card, this); host.card = card; }, remove() { host.card = null; }
+  }) };
+  const m = load('app-link-previews.js', { ...globals, document: dom });
+  const link = { href: 'https://example.test/link', dataset: {}, closest: () => host };
+  const container = { id: 'messages', querySelectorAll: () => [link] };
+  let finish, scrolls = 0, requests = 0;
+  const app = view({ _fetchLinkPreviews: m._fetchLinkPreviews, _restoredPreviewHeights: () => null, _coupledToBottom: true, _scrollToBottom: () => scrolls++,
+    _linkPreviewData() { requests++; return new Promise(resolve => { finish = resolve; }); } });
+  app._fetchLinkPreviews(container);
+  assert.match(host.card.className, /lp-pending/);
+  assert.match(host.card.innerHTML, /class="lp-media"/);
+  assert.equal(host.card['aria-hidden'], 'true');
+  assert.equal(scrolls, 1);
+  app._fetchLinkPreviews(container);
+  assert.equal(requests, 1);
+  finish({ title: 'Picture', image: 'a.jpg', imageWidth: 800, imageHeight: 600 });
+  await settle();
+  assert.doesNotMatch(host.card.className, /lp-pending/);
+  assert.match(host.card.innerHTML, /class="lp-image".*loading="lazy"/);
+  assert.equal(host.card.style['--lp-image-ratio'], '800 / 600');
+  assert.equal(scrolls, 2);
+  host.card = null;
+  app._fetchLinkPreviews(container);
+  app._coupledToBottom = false;
+  finish(null);
+  await settle();
+  assert.equal(host.card, null);
+  assert.equal(scrolls, 3, 'a failed preview releases its space without scrolling the reader back');
+  app._coupledToBottom = true;
+  app._restoredPreviewHeights = () => ({ '42/0/false': 20 });
+  app._fetchLinkPreviews(container);
+  assert.equal(host.card.style.height, '20rem', 'a reload reserves the entire measured card before metadata');
+  app._coupledToBottom = false;
+  finish({ title: 'Picture', image: 'a.jpg' });
+  await settle();
+  assert.equal(scrolls, 4, 'successful metadata also respects someone who has scrolled away');
+  assert.equal(host.card.style['--lp-image-ratio'], undefined, 'no dimensions uses the CSS fallback');
+});
+
+test('a restored feed reuses measured card heights only for the same conversation and size', () => {
+  const stored = new Map(), events = new Map();
+  const methods = load('app-link-previews.js', { ...globals, document: { documentElement: { lang: 'en' } },
+    getComputedStyle: () => ({ fontSize: '16px' }),
+    sessionStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, data) => stored.set(key, data) },
+    window: { addEventListener: (name, cb) => events.set(name, cb) } });
+  const app = () => Object.assign(Object.create(methods), { currentChannel: 'room', channels: [{ id: 21, code: 'room' }], user: { id: 1 }, _embedSize: () => 'medium' });
+  const list = { clientWidth: 900, querySelectorAll: () => [{ offsetHeight: 320, dataset: { previewSlot: 0 },
+    closest: () => ({ dataset: { msgId: 42 } }), classList: { contains: () => false } }] };
+  assert.equal(app()._restoredPreviewHeights(list), null);
+  events.get('pagehide')();
+  const restored = app();
+  assert.equal(restored._restoredPreviewHeights(list)['42/0/false'], 20);
+  list.clientWidth = 375;
+  assert.equal(restored._restoredPreviewHeights(list), null);
+  list.clientWidth = 900;
+  restored.currentChannel = 'another room';
+  assert.equal(restored._restoredPreviewHeights(list), null);
+});

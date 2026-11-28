@@ -1341,7 +1341,7 @@ test('a profile picture of any shape fills the stage face instead of hanging out
 test('the stage carries stand-ins for the call buttons on a desktop, and they press the real ones', () => {
   const { doc, stage, layout } = buildCall();
   const group = stage.querySelector('[data-habitat-stage-controls]');
-  const names = group.children.map(button => button.getAttribute('data-habitat-for'));
+  const names = group.querySelectorAll('[data-habitat-for]').map(button => button.getAttribute('data-habitat-for'));
   assert.deepEqual(names, ['voice-mute-btn', 'voice-deafen-btn', 'voice-cam-btn', 'screen-share-btn', 'voice-bar-leave-btn']);
   const mute = doc.getElementById('voice-mute-btn');
   let pressed = 0;
@@ -1358,6 +1358,164 @@ test('the stage carries stand-ins for the call buttons on a desktop, and they pr
   assert.ok(!stage.hasAttribute('data-habitat-focus'), 'pressing one does not enlarge a tile');
   layout.stop();
   assert.equal(doc.querySelector('[data-habitat-stage-controls]'), null);
+});
+
+test('the stage mirrors native and ARIA availability, including a replacement source', () => {
+  const { doc, stage, layout } = buildCall();
+  const proxy = stage.querySelector('[data-habitat-for="voice-mute-btn"]');
+  const source = doc.getElementById('voice-mute-btn');
+  const tools = source.parentNode;
+  let clicks = 0;
+  source.click = () => clicks++;
+  source.disabled = true;
+  FakeMutationObserver.notify(tools);
+  proxy.fire('click');
+  assert.equal(proxy.disabled, true);
+  source.disabled = false;
+  source.setAttribute('aria-disabled', 'true');
+  FakeMutationObserver.notify(tools);
+  proxy.fire('click');
+  assert.equal(clicks, 0);
+  assert.equal(proxy.getAttribute('aria-disabled'), 'true');
+  source.removeAttribute('aria-disabled');
+  source.hidden = true;
+  FakeMutationObserver.notify(tools);
+  assert.equal(proxy.hidden, true);
+  assert.equal(proxy.getAttribute('aria-disabled'), null);
+  source.hidden = false;
+  source.style.display = 'none';
+  FakeMutationObserver.notify(tools);
+  assert.equal(proxy.hidden, true);
+  source.remove();
+  tools.appendChild(el(doc, 'button', { id: source.id, title: 'Replacement' }));
+  FakeMutationObserver.notify(tools);
+  assert.equal(proxy.hidden, false);
+  assert.ok(!proxy.disabled);
+  assert.equal(proxy.getAttribute('aria-label'), 'Replacement');
+  layout.stop();
+});
+
+for (const desktop of [true, false]) {
+  test('the call menu forwards native actions and restores focus and regions on ' + (desktop ? 'desktop' : 'phone'), () => {
+    const { doc, stage, area, voiceControls, layout, cameras, shares, tile, settle } = buildCall({ desktop });
+    const more = doc.querySelector('[data-habitat-call-more]');
+    const menu = doc.getElementById('habitat-menu-call');
+    assert.equal(more.parentNode, desktop ? stage.querySelector('[data-habitat-stage-controls]') : voiceControls);
+    assert.equal(more.parentNode.children.at(-1), more);
+    const settings = doc.querySelector('[data-haven-region="voice-settings"]');
+    assert.equal(settings.parentNode, area);
+    const hits = [];
+    const action = (parent, attrs) => {
+      const b = el(doc, 'button', attrs);
+      parent.appendChild(b);
+      b.addEventListener('click', () => hits.push(b));
+      return b;
+    };
+    const gear = action(voiceControls, { id: 'voice-settings-toggle' });
+    gear.style.display = 'none';
+    settings.style.display = 'none';
+    gear.addEventListener('click', () => { settings.style.display = ''; });
+    const sound = action(voiceControls, { id: 'voice-soundboard-btn' });
+    const listen = action(voiceControls, { id: 'voice-listen-together-btn' });
+    const camera = tile('webcam-tile-1', 'webcam-tile');
+    cameras.appendChild(camera);
+    const label = el(doc, 'span', { class: 'webcam-tile-label' });
+    label.textContent = 'Deniz';
+    camera.appendChild(label);
+    const pop = action(camera, { class: 'stream-popout-btn' });
+    for (const id of ['a', 'b']) shares.appendChild(tile(id, 'screen-share-tile'));
+    settle();
+    const pick = name => {
+      more.click();
+      const row = menu.querySelector(`[aria-label="${name}"]`);
+      assert.ok(row, name);
+      row.focus();
+      row.click();
+      menu.fire('click', { target: row }); // bubble in the DOM double
+      assert.ok(menu.hidden);
+      assert.equal(doc.activeElement, more);
+    };
+    more.click();
+    assert.equal(doc.activeElement.getAttribute('aria-label'), 'Voice settings');
+    menu.fire('keydown', { key: 'ArrowDown' });
+    assert.equal(doc.activeElement.getAttribute('aria-label'), 'Connection details');
+    menu.fire('keydown', { key: 'ArrowUp' });
+    assert.equal(doc.activeElement.getAttribute('aria-label'), 'Voice settings');
+    doc.fire('keydown', { key: 'Escape' });
+    assert.ok(menu.hidden);
+    assert.equal(doc.activeElement, more);
+    more.click();
+    doc.fire('pointerdown', { target: area });
+    assert.ok(menu.hidden);
+    assert.equal(doc.activeElement, more);
+    pick('Voice settings');
+    assert.equal(settings.style.display, '');
+    pick('Soundboard');
+    pick('Listen together');
+    pick('Pop out camera for Deniz');
+    camera.setAttribute('class', 'webcam-tile webcam-popped-out');
+    doc.pictureInPictureElement = camera.querySelector('video');
+    pick('Return camera for Deniz');
+    doc.pictureInPictureElement = null;
+    const overlay = el(doc, 'div', { id: 'webcam-pip-1' });
+    doc.body.appendChild(overlay);
+    const popIn = action(overlay, { class: 'stream-pip-popin' });
+    pick('Return camera for Deniz');
+    assert.deepEqual(hits, [gear, sound, listen, pop, pop, popIn]);
+    pick('Connection details');
+    assert.equal(doc.querySelector('[data-habitat-connection]').hidden, false);
+    pick('Show every shared screen together');
+    assert.equal(stage.querySelector('[data-habitat-stage-spread]').getAttribute('aria-pressed'), 'true');
+    pick('Return to grid');
+    assert.ok(!stage.hasAttribute('data-habitat-focus'));
+    more.click();
+    doc.querySelector('[data-habitat-call-view]').click();
+    assert.ok(menu.hidden);
+    assert.ok(!area.contains(settings));
+    assert.ok(!doc.body.contains(more));
+    layout._disengage();
+    assert.equal(doc.getElementById('habitat-menu-call'), null);
+    assert.ok(voiceControls.contains(gear));
+    assert.ok(!more.listenerCount());
+    layout.stop();
+  });
+}
+
+test('one tab stop per enlargable tile preserves native controls and restores original attributes', () => {
+  const { doc, layout, stage, users, cameras, shares, tile, settle } = buildCall();
+  users.children[0].querySelector('.user-item-name').textContent = 'Deniz';
+  const camera = tile('webcam-tile-1', 'webcam-tile');
+  camera.setAttribute('role', 'group');
+  camera.setAttribute('tabindex', '-1');
+  camera.setAttribute('aria-label', 'Original camera');
+  camera.style.setProperty('width', '11rem');
+  const native = el(doc, 'button');
+  camera.appendChild(native);
+  cameras.appendChild(camera);
+  const screen = tile('screen-tile-2', 'screen-share-tile');
+  shares.appendChild(screen);
+  settle();
+  assert.equal(camera.getAttribute('aria-label'), 'Enlarge camera for Deniz');
+  assert.equal(users.children[0].getAttribute('tabindex'), null, 'the overlay has no duplicate tab stop');
+  for (const target of [camera, users.children[1], screen]) assert.equal(target.getAttribute('tabindex'), '0');
+  camera.focus();
+  for (const [key, state] of [['Enter', 'true'], [' ', 'false'], [' ', 'true'], ['Escape', 'false']]) {
+    assert.ok(stage.fire('keydown', { target: camera, key }).defaultPrevented);
+    assert.equal(camera.getAttribute('aria-pressed'), state);
+    assert.equal(camera.hasAttribute('data-habitat-focused'), state === 'true');
+    assert.equal(doc.activeElement, camera);
+  }
+  assert.ok(!stage.fire('keydown', { target: native, key: ' ' }).defaultPrevented);
+  layout._disengage();
+  assert.equal(camera.getAttribute('role'), 'group');
+  assert.equal(camera.getAttribute('tabindex'), '-1');
+  assert.equal(camera.getAttribute('aria-label'), 'Original camera');
+  assert.equal(camera.style.getPropertyValue('width'), '11rem');
+  assert.equal(camera.getAttribute('aria-pressed'), null);
+  assert.equal(screen.getAttribute('role'), null);
+  assert.equal(screen.getAttribute('tabindex'), null);
+  assert.equal(stage.listenerCount(), 0);
+  layout.stop();
 });
 
 test('a phone gets no stand-ins: the real row is under the stage', () => {

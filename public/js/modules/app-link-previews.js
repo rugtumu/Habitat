@@ -217,6 +217,28 @@ _generateVideoThumbnail(video) {
 
 // ── Link Previews ─────────────────────────────────────
 
+// Habitat fork: on reload the metadata is still in flight. Remember just the last
+// feed's geometry, so a text-only link or a blocked preview doesn't get an image-sized gap.
+_restoredPreviewHeights(list) {
+  const storageKey = 'habitat_preview_heights';
+  const context = () => [this.user?.id, this.channels?.find(ch => ch.code === this.currentChannel)?.id,
+    this._embedSize(), list.clientWidth, document.documentElement.lang, getComputedStyle(list).fontSize];
+  if (this._previewSnapshot === undefined) {
+    this._previewSnapshot = null;
+    try { this._previewSnapshot = JSON.parse(sessionStorage.getItem(storageKey)); } catch { /* Storage is optional. */ }
+    window.addEventListener('pagehide', () => {
+      const heights = {};
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      for (const card of list.querySelectorAll('.link-preview--rich[data-preview-slot]')) {
+        const id = card.closest('[data-msg-id]')?.dataset.msgId;
+        if (id) heights[id + '/' + card.dataset.previewSlot + '/' + card.classList.contains('lp-collapsed')] = card.offsetHeight / rem;
+      }
+      try { sessionStorage.setItem(storageKey, JSON.stringify({ view: context(), heights })); } catch { /* Storage is optional. */ }
+    });
+  }
+  return JSON.stringify(this._previewSnapshot?.view) === JSON.stringify(context()) ? this._previewSnapshot.heights : null;
+},
+
 _fetchLinkPreviews(containerEl) {
   // Per-URL client cache so re-rendering a channel (or scrolling history,
   // or popping out a DM PiP) doesn't re-fetch previews we already have.
@@ -232,8 +254,12 @@ _fetchLinkPreviews(containerEl) {
   // Thread replies keep their body in .thread-msg-content, and until now no
   // preview card was ever drawn there (#5620).
   const links = containerEl.querySelectorAll('.message-content a[href], .thread-msg-content a[href]');
+  if (!links.length) return;
   const seen = new Set();
   const slots = new Map();
+  const restoring = this._coupledToBottom && containerEl.id === 'messages';
+  const heights = restoring ? this._restoredPreviewHeights(containerEl) : null;
+  let reserved = false;
   links.forEach(link => {
     const url = link.href;
     if (seen.has(url)) return;
@@ -286,14 +312,35 @@ _fetchLinkPreviews(containerEl) {
       return; // skip generic link preview for YouTube
     }
 
+    if (!host || host.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
+    // Habitat fork: restored history is bottom-aligned, so reserve a card in the same
+    // paint as its message. A folded card needs only its header. A failed lookup
+    // releases the slot, respecting anyone who scrolled away in the meantime.
+    let pending = null;
+    const folded = this._embedFolded(url, slot);
+    const height = heights?.[host.closest('[data-msg-id]')?.dataset.msgId + '/' + slot + '/' + folded];
+    if (restoring && (!heights || height > 0)) {
+      pending = document.createElement('div');
+      pending.className = 'link-preview link-preview--rich lp-pending' + (folded ? ' lp-collapsed' : '');
+      pending.dataset.url = url;
+      pending.dataset.previewSlot = slot;
+      pending.setAttribute('aria-hidden', 'true');
+      if (Number.isFinite(height)) pending.style.height = height + 'rem';
+      else pending.innerHTML = '<div class="lp-content"><div class="lp-media"></div></div>';
+      host.appendChild(pending);
+      reserved = true;
+    }
+    const release = () => {
+      if (!pending) return;
+      pending.remove();
+      if (this._coupledToBottom && host.isConnected) this._scrollToBottom(true);
+    };
     this._linkPreviewData(url)
       .then(data => {
-        if (!data || (!data.title && !data.description && !data.text)) return;
+        if (!data || (!data.title && !data.description && !data.text)) { release(); return; }
         const msgContent = link.closest('.message-content, .thread-msg-content');
-        if (!msgContent) return;
-
-        // Don't add duplicate previews
-        if (msgContent.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
+        if (!msgContent || msgContent !== host) { release(); return; }
+        if (!pending && msgContent.querySelector(`.link-preview[data-url="${CSS.escape(url)}"]`)) return;
 
         // Unified rich embed card: social posts (Bluesky / X) gain an author
         // row, avatar and engagement stats; everything else renders the same
@@ -310,6 +357,7 @@ _fetchLinkPreviews(containerEl) {
           + (hasGallery ? ' link-preview--gallery' : '')
           + (collapsed ? ' lp-collapsed' : '');
         card.dataset.url = url;
+        card.dataset.previewSlot = slot;
         if (accent) card.style.setProperty('--lp-accent', accent);
 
         // Author row (social) or title (generic) + post text
@@ -346,6 +394,12 @@ _fetchLinkPreviews(containerEl) {
           const posterAttr = data.image ? ` poster="${this._escapeHtml(this._proxyMediaUrl(data.image) || '')}"` : '';
           media += `<video class="lp-video" controls preload="${vidPreload}" playsinline${posterAttr}><source src="${this._escapeHtml(data.video)}" type="${this._escapeHtml(data.videoType || 'video/mp4')}"></video>`;
         } else if (data.image) {
+          // Habitat fork: use a supplied thumbnail's proportions before the lazy image decodes.
+          const width = Number(data.imageWidth ?? data.image_width ?? data.thumbnail_width);
+          const height = Number(data.imageHeight ?? data.image_height ?? data.thumbnail_height);
+          if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+            card.style.setProperty('--lp-image-ratio', width + ' / ' + height);
+          }
           media += `<a class="lp-media" href="${this._escapeHtml(url)}" target="_blank" rel="noopener noreferrer nofollow"><img class="lp-image" ${this._imgSrcAttr(data.image)} alt="" loading="lazy">${data.video ? '<span class="lp-play"></span>' : ''}</a>`;
         }
 
@@ -369,14 +423,15 @@ _fetchLinkPreviews(containerEl) {
         this._applyEmbedSpoiler(card, link);
 
         const wasAtBottom = this._coupledToBottom;
-        msgContent.appendChild(card);
+        if (pending) pending.replaceWith(card); else msgContent.appendChild(card);
 
         // Scroll if coupled to bottom. Uses the tracked flag rather than
         // a point-in-time scrollHeight check that content-visibility can skew.
-        if (wasAtBottom) this._scrollToBottom(true);
+        if (wasAtBottom && msgContent.isConnected) this._scrollToBottom(true);
       })
-      .catch((err) => { console.warn('[Links] could not render the preview card', err); });
+      .catch((err) => { release(); console.warn('[Links] could not render the preview card', err); });
   });
+  if (reserved && this._coupledToBottom) this._scrollToBottom(true);
 },
 
 // The preview data for one link, from the cache, a fetch already on its way,

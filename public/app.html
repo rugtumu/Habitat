@@ -4371,7 +4371,8 @@
 
   <!-- Sound Management Modal (Full Popout) -->
   <div class="modal-overlay" id="sound-modal" style="display:none">
-    <div class="modal" style="width:640px;min-height:420px">
+    <!-- Habitat fork: short sound lists fit their contents and long tabs scroll inside the resizable dialog. -->
+    <div class="modal modal-flex" style="width:40rem">
       <h3>🔊 <span data-i18n="modals.sound_manager.title">Sound Manager</span></h3>
       <!-- Tabs -->
       <div class="sound-modal-tabs">
@@ -4429,7 +4430,7 @@
         <small class="settings-hint" style="display:block;margin-bottom:12px" data-i18n="modals.sound_manager.upload_hint">Upload audio files for custom sounds (max 1 MB each, mp3/ogg/wav/webm)</small>
         <div class="whitelist-add-row">
           <input type="text" id="sound-name-input" data-i18n-placeholder="modals.sound_manager.name_placeholder" placeholder="Sound name..." maxlength="30" class="settings-text-input">
-          <input type="file" id="sound-file-input" accept="audio/*" style="max-width:120px;font-size:0.6875rem">
+          <input type="file" id="sound-file-input" accept="audio/*">
           <button class="btn-sm btn-accent" id="sound-upload-btn" data-i18n="modals.sound_manager.upload_btn">Upload</button>
         </div>
         <div id="custom-sounds-list" style="margin-top:12px;">

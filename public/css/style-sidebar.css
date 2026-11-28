@@ -12,6 +12,15 @@
     height: 3rem;
   }
 }
+/* Habitat fork: reserve the final channel header before voice and channel actions arrive. */
+html:is([data-habitat-boot], [data-habitat-layout]) [data-haven-region="channel-header"] {
+  box-sizing: border-box; height: 3.8125rem; flex: none; align-content: center;
+}
+@media (max-width: 768px) {
+  html:is([data-habitat-boot], [data-habitat-layout]) [data-haven-region="channel-header"] {
+    height: calc(3.25rem + var(--safe-top, env(safe-area-inset-top, 0rem)));
+  }
+}
 /* Habitat fork: keep the shell surfaces visible while their controls change parents. */
 html[data-habitat-boot] :is([data-haven-region="server-rail"], [data-haven-region="navigation-sidebar"],
   [data-haven-region="context-sidebar"], [data-haven-region="channel-header"]) > *,

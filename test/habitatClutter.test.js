@@ -103,3 +103,21 @@ test('an explicit server choice restores capability badges while mute, privacy a
     assert.deepEqual(row.children.map(child => child.className), ['channel-badge', 'channel-badge thread-mention-badge']);
   }
 });
+
+test('Habitat reserves the channel header during boot and after the layout engages', () => {
+  const css = read('public/css/style-sidebar.css');
+  const selector = 'html:is([data-habitat-boot], [data-habitat-layout]) [data-haven-region="channel-header"]';
+  const headers = css.split(selector).slice(1).map(part => part.split('}')[0]);
+  assert.match(headers[0], /box-sizing: border-box; height: 3\.8125rem; flex: none/);
+  assert.match(headers[1], /height: calc\(3\.25rem \+ var\(--safe-top/);
+});
+
+test('Sound Manager fits short tabs and scrolls long ones inside the resizable modal', () => {
+  const modal = html.match(/id="sound-modal"[^>]*>\s*(?:<!--[\s\S]*?-->\s*)?(<div[^>]*>)/)[1];
+  assert.doesNotMatch(modal, /(?:min-)?height:/);
+  assert.match(modal, /class="modal modal-flex"/);
+  const theme = read('themes/habitat-grafit.theme.css');
+  assert.match(theme, /#sound-modal \.sound-tab-content\s*\{[^}]*min-height: 0; overflow-y: auto/);
+  assert.match(theme, /#sound-modal \.modal\s*\{[^}]*max-height: 85dvh/);
+  assert.doesNotMatch(theme, /#sound-modal [^{}]*\{[^{}]*resize: none/);
+});
