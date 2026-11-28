@@ -660,6 +660,7 @@ test('Escape in the open Habitat server menu leaves Settings and the thread unde
   const app = Function(ui.replace('export default', 'return'))();
   let reads = 0;
   app._markAllRead = () => reads++;
+  app.socket = { connected: true };
   app._closeThread = () => assert.fail('closed the thread under the menu');
   app._bindEscapeShortcuts();
   const plugin = new HabitatLayout();

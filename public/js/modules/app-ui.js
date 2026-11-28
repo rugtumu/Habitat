@@ -254,10 +254,22 @@ _bindEscapeShortcuts() {
     if (e.shiftKey) {
       // Chrome on Windows and Linux reserves Shift+Esc for its task manager.
       // The page may never receive it there.
+      // Habitat fork: marking everything read is not undone, so it does not
+      // fire while someone is typing with Shift still held, once per key
+      // repeat, or offline, where it would be sent on reconnect and take
+      // whatever arrived in between with it.
+      if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable]') || !this.socket?.connected) return;
       consume(e);
       this._markAllRead();
       return;
     }
+    // Habitat fork: a field that clears or cancels itself on Escape keeps the
+    // key. Without this the settings search closed Settings, the member
+    // search closed the thread, and a number typed into the call's bitrate
+    // or a channel's self-destruct timer was kept and later saved.
+    const field = e.target;
+    if ((field?.id === 'settings-search' || field?.id === 'user-search') && field.value) return;
+    if (field?.closest?.('.bitrate-value, .cfn-input-wrap')) return;
     if (dismiss(leading, e)) return;
     // The layout closes its own menus and restores focus. Its Add dialog can
     // itself open a Haven confirmation with a higher stacking order.

@@ -1199,6 +1199,10 @@
 /* ── Search filter picker popover (phase 3) ── */
 .search-container { position: relative; }
 
+/* Habitat fork: the Habitat header is one fixed row that clips what spills
+   out of it, and this popover opens below the header's edge. Let it through
+   while it is open, as the channel menu and the encryption menu are. */
+html[data-habitat-layout] .channel-header:has(#search-filter-popover[style*="flex"]) { overflow: visible; z-index: 65; }
 .search-filter-popover {
   position: absolute;
   top: calc(100% + 0.375rem);

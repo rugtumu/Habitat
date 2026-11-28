@@ -116,6 +116,7 @@ test('one Escape dismisses one surface in order and settles just the selected di
     dismissals++;
   });
   app._markAllRead = () => reads++;
+  app.socket = { connected: true };
   let laterHandlers = 0;
   app._bindEscapeShortcuts();
   doc.addEventListener('keydown', () => laterHandlers++);
@@ -278,4 +279,22 @@ test('Grafit keeps private text upright with a lock and caps the opaque phone ba
   assert.match(theme, /\.channel-hash > \.haven-glyph \{ display: none;/);
   assert.match(theme, /@media \(pointer: coarse\) \{\s*[^{}]*\.toast-action-btn \{ min-height: 2\.75rem;/);
   assert.match(layout, /@media \(max-width: 768px\) \{\s*\/\*[^*]*\*\/\s*html\[data-habitat-layout\] \.main\.has-banner:not\(\.banner-mode-shaded\):not\(\.banner-mode-minimal\):not\(\.banner-mode-transparent\) > #server-banner-display \{\s*max-height: 3\.25rem;\s*\}/);
+});
+
+test('Escape leaves self-clearing fields alone and Shift+Escape is not fired by typing, repeats or offline', () => {
+  const ui = read('public/js/modules/app-ui.js');
+  const handler = ui.slice(ui.indexOf('_bindEscapeShortcuts() {'), ui.indexOf('_bindAppChrome() {'));
+  const shift = handler.slice(handler.indexOf('if (e.shiftKey)'), handler.indexOf('this._markAllRead()'));
+  assert.match(shift, /e\.repeat/);
+  assert.match(shift, /closest\?\.\('input, textarea, select, \[contenteditable\]'\)/);
+  assert.match(shift, /!this\.socket\?\.connected/);
+  const own = handler.indexOf("field?.id === 'settings-search' || field?.id === 'user-search'");
+  assert.ok(own > 0, 'the two search fields keep Escape while they hold text');
+  assert.ok(handler.indexOf('.bitrate-value, .cfn-input-wrap') > own);
+  assert.ok(own < handler.indexOf('if (dismiss(leading, e)) return;'), 'the fields are asked before any surface is closed');
+});
+
+test('the open search filters are not clipped by the fixed header', () => {
+  const css = read('public/css/style-tags-uploads-search.css');
+  assert.match(css, /html\[data-habitat-layout\] \.channel-header:has\(#search-filter-popover\[style\*="flex"\]\) \{ overflow: visible; z-index: 65; \}/);
 });
