@@ -2392,6 +2392,13 @@ HabitatLayout.TEXT = Object.freeze({
 // layout needs in order to work at all keep their weight.
 HabitatLayout.CSS = `
 :where(:root) {
+  --hb-text-xs: .75rem;
+  --hb-text-sm: .875rem;
+  --hb-text-md: 1rem;
+  --hb-text-lg: 1.125rem;
+  --hb-text-xl: 1.5rem;
+  --hb-text-2xl: 2rem;
+  --hb-text-display: clamp(1.625rem, 3vw, 2.25rem);
   --hb-stage-gap: .5rem;
   --hb-stage-pad: .75rem;
   --hb-stage-surface: var(--bg-tertiary);
@@ -2496,7 +2503,7 @@ html[data-habitat-layout] [data-habitat-header] > :where(.brand) {
 }
 html[data-habitat-layout] :where([data-habitat-header] .brand-text) {
   font-family: var(--font-heading);
-  font-size: 1.0625rem;
+  font-size: var(--hb-text-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   text-transform: none;
@@ -2554,7 +2561,7 @@ html[data-habitat-layout] [data-habitat-menu] {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  padding: 0.375rem;
+  padding: 0.25rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -2578,12 +2585,12 @@ html[data-habitat-layout] [data-habitat-menu] button {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.625rem;
+  gap: 0.75rem;
   width: 100%;
   height: 2.25rem;
   min-height: 2.25rem;
   margin: 0;
-  padding: 0 0.625rem;
+  padding: 0 0.75rem;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -2636,7 +2643,7 @@ html[data-habitat-layout] :where([data-haven-region="channels"] .channel-item, [
   height: auto;
   margin: 0.0625rem 0;
   padding: 0.25rem 0.5rem;
-  font-size: 0.9375rem;
+  font-size: var(--hb-text-md);
 }
 
 /* ── Bottom-left account bar ── */
@@ -2711,7 +2718,7 @@ html[data-habitat-layout-desktop="1"][data-habitat-in-voice] [data-haven-region=
 }
 html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"]) {
   justify-content: flex-start;
-  padding: 0.375rem 0.5rem;
+  padding: 0.25rem 0.5rem;
   border-top: 1px solid var(--border);
   overflow-x: auto;
 }
@@ -2739,7 +2746,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   max-height: calc(100dvh - 2rem);
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 1.25rem;
+  padding: 1.5rem;
   border: .0625rem solid var(--border);
   border-radius: var(--hb-radius-lg);
   background: var(--bg-card);
@@ -2795,7 +2802,7 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   display: grid; align-items: center; color: var(--text-muted); pointer-events: none;
 }
 [data-habitat-dialog] :is(input[type="text"], select, input[type="number"]) {
-  min-width: 0; box-sizing: border-box; padding: .625rem .75rem;
+  min-width: 0; box-sizing: border-box; padding: .5rem .75rem;
   border: .0625rem solid var(--border); border-radius: var(--radius-sm);
   background: var(--bg-input); color: var(--text-primary); font: inherit;
 }
@@ -2815,12 +2822,12 @@ html[data-habitat-layout-desktop="1"] :where([data-haven-region="sidebar-footer"
   order: 1; margin-inline-start: auto; accent-color: var(--accent);
 }
 [data-habitat-advanced] {
-  width: 100%; padding: .625rem 0; border: 0; border-top: .0625rem solid var(--border);
+  width: 100%; padding: .5rem 0; border: 0; border-top: .0625rem solid var(--border);
   background: transparent; color: var(--text-secondary); font-weight: 600;
 }
 [data-habitat-advanced] > svg { transition: rotate var(--hb-fast) var(--hb-ease); }
 [data-habitat-advanced][aria-expanded="true"] > svg { rotate: 180deg; }
-#habitat-channel-options:not([hidden]) { display: grid; gap: .375rem; }
+#habitat-channel-options:not([hidden]) { display: grid; gap: .5rem; }
 #habitat-channel-options > label[for]:not(:first-child) { margin-top: .5rem; }
 [data-habitat-dialog] footer {
   justify-content: flex-end; border-top: .0625rem solid var(--border);
@@ -2907,7 +2914,7 @@ html:not([data-habitat-layout-desktop="1"]) [data-habitat-call-stage]:has(.voice
 [data-habitat-alone] > strong { color: var(--text-primary); font-size: 1rem; }
 [data-habitat-alone] > button {
   margin-top: .5rem; min-height: 2.25rem; padding: 0 1rem; border: 0; border-radius: var(--radius-sm);
-  color: var(--accent-text); background: var(--accent); font: inherit; font-weight: 650; cursor: pointer; pointer-events: auto;
+  color: var(--accent-text); background: var(--accent); font: inherit; font-weight: 600; cursor: pointer; pointer-events: auto;
 }
 html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-leave] { pointer-events: none; }
@@ -2919,7 +2926,7 @@ html[data-habitat-layout="compact"] [data-habitat-alone] { bottom: 1.25rem; }
 [data-habitat-stage-spread][hidden] { display: none; }
 [data-habitat-stage-controls] {
   position: absolute; inset: auto auto 1rem 50%; z-index: 4; translate: -50%;
-  display: flex; gap: .5rem; padding: .375rem; border-radius: var(--hb-radius-pill); background: var(--hb-media-plate);
+  display: flex; gap: .5rem; padding: .25rem; border-radius: var(--hb-radius-pill); background: var(--hb-media-plate);
   opacity: 0; pointer-events: none;
 }
 [data-habitat-call-stage][data-habitat-focus] > [data-habitat-stage-controls] {
@@ -2941,7 +2948,7 @@ html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: 
 [data-habitat-stage-controls] > [data-habitat-for="voice-bar-leave-btn"] { color: var(--danger-text); background: var(--danger); }
 [data-habitat-stage-spread][aria-pressed="true"] { color: var(--accent-text); background: var(--accent); }
 [data-habitat-call-stage] .voice-user-item {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .375rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem;
   padding: .75rem; background: var(--bg-active);
 }
 [data-habitat-call-stage] .voice-user-item.talking { box-shadow: var(--hb-ring-speaking, inset 0 0 0 .125rem var(--success)); }
@@ -2960,9 +2967,9 @@ html[data-habitat-layout] [data-habitat-menu="call"] button:disabled { opacity: 
 [data-habitat-call-stage] [data-habitat-on-camera] :is([data-habitat-call-avatar], .user-dot, .voice-stream-badge.webcam),
 [data-habitat-call-stage] .webcam-tile[data-habitat-paired] > .webcam-tile-label { display: none; }
 [data-habitat-connection] {
-  position: fixed; z-index: 100010; box-sizing: border-box; padding: .75rem .875rem;
+  position: fixed; z-index: 100010; box-sizing: border-box; padding: .75rem;
   border: 1px solid var(--border-light); border-radius: var(--hb-radius-lg);
-  color: var(--text-primary); background: var(--bg-card); box-shadow: var(--hb-elev-popover); font-size: .8125rem;
+  color: var(--text-primary); background: var(--bg-card); box-shadow: var(--hb-elev-popover); font-size: var(--hb-text-xs);
 }
 [data-habitat-connection][hidden] { display: none; }
 [data-habitat-connection] > strong { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; font-size: .875rem; }
@@ -2978,8 +2985,8 @@ html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
   display: grid; gap: .5rem; margin-block: .75rem; padding-block: .75rem; border-block: 1px solid var(--border);
 }
 [data-habitat-voice-tools] label {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) 3rem; align-items: center; gap: .625rem;
-  color: var(--text-secondary); font-size: .8125rem;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) 3rem; align-items: center; gap: .5rem;
+  color: var(--text-secondary); font-size: var(--hb-text-sm);
 }
 [data-habitat-voice-tools] input { width: 100%; min-width: 0; margin: 0; accent-color: var(--accent); }
 [data-habitat-voice-tools] output { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: end; }
@@ -3004,7 +3011,7 @@ html[data-habitat-layout] #channel-list .channel-voice-user { cursor: pointer; }
 [data-habitat-call-avatar] > [data-habitat-call-photo] {
   position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover;
 }
-[data-habitat-call-stage] .user-item-name { flex: none; max-width: 100%; font-weight: 650; }
+[data-habitat-call-stage] .user-item-name { flex: none; max-width: 100%; font-weight: 600; }
 body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-inbox] { color: var(--text-secondary); border: 0; }
 [data-habitat-inbox] svg { width: 1.375rem; height: 1.375rem; }
@@ -3015,7 +3022,7 @@ body.is-guest [data-habitat-inbox] { display: none; }
 }
 [data-habitat-nav] {
   display: grid;
-  gap: .625rem;
+  gap: .5rem;
   padding: .75rem;
   flex: none;
 }
@@ -3027,20 +3034,20 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-jump] {
   display: flex;
   align-items: center;
-  gap: .625rem;
+  gap: .5rem;
   width: 100%;
   min-height: 2.25rem;
-  padding: .375rem .625rem;
+  padding: .25rem .75rem;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-tertiary);
   text-align: start;
 }
 [data-habitat-room-members] {
-  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
-  border: 0; padding: .375rem; border-radius: var(--radius); color: var(--text-secondary); background: var(--bg-hover);
+  display: inline-flex; align-items: center; justify-content: center; gap: .25rem;
+  border: 0; padding: .25rem; border-radius: var(--radius); color: var(--text-secondary); background: var(--bg-hover);
 }
-[data-habitat-room-members] { flex: none; font: 650 .875rem/1 var(--font-main); cursor: pointer; }
+[data-habitat-room-members] { flex: none; font: 600 var(--hb-text-sm)/1 var(--font-main); cursor: pointer; }
 [data-habitat-room-members][hidden] { display: none; }
 /* Haven forces its mobile button visible even when the roster already has a trigger. */
 [data-habitat-room-members]:not([hidden]) + #mobile-users-btn { display: none !important; }
@@ -3064,8 +3071,8 @@ body.is-guest [data-habitat-inbox] { display: none; }
 [data-habitat-face] > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .dm-item > [data-habitat-dm-avatar] + .channel-hash { display: none; }
 [data-habitat-count]:not(:empty) {
-  position: absolute; inset: auto 0 0 auto; border-radius: var(--hb-radius-pill); font-size: .6875rem;
-  padding: .0625rem .3125rem; background: var(--danger); color: var(--danger-text);
+  position: absolute; inset: auto 0 0 auto; border-radius: var(--hb-radius-pill); font-size: var(--hb-text-xs); line-height: 1;
+  padding: .125rem .25rem; background: var(--danger); color: var(--danger-text);
 }
 /* A single pane uses the whole split, even when Haven saved a fractional flex for it. */
 @media (min-height: 551px) {
@@ -3092,12 +3099,12 @@ html[data-habitat-layout] .lp-header .lp-size { display: none; }
 }
 [data-habitat-channel-menu] {
   position: absolute; z-index: 60; inset-block-start: calc(100% + .375rem); inset-inline-end: 0;
-  display: grid; min-width: min(14rem, 82vw); padding: .375rem;
+  display: grid; min-width: min(14rem, 82vw); padding: .25rem;
   background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius);
   box-shadow: var(--hb-elev-popover);
 }
 [data-habitat-channel-menu] button.icon-btn {
-  justify-content: start; align-items: center; gap: .625rem; padding: .5rem .625rem;
+  justify-content: start; align-items: center; gap: .75rem; padding: .5rem .75rem;
   width: 100%; height: auto; min-height: 2.25rem; opacity: 1; text-align: start;
 }
 [data-habitat-channel-menu] button::after { content: attr(aria-label); font: 500 .875rem/1.25 var(--font-main); }
@@ -3109,11 +3116,11 @@ html[data-habitat-layout] .lp-header .lp-size { display: none; }
    phone. It carries its own words, and the header's icon-only rule for voice
    buttons must not blank them. */
 html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile {
-  justify-content: start; align-items: center; width: 100%; min-height: 2.25rem; margin: 0; padding: .5rem .625rem;
+  justify-content: start; align-items: center; width: 100%; min-height: 2.25rem; margin: 0; padding: .5rem .75rem;
   border: 0; border-radius: var(--radius-sm); color: var(--accent); background: transparent; font: 600 .875rem/1.25 var(--font-main);
 }
 html[data-habitat-layout] [data-habitat-channel-menu] > #voice-join-mobile > span {
-  display: inline-flex; align-items: center; gap: .625rem; font-size: inherit;
+  display: inline-flex; align-items: center; gap: .75rem; font-size: inherit;
 }
 [data-habitat-channel-management] {
   display: grid; border-block-start: 1px solid var(--border); padding-block-start: .25rem; margin-block-start: .25rem;
@@ -3133,7 +3140,7 @@ html[data-habitat-layout] .channel-header:has(details[open]) { z-index: 65; over
   display: grid; place-items: center; width: 3.25rem; height: 3.25rem;
   background: var(--bg-active); border-radius: 50%; font: 600 1.875rem/1 var(--font-main);
 }
-[data-habitat-intro] h2 { margin: .75rem 0 .25rem; overflow-wrap: anywhere; font: 750 1.625rem/1.15 var(--font-heading); }
+[data-habitat-intro] h2 { margin: .75rem 0 .25rem; overflow-wrap: anywhere; font: 700 var(--hb-text-xl)/1.15 var(--font-heading); }
 [data-habitat-join-room] { margin-block-start: .5rem; min-height: 2.5rem; }
 [data-habitat-join-room][hidden] { display: none; }
 [data-habitat-intro] p { margin: 0; color: var(--text-secondary); }
@@ -3149,7 +3156,7 @@ html[data-habitat-layout] #message-area > [data-habitat-intro="voice"][data-habi
 [data-haven-region="message-list"]:has(+ [data-habitat-intro="voice"]:not([hidden])) { display: none; }
 [data-habitat-intro="voice"] > span { width: 4.5rem; height: 4.5rem; }
 [data-habitat-intro="voice"] h2 { margin: 1rem 0 .25rem; }
-[data-habitat-intro="voice"] [data-habitat-join-room] { margin-block-start: 1.25rem; min-height: 2.75rem; padding-inline: 1.5rem; font-size: 1rem; }
+[data-habitat-intro="voice"] [data-habitat-join-room] { margin-block-start: 1rem; min-height: 2.75rem; padding-inline: 1.5rem; font-size: 1rem; }
 /* The room's own button is the way in; the header's copy of it would be a
    second one a hand's width away. Haven sets its display inline, so it is
    taken out of the flow rather than hidden by display. */

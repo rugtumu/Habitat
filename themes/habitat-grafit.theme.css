@@ -139,6 +139,13 @@
   --led-glow:      rgba(95, 208, 143, .22);
 
   /* ── Typography ────────────────────────────────── */
+  --hb-text-xs: .75rem;
+  --hb-text-sm: .875rem;
+  --hb-text-md: 1rem;
+  --hb-text-lg: 1.125rem;
+  --hb-text-xl: 1.5rem;
+  --hb-text-2xl: 2rem;
+  --hb-text-display: clamp(1.625rem, 3vw, 2.25rem);
   --font-main:     Figtree, "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-heading:  "Bricolage Grotesque", Figtree, "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:     ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
@@ -365,7 +372,7 @@ html[data-haven-theme-api="1"] :focus-visible {
   background: var(--danger);
   color: var(--danger-text);
   border-radius: var(--hb-radius-pill);
-  font-weight: 750;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 [data-haven-page="app"] .channel-badge[data-mentions] { font-size: 0; }
@@ -410,7 +417,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .reply-banner {
   max-width: 100%;
   width: fit-content;
-  padding: .125rem .375rem .125rem 0;
+  padding: .125rem .25rem .125rem 0;
   background: transparent;
 }
 [data-haven-page="app"] .reply-banner:hover { background: var(--bg-hover); }
@@ -632,7 +639,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 [data-haven-page="app"] .profile-popup-displayname {
   font-family: var(--font-heading);
   font-size: 1.5rem;
-  font-weight: 750;
+  font-weight: 700;
   letter-spacing: -.025em;
 }
 
@@ -660,7 +667,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 [data-haven-page="app"] .profile-popup-body > .profile-badges {
-  gap: .375rem;
+  gap: .25rem;
   margin: .5rem 0 .25rem;
 }
 
@@ -686,7 +693,7 @@ html[data-haven-theme-api="1"] :focus-visible {
 }
 
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-badge-detail {
-  margin: .375rem 0 .5rem;
+  margin: .25rem 0 .5rem;
   border-color: var(--border);
   border-radius: var(--radius);
   background: var(--bg-secondary);
@@ -859,10 +866,10 @@ html[data-habitat-layout] [data-haven-region="account"] [data-habitat-tools] { g
    and lights up while they talk; the mute and deafen marks only show when
    they apply, at the end of the row. */
 [data-haven-page="app"] .channel-voice-user {
-  gap: .375rem;
+  gap: .5rem;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: .8125rem;
+  font-size: var(--hb-text-sm);
 }
 
 [data-haven-page="app"] .channel-voice-user::before {
@@ -910,7 +917,7 @@ html[data-habitat-layout] [data-haven-region="account"] [data-habitat-tools] { g
    above, so the second leave button and its divider go. */
 @media (min-width: 901px) {
   [data-haven-page="app"] [data-haven-region="sidebar-footer"] > [data-haven-region="voice-controls"] {
-    gap: .375rem;
+    gap: .25rem;
     padding: 0 .5rem .5rem;
     border-top: 0;
     overflow: visible;
@@ -1241,10 +1248,10 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   min-height: 2.375rem;
   padding-inline: .625rem;
   gap: .625rem;
-  font-weight: 540;
+  font-weight: 500;
 }
 [data-haven-page="app"] .channel-item.active {
-  background: var(--bg-active); color: var(--text-primary); font-weight: 680;
+  background: var(--bg-active); color: var(--text-primary); font-weight: 600;
 }
 [data-haven-page="app"] .channel-name { font-size: 1rem; }
 [data-haven-page="app"] .channel-hash {
@@ -1256,7 +1263,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] .channel-item.active .channel-hash { color: var(--accent); }
 [data-haven-page="app"] .channel-item:has(> .channel-badge:not(.thread-mention-badge)) .channel-name {
   color: var(--text-primary);
-  font-weight: 720;
+  font-weight: 700;
 }
 [data-haven-page="app"] .dm-item .channel-hash {
   width: 1.875rem;
@@ -1271,7 +1278,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   text-transform: none !important;
   letter-spacing: normal !important;
 }
-[data-haven-page="app"] .category-label .cat-name { font-size: .8125rem; }
+[data-haven-page="app"] .category-label .cat-name { font-size: var(--hb-text-xs); }
 [data-haven-page="app"] [data-haven-region="member-list"] .panel-title {
   color: var(--text-primary);
   font-size: 1rem;
@@ -1280,7 +1287,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] [data-haven-region="member-list"] .user-item {
   min-height: 2.75rem;
   padding-inline: .5rem;
-  gap: .625rem;
+  gap: .5rem;
 }
 [data-haven-page="app"] [data-haven-region="member-list"] :is(.user-avatar-wrapper, .user-item-avatar, .user-item-avatar-img) {
   width: 2rem;
@@ -1302,10 +1309,10 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   border-radius: var(--radius); border-color: var(--border); background: var(--bg-tertiary);
 }
 [data-haven-page="app"] [data-haven-region="sidebar-footer"] {
-  margin: .375rem; border-radius: var(--hb-radius-lg); background: var(--hb-rail);
+  margin: .25rem; border-radius: var(--hb-radius-lg); background: var(--hb-rail);
 }
 [data-haven-page="app"] .channel-info h3 {
-  margin: 0; font: 750 1.1875rem/1.25 var(--font-heading); letter-spacing: -.015em;
+  margin: 0; font: 700 var(--hb-text-lg)/1.25 var(--font-heading); letter-spacing: -.015em;
 }
 [data-haven-page="app"] [data-haven-region="channel-header"] .header-actions-box {
   border: 0; padding-block: 0;
@@ -1321,7 +1328,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   border-radius: var(--hb-radius-xl); background: var(--bg-active); color: var(--accent); font-size: 2.5rem;
 }
 [data-haven-page="app"] .welcome-content h2 {
-  font: 750 clamp(1.625rem, 3vw, 2.375rem)/1.12 var(--font-heading); letter-spacing: -.035em;
+  font: 700 var(--hb-text-display)/1.12 var(--font-heading); letter-spacing: -.035em;
 }
 [data-haven-page="app"] :is(.thread-panel, .dm-pip-panel, .quick-switcher-box, .channel-ctx-menu, .emoji-picker, .gif-picker) {
   border-color: var(--border-light); border-radius: var(--hb-radius-lg); background-color: var(--bg-secondary);
@@ -1350,7 +1357,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   background: var(--text-primary); font-size: 0;
 }
 [data-haven-page="app"] .quick-switcher-item:has(.qs-unread, .qs-badge) .qs-name {
-  font-weight: 720; color: var(--text-primary);
+  font-weight: 700; color: var(--text-primary);
 }
 [data-haven-page="app"] .toast.success {
   background: var(--bg-card); color: var(--text-primary); border-color: var(--border-light);
@@ -1372,8 +1379,8 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
     linear-gradient(115deg, color-mix(in srgb, var(--cover) 48%, var(--hb-ink-night)), var(--cover));
 }
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-body {
-  margin: .625rem;
-  padding: .875rem;
+  margin: .5rem;
+  padding: 1rem;
   border: .0625rem solid var(--border);
   border-radius: var(--hb-radius-lg);
   background-color: var(--bg-secondary);
@@ -1390,8 +1397,8 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] .profile-popup:not(.has-profile-theme) .profile-popup-banner:not(.has-banner-image) {
   min-height: 5rem;
 }
-[data-haven-page="app"] .profile-popup-names { gap: .1875rem; }
-[data-haven-page="app"] :is(.profile-popup-bio, .profile-popup-action-btn) { font-size: .9375rem; }
+[data-haven-page="app"] .profile-popup-names { gap: .25rem; }
+[data-haven-page="app"] :is(.profile-popup-bio, .profile-popup-action-btn) { font-size: var(--hb-text-sm); }
 [data-haven-page="app"] .profile-popup-username { font-size: .875rem; }
 [data-haven-page="app"] .profile-popup-join-date { font-size: .875rem; }
 [data-haven-page="app"] .profile-popup-bio { line-height: 1.5; }
@@ -1417,7 +1424,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   color: var(--text-primary); font: 700 1.125rem/1.35 var(--font-main); letter-spacing: 0; text-transform: none;
 }
 [data-haven-page="auth"] .auth-header { text-align: start; }
-[data-haven-page="auth"] .auth-header h1 { font-size: 1.875rem; letter-spacing: -.035em; }
+[data-haven-page="auth"] .auth-header h1 { font-size: var(--hb-text-2xl); letter-spacing: -.035em; }
 [data-haven-page="auth"] :is(.auth-tabs, .auth-form input) { background: var(--bg-tertiary); border-radius: var(--radius); }
 [data-haven-page="auth"] .auth-tab.active { color: var(--text-primary); background: var(--bg-active); }
 [data-haven-page="auth"] .auth-form .btn-primary { background: var(--accent); color: var(--accent-text); }
@@ -1425,8 +1432,8 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   [data-haven-page="app"] .modal.modal-settings:not(.expanded) {
     width: min(60rem, 92vw); height: min(46rem, 86dvh);
   }
-  [data-haven-page="app"] .settings-nav.sp-nav { width: 14rem; min-width: 12rem; padding: .875rem .625rem; }
-  [data-haven-page="app"] .settings-body { padding-inline: 1.25rem; }
+  [data-haven-page="app"] .settings-nav.sp-nav { width: 14rem; min-width: 12rem; padding: .75rem; }
+  [data-haven-page="app"] .settings-body { padding-inline: 1rem; }
   [data-haven-page="app"] [data-haven-region="channel-header"] { min-height: 3.25rem; }
 }
 @media (max-width: 768px) {
@@ -1435,20 +1442,20 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   [data-haven-page="app"] .settings-nav.sp-nav { padding: .5rem; }
   [data-haven-page="app"] [data-haven-region="composer"] > textarea {
     min-width: 0; border: 1px solid var(--border-light); border-radius: var(--hb-radius-xl);
-    background: var(--bg-input); padding-inline: .875rem;
+    background: var(--bg-input); padding-inline: .75rem;
   }
   [data-haven-page="app"] .message-user-sep { margin-block-start: .375rem; }
 }
 
 [data-haven-page="auth"] .auth-appearance {
-  margin-block-start: .875rem; padding-block-start: .75rem; border-top: 1px solid var(--border-light);
+  margin-block-start: .75rem; padding-block-start: .75rem; border-top: 1px solid var(--border-light);
 }
 [data-haven-page="auth"] .auth-appearance summary {
-  width: fit-content; margin-inline: auto; padding: .375rem .625rem;
+  width: fit-content; margin-inline: auto; padding: .25rem .75rem;
   color: var(--text-secondary); font-size: .875rem; cursor: pointer;
 }
 [data-haven-page="auth"] .auth-appearance [data-haven-region="theme-picker"] {
-  opacity: 1; border: 0; margin: .375rem auto; padding: .25rem;
+  opacity: 1; border: 0; margin: .25rem auto; padding: .25rem;
 }
 
 /* On a wide screen the server identity and the sign-in form have their
@@ -1460,7 +1467,7 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   }
   [data-haven-page="auth"] .auth-card > * { grid-column: 2; min-width: 0; }
   [data-haven-page="auth"] .auth-card > .auth-header {
-    grid-column: 1; grid-row: 1 / span 2; margin: 0; padding-inline-end: 1.25rem;
+    grid-column: 1; grid-row: 1 / span 2; margin: 0; padding-inline-end: 1.5rem;
     border-inline-end: 1px solid var(--border-light); overflow-wrap: anywhere;
   }
   [data-haven-page="auth"] .auth-header .logo {
@@ -1493,13 +1500,13 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
   flex: none;
   margin-inline: .5rem;
   margin-block-end: .75rem;
-  padding: 3.5rem 0 .875rem;
+  padding: 3.5rem 0 .75rem;
   border-bottom: .0625rem solid var(--border-light);
   background-image: var(--hb-room-mark);
   background-repeat: no-repeat;
   background-position: left .125rem;
   background-size: 2.875rem 2.875rem;
-  font: 780 clamp(1.625rem, 3vw, 2.25rem)/1.12 var(--font-heading);
+  font: 700 var(--hb-text-display)/1.12 var(--font-heading);
   letter-spacing: -.035em;
   overflow-wrap: anywhere;
 }
@@ -1515,14 +1522,14 @@ html:root[data-text-size]:not([data-text-size="100"]):not([data-density="compact
 [data-haven-page="app"] [data-habitat-intro] > span {
   color: var(--text-primary);
   background-color: var(--hb-sky);
-  font: 750 2rem/1 var(--font-heading);
+  font: 700 var(--hb-text-2xl)/1 var(--font-heading);
 }
 html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
   isolation: isolate;
   height: 6.5rem;
   min-height: 6.5rem;
   align-items: flex-end;
-  padding-block-end: .625rem;
+  padding-block-end: .5rem;
   background:
     radial-gradient(circle at 75% 30%, var(--hb-moon) 0 .625rem, transparent .68rem),
     radial-gradient(circle at 24% 18%, var(--hb-moon) 0 .055rem, transparent .085rem),
@@ -1552,7 +1559,7 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
 }
 [data-haven-page="app"] [data-habitat-header] .brand-text {
   color: var(--text-primary);
-  font: 750 1.25rem/1.2 var(--font-heading);
+  font: 700 var(--hb-text-lg)/1.2 var(--font-heading);
 }
 @media (max-width: 900px) {
   [data-haven-page="app"] .channel-item { min-height: 2.75rem; }
@@ -1575,7 +1582,7 @@ html[data-habitat-layout] [data-haven-page="app"] [data-habitat-header] {
   }
   [data-haven-page="app"] .profile-popup-action-btn { min-height: 2.75rem; }
   [data-haven-page="app"] [data-haven-region="composer"] {
-    gap: .375rem;
+    gap: .25rem;
     align-items: center;
     padding-bottom: max(.625rem, env(safe-area-inset-bottom));
   }
@@ -1642,13 +1649,13 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 #settings-modal, #settings-modal :is(button, input, select, textarea, summary, h3, h4, h5, h6) {
   font-family: var(--font-main);
 }
-#settings-modal .settings-header h3 { font: 720 1.375rem/1.2 var(--font-main); }
+#settings-modal .settings-header h3 { font: 700 var(--hb-text-xl)/1.2 var(--font-main); }
 #settings-modal .settings-header {
-  padding: .875rem 1.5rem;
+  padding: 1rem 1.5rem;
   min-height: 3.75rem;
 }
 #settings-modal .settings-tab-bar {
-  padding: .1875rem;
+  padding: .25rem;
   gap: .125rem;
   border: .0625rem solid var(--border);
   border-radius: var(--radius);
@@ -1658,7 +1665,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   min-height: 2rem;
   border: 0;
   border-radius: var(--radius-sm);
-  font-size: .9375rem;
+  font-size: var(--hb-text-sm);
 }
 #settings-modal .settings-tab.active {
   background: var(--bg-active);
@@ -1666,10 +1673,10 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 }
 #settings-modal .settings-nav.sp-nav {
   width: 16rem;
-  padding: 1.375rem .875rem;
+  padding: 1.5rem 1rem;
   background: var(--bg-secondary);
 }
-#settings-modal .settings-search-wrap { position: relative; padding: 0; margin: 0 0 1.125rem; }
+#settings-modal .settings-search-wrap { position: relative; padding: 0; margin: 0 0 1rem; }
 #settings-modal .settings-search-wrap::before {
   content: "";
   position: absolute;
@@ -1691,7 +1698,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   font: inherit;
   font-size: 1rem;
 }
-#settings-modal .sp-list { gap: .1875rem; }
+#settings-modal .sp-list { gap: .25rem; }
 #settings-modal .sp-cat { min-height: 2.625rem; padding: .5rem .75rem; gap: .75rem; border-radius: var(--radius); }
 #settings-modal .sp-cat:is([data-sp="profile"], [data-sp="advanced"], [data-sp="network"]) { margin-block-start: .75rem; }
 #settings-modal:not(.sp-search) .sp-cat.active {
@@ -1730,30 +1737,30 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 #settings-modal [data-sp="tools"] { --settings-icon: var(--hb-icon-bot); }
 #settings-modal [data-sp="more"] { --settings-icon: var(--hb-icon-more); }
 #settings-modal .sp-body {
-  padding: .375rem clamp(1rem, 3.5vw, 3rem) 3rem;
+  padding: .25rem clamp(1rem, 3.5vw, 3rem) 3rem;
   background: var(--bg-primary);
 }
 #settings-modal .sp-body > .settings-section,
 #settings-modal #admin-mod-panel > .admin-settings[id] { padding-inline: 0; }
 #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) {
   display: block;
-  padding-block: 1.75rem 1rem;
+  padding-block: 1.5rem 1rem;
 }
 #settings-modal .sp-page-intro h4,
 #settings-modal:not(.sp-search) .sp-single > .settings-section > .settings-section-title:first-child {
   margin: 0;
   color: var(--text-primary);
-  font: 750 clamp(1.875rem, 3vw, 2.125rem)/1.1 var(--font-main);
+  font: 700 var(--hb-text-display)/1.1 var(--font-main);
   letter-spacing: -.035em;
 }
-#settings-modal .sp-section-links { display: flex; flex-wrap: wrap; gap: .35rem 1.125rem; margin-block-start: 1rem; }
+#settings-modal .sp-section-links { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-block-start: 1rem; }
 #settings-modal .sp-section-links button {
-  padding: .375rem .125rem;
+  padding: .25rem .125rem;
   border: 0;
   border-block-end: .125rem solid transparent;
   background: transparent;
   color: var(--text-secondary);
-  font: 600 .9375rem/1.25 var(--font-main);
+  font: 600 var(--hb-text-sm)/1.25 var(--font-main);
   cursor: pointer;
 }
 #settings-modal .sp-section-links button:is(:hover, :focus-visible) { border-color: var(--accent); color: var(--accent-hover); }
@@ -1772,7 +1779,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   padding: 0;
   border: 0;
   color: var(--text-primary);
-  font: 650 1.125rem/1.4 var(--font-main);
+  font: 600 var(--hb-text-lg)/1.4 var(--font-main);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1780,9 +1787,9 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   color: var(--text-primary);
   text-transform: none;
   letter-spacing: 0;
-  font: 650 1.0625rem/1.4 var(--font-main);
+  font: 600 var(--hb-text-md)/1.4 var(--font-main);
 }
-#settings-modal .settings-subsection { margin-block-start: .875rem; }
+#settings-modal .settings-subsection { margin-block-start: 1rem; }
 #settings-modal .settings-group { padding-inline: 0; border: 0; background: transparent; }
 #settings-modal #admin-mod-panel > .admin-settings[id] { gap: 0; }
 #settings-modal #admin-mod-panel > .admin-settings[id] > .settings-group-label { margin-block-start: 1rem; }
@@ -1816,20 +1823,20 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   justify-content: center;
   flex-wrap: wrap;
   min-height: 2.5rem;
-  padding: .375rem .625rem;
+  padding: .25rem .75rem;
   border-width: .0625rem;
   border-color: var(--border-light);
-  font-size: .9375rem;
+  font-size: var(--hb-text-sm);
 }
 #settings-modal .density-btn.active {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 13%, var(--bg-primary));
   color: var(--text-primary);
 }
-#settings-modal .layout-opt { min-height: 2.125rem; padding-inline: .6875rem; font-size: .9375rem; }
+#settings-modal .layout-opt { min-height: 2.125rem; padding-inline: .75rem; font-size: var(--hb-text-sm); }
 #settings-modal details.toolbar-order-wrap {
-  margin-block-start: .625rem;
-  padding: .125rem .875rem;
+  margin-block-start: .5rem;
+  padding: .125rem .75rem;
   background: var(--bg-secondary);
 }
 #settings-modal .toolbar-order-wrap > summary { padding-block: .75rem; color: var(--text-primary); font-weight: 600; }
@@ -1843,14 +1850,14 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   color: var(--text-secondary);
 }
 #settings-modal .sp-body :is(.settings-select, .voice-settings-select, .form-select, .btn-sm, .density-label) {
-  font-size: .9375rem;
+  font-size: var(--hb-text-sm);
 }
 #settings-modal .sp-body :is(.settings-select, .voice-settings-select, .form-select) {
   min-height: 2.5rem;
   max-width: 100%;
 }
 #settings-modal .sp-body :is(.settings-hint, .settings-desc, .call-preview-loopback-hint, .call-preview-loopback) {
-  font-size: .9375rem;
+  font-size: var(--hb-text-sm);
   line-height: 1.5;
 }
 #settings-modal .sp-body :is(.voice-settings-section-label, .voice-settings-label) {
@@ -1862,16 +1869,16 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 #settings-modal #section-call-settings > .volume-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(4rem, 32%) 4.2rem;
-  gap: .625rem;
+  gap: .75rem;
   margin-block: .75rem;
 }
 #settings-modal #section-call-settings .vol-readout { font-size: .875rem; }
-#settings-modal .toolbar-slots-row { font-size: .9375rem; }
-#settings-modal .sp-body h6 { font-size: .9375rem !important; text-transform: none; }
+#settings-modal .toolbar-slots-row { font-size: var(--hb-text-sm); }
+#settings-modal .sp-body h6 { font-size: var(--hb-text-sm) !important; text-transform: none; }
 
 #settings-modal #voice-master-volume { width: 100%; min-width: 0; }
 #settings-modal #section-layout :is(.density-picker, .channel-scroll-picker) {
-  gap: .1875rem;
+  gap: .25rem;
   padding: .25rem;
   border-radius: var(--radius);
   background: var(--bg-tertiary);
@@ -1886,8 +1893,8 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     display: grid;
     grid-template-columns: minmax(9rem, 1fr) minmax(0, 2.4fr);
     align-items: center;
-    gap: .25rem 1.25rem;
-    padding-block: .6875rem;
+    gap: .25rem 1rem;
+    padding-block: .75rem;
     margin: 0;
     border-block-end: .0625rem solid var(--border);
   }
@@ -1899,9 +1906,9 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   background: var(--hb-face-bg) var(--hb-face) center / cover no-repeat;
   color: transparent;
 }
-#settings-modal #layout-density-subsection { padding-block: .25rem 1.125rem; border-bottom: .0625rem solid var(--border); }
-#settings-modal .density-sample { border-radius: var(--radius); padding: .875rem 1rem; }
-#settings-modal .density-sample figcaption { margin-bottom: .625rem; }
+#settings-modal #layout-density-subsection { padding-block: .25rem 1rem; border-bottom: .0625rem solid var(--border); }
+#settings-modal .density-sample { border-radius: var(--radius); padding: 1rem; }
+#settings-modal .density-sample figcaption { margin-bottom: .5rem; }
 #settings-modal .density-sample-row strong { color: var(--text-primary); }
 #settings-modal #density-picker .density-btn.active { color: var(--text-primary); }
 #settings-modal #density-picker .density-btn.active::after {
@@ -1928,7 +1935,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     position: static;
     flex-direction: column;
     align-items: stretch;
-    gap: .875rem;
+    gap: .75rem;
     padding: 2.75rem 1rem .75rem var(--nav-inset);
     background: var(--bg-secondary);
     border: 0;
@@ -1974,7 +1981,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
   html[data-habitat-layout] #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) { padding-top: 0; }
 }
 @media (max-width: 42rem) {
-  #settings-modal .settings-header { gap: .375rem; padding: .625rem .875rem; }
+  #settings-modal .settings-header { gap: .25rem; padding: .5rem .75rem; }
   #settings-modal .settings-tab { padding-inline: .5rem; }
   #settings-modal .settings-close-btn { min-width: 2.5rem; height: 2.5rem; }
   #settings-modal .settings-layout:has(.sp-nav) { flex-direction: column; }
@@ -1987,7 +1994,7 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     width: 100%;
     min-width: 0;
     overflow: visible;
-    padding: .625rem .875rem;
+    padding: .5rem .75rem;
     border: 0;
     border-block-end: .0625rem solid var(--border);
   }
@@ -2000,15 +2007,15 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
     width: 100%;
     min-height: 2.625rem;
     padding-inline: .5rem;
-    font: 650 1rem var(--font-main);
+    font: 600 var(--hb-text-md) var(--font-main);
     background: var(--bg-active);
     border: .0625rem solid var(--border-light);
     border-radius: var(--radius);
     color: var(--text-primary);
   }
   #settings-modal .sp-body { padding-inline: 1rem; }
-  #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) { padding-block: 1rem .875rem; }
-  #settings-modal .sp-section-links { gap: .25rem .875rem; }
+  #settings-modal:not(.sp-search) .sp-page-intro:not([hidden]) { padding-block: 1rem .75rem; }
+  #settings-modal .sp-section-links { gap: .25rem 1rem; }
   #settings-modal .sp-section-links button { min-height: 2rem; }
 }
 
@@ -2032,18 +2039,18 @@ html[data-habitat-layout] #settings-modal .modal-maximized {
 
 /* A room stays on one row, with the people connected to it directly underneath. */
 [data-habitat-voice-section] {
-  margin-block: .75rem .375rem;
-  padding-block-start: .625rem;
+  margin-block: .75rem .25rem;
+  padding-block-start: .5rem;
   border-block-start: .0625rem solid var(--border);
 }
-[data-habitat-no-rooms] { margin: .125rem .875rem .5rem; color: var(--text-muted); font-size: .8125rem; }
+[data-habitat-no-rooms] { margin: .125rem .75rem .5rem; color: var(--text-muted); font-size: var(--hb-text-sm); }
 [data-habitat-rooms] [data-voice-connected] .channel-hash,
 [data-habitat-rooms] [data-voice-connected] .channel-voice-indicator { color: var(--success); }
 [data-habitat-room-heading] { display: flex; align-items: center; padding-inline: .5rem; }
 [data-habitat-room-heading] button {
-  display: inline-flex; align-items: center; gap: .375rem; min-height: 2rem;
+  display: inline-flex; align-items: center; gap: .25rem; min-height: 2rem;
   padding: .25rem; border: 0; background: transparent; color: var(--text-secondary);
-  font: 700 .8125rem/1.25 var(--font-main); cursor: pointer;
+  font: 700 var(--hb-text-xs)/1.25 var(--font-main); cursor: pointer;
 }
 [data-habitat-room-heading] button:first-child { flex: 1; }
 [data-habitat-room-heading] button:hover { color: var(--text-primary); }
@@ -2063,7 +2070,7 @@ html[data-habitat-layout] #channel-list .channel-voice-users {
 }
 html[data-habitat-layout] #channel-list .channel-item[style*="display: none"] + .channel-voice-users { display: none; }
 html[data-habitat-layout] #channel-list .channel-voice-user {
-  gap: .5rem; min-height: 1.875rem; padding: .1875rem .375rem; font-size: .875rem;
+  gap: .5rem; min-height: 1.875rem; padding: .125rem .375rem; font-size: .875rem;
 }
 html[data-habitat-layout] #channel-list .channel-voice-user:has([data-habitat-face])::before { content: none; }
 html[data-habitat-layout] #channel-list .channel-voice-user [data-habitat-face] {
@@ -2084,14 +2091,14 @@ html[data-habitat-layout] #channel-list .channel-voice-user .cvu-mic { animation
 /* The title of a voice room: Haven writes "# name" for every channel, so the
    written text is kept for screen readers and the drawn one swaps the hash. */
 html[data-habitat-layout] #channel-header-name[data-habitat-voice-title] {
-  display: inline-flex; align-items: center; gap: .4375rem; font-size: 0;
+  display: inline-flex; align-items: center; gap: .5rem; font-size: 0;
 }
 html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::before {
   content: ''; width: 1.25rem; height: 1.25rem; flex: none;
   background: var(--text-muted); mask: var(--hb-icon-voice) center / contain no-repeat;
 }
 html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::after {
-  content: attr(data-habitat-voice-title); min-width: 0; overflow: hidden; font-size: 1.0625rem; text-overflow: ellipsis;
+  content: attr(data-habitat-voice-title); min-width: 0; overflow: hidden; font-size: var(--hb-text-lg); text-overflow: ellipsis;
 }
 /* The same speaker opens an empty voice room. */
 [data-haven-page="app"] [data-habitat-intro="voice"] > span::before {
@@ -2101,8 +2108,8 @@ html[data-habitat-layout] #channel-header-name[data-habitat-voice-title]::after 
 /* Someone sharing their screen: a small red LIVE mark with the viewer count,
    wherever the roster shows it. */
 html[data-habitat-layout] .voice-stream-badge.live {
-  display: inline-flex; align-items: center; gap: .25rem; padding: .0625rem .375rem; border-radius: var(--radius-sm);
-  color: var(--danger-text); background: var(--danger); font: 700 .6875rem/1.4 var(--font-main);
+  display: inline-flex; align-items: center; min-height: 1.125rem; gap: .25rem; padding: 0 .25rem; border-radius: var(--radius-sm);
+  color: var(--danger-text); background: var(--danger); font: 700 var(--hb-text-xs)/1.4 var(--font-main);
 }
 html[data-habitat-layout] .voice-stream-badge.live .haven-glyph { width: .5rem; height: .5rem; font-size: .5rem; }
 /* The call buttons under the stage on a phone or tablet: thumb-sized, the way
@@ -2166,7 +2173,7 @@ html[data-habitat-layout="compact"] #toast-container {
    its own it sat on the name underneath. */
 [data-habitat-call-stage] [data-habitat-call-avatar]:has(> .pfp-border) { margin-block: .5rem .625rem; }
 [data-habitat-call-stage] .voice-user-item .user-dot.voice { display: none; }
-[data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: .9375rem; }
+[data-habitat-call-stage] .user-item-name { color: var(--text-primary); font-size: var(--hb-text-sm); }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-status-icons { position: absolute; inset: auto .625rem .625rem auto; }
 [data-habitat-call-stage] .voice-user-item:not([data-habitat-on-camera]) .voice-stream-badge { position: absolute; inset: .625rem auto auto .625rem; }
 /* The live mark keeps the top corner to itself; "watching" sits below it. */
@@ -2195,7 +2202,7 @@ html[data-habitat-layout="compact"] #toast-container {
 }
 /* The audio note gives the top right corner to those buttons. */
 [data-habitat-call-stage] .screen-share-tile > :is(.stream-audio-badge, .stream-no-audio-badge) {
-  inset: .5rem auto auto .5rem; padding: .1875rem .5rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
+  inset: .5rem auto auto .5rem; padding: .125rem .5rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
 }
 [data-habitat-stage-spread] { transition: none; }
 [data-habitat-call-stage] .voice-user-menu-btn { position: absolute; inset: .375rem .375rem auto auto; opacity: 0; transition: opacity var(--hb-fast) var(--hb-ease); }
@@ -2204,12 +2211,12 @@ html[data-habitat-layout="compact"] #toast-container {
    screen. No blur behind it: a blur over video is drawn again with every frame. */
 [data-habitat-call-stage] [data-habitat-on-camera] .user-item-name,
 [data-habitat-call-stage] :is(.webcam-tile-label, .screen-share-tile-label) {
-  inset: auto auto .5rem .5rem; width: auto; max-width: calc(100% - 1rem); padding: .1875rem .5rem; border-radius: var(--radius-sm);
-  overflow: hidden; color: var(--hb-on-media); background: var(--hb-media-plate); font: 600 .8125rem/1.3 var(--font-main);
+  inset: auto auto .5rem .5rem; width: auto; max-width: calc(100% - 1rem); padding: .125rem .5rem; border-radius: var(--radius-sm);
+  overflow: hidden; color: var(--hb-on-media); background: var(--hb-media-plate); font: 600 var(--hb-text-sm)/1.3 var(--font-main);
   text-align: start; text-overflow: ellipsis; white-space: nowrap;
 }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons {
-  margin-inline-start: .375rem; padding: .1875rem .375rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
+  margin-inline-start: .25rem; padding: .125rem .25rem; border-radius: var(--radius-sm); background: var(--hb-media-plate);
 }
 [data-habitat-call-stage] [data-habitat-on-camera] .voice-status-icons:empty { display: none; }
 /* The call buttons on the stage: they come and go with the pointer. */
@@ -2269,18 +2276,18 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: .75rem;
 }
-#voice-settings-panel [data-habitat-call-settings-heading] h3 { margin: 0; font: 650 1.125rem/1.4 var(--font-main); }
+#voice-settings-panel [data-habitat-call-settings-heading] h3 { margin: 0; font: 600 var(--hb-text-lg)/1.4 var(--font-main); }
 #voice-settings-panel [data-habitat-call-settings-heading] button { width: 2.75rem; height: 2.75rem; font-size: 1.25rem; }
 [data-habitat-call-stage] + #voice-settings-panel .voice-settings-row {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center; gap: .375rem 1rem; min-height: 2.75rem;
+  align-items: center; gap: .25rem 1rem; min-height: 2.75rem;
 }
 [data-habitat-call-stage] + #voice-settings-panel .settings-hint { grid-column: 1 / -1; color: var(--text-secondary); }
 [data-habitat-call-stage] + #voice-settings-panel .voice-settings-section-label {
-  margin-block: .75rem .375rem; font: 650 1rem/1.4 var(--font-main); letter-spacing: 0; text-transform: none;
+  margin-block: .75rem .25rem; font: 600 var(--hb-text-md)/1.4 var(--font-main); letter-spacing: 0; text-transform: none;
 }
 [data-habitat-call-stage] + #voice-settings-panel .voice-settings-label {
-  white-space: normal; font-size: .9375rem !important; color: var(--text-secondary);
+  white-space: normal; font-size: var(--hb-text-sm) !important; color: var(--text-secondary);
 }
 [data-habitat-call-stage] + #voice-settings-panel :is(select, .ns-slider, .mic-meter) { width: 100%; min-width: 0; max-width: none; }
 [data-habitat-call-stage] + #voice-settings-panel :is(select, .bitrate-value, .bitrate-step-btn) {
@@ -2290,7 +2297,7 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
 [data-habitat-call-stage] + #voice-settings-panel .bitrate-step-btn { width: 2.5rem; }
 @media (max-width: 768px) {
   [data-habitat-call-stage] + #voice-settings-panel .voice-settings-row {
-    grid-template-columns: minmax(0, 1fr); padding-block: .375rem;
+    grid-template-columns: minmax(0, 1fr); padding-block: .25rem;
   }
 }
 
@@ -2350,7 +2357,7 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
   display: grid; grid-template-columns: 1fr minmax(0, 1fr); align-items: center; gap: .75rem; margin: 0;
 }
 [data-haven-page="app"] #sound-modal :is(.sound-assign-select, .settings-text-input, .custom-sound-name-input) {
-  width: 100%; min-width: 0; min-height: 2.5rem; padding-inline: .625rem;
+  width: 100%; min-width: 0; min-height: 2.5rem; padding-inline: .75rem;
   border: .0625rem solid var(--border); border-radius: var(--radius); color: var(--text-primary); background: var(--bg-input);
 }
 [data-haven-page="app"] #sound-modal .whitelist-add-row {
@@ -2362,14 +2369,14 @@ html[data-habitat-layout] [data-haven-region="voice-controls"] #voice-settings-t
 [data-haven-page="app"] #sound-modal #sound-file-input::file-selector-button { min-height: 2.5rem; }
 [data-haven-page="app"] #sound-modal .custom-sound-item {
   display: grid; grid-template-columns: minmax(4rem, 1fr) minmax(6rem, 10rem) repeat(3, 2rem);
-  gap: .375rem; padding-block: .375rem;
+  gap: .5rem; padding-block: .25rem;
 }
 [data-haven-page="app"] #sound-modal .custom-sound-name { overflow-wrap: anywhere; }
 [data-haven-page="app"] #sound-modal .sound-volume input { min-width: 0; width: 100%; }
 [data-haven-page="app"] #sound-modal .custom-sound-item button { min-height: 2rem; padding: 0; }
 [data-haven-page="app"] #sound-modal .sound-delete-btn { grid-column: -2; }
 @media (max-width: 480px) {
-  [data-haven-page="app"] #sound-modal .sound-tab { gap: .25rem; padding-inline: .375rem; }
+  [data-haven-page="app"] #sound-modal .sound-tab { gap: .25rem; padding-inline: .25rem; }
   [data-haven-page="app"] #sound-modal .custom-sound-item { grid-template-columns: minmax(0, 1fr) repeat(3, 2rem); }
   [data-haven-page="app"] #sound-modal .custom-sound-item > :is(.custom-sound-name, .custom-sound-name-input) { grid-column: 1 / -1; }
 }

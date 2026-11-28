@@ -32,7 +32,7 @@ test('Grafit draws plain channel unreads as dots and personal mentions as a coun
   assert.match(count, /content: attr\(data-mentions\)/);
   assert.match(count, /font-size: \.625rem/);
   const name = rule(theme, page + ' .channel-item:has(> .channel-badge:not(.thread-mention-badge)) .channel-name');
-  assert.match(name, /font-weight: 720/);
+  assert.match(name, /font-weight: 700;/);
   assert.match(name, /color: var\(--text-primary\)/);
 });
 
